@@ -10,6 +10,7 @@ Intended usage:
 ### Released
 
 v0.1: 
+
     * point targets only
     * 1D compute of baseband if signal for scene
     * 1D FFT, CFAR, peak grouping and target position error compute
@@ -19,6 +20,7 @@ v0.1:
 ### NEXT
 
 v0.2:
+
     * point targets only with RCS
     * 2D (AoA)
     * velocity
@@ -26,12 +28,14 @@ v0.2:
     * 2D peak grouping (by velocity sign)
     * 3D position error compute
 v0.3:
+
     * 3D targets (at least spheres)
     * medium attenuation
     * 3D point clouds (i.e. over multiple CTI)
     * multiple single reflections
 
 Not planned yet bu considered:
+
 * reads and loads .bin
 * record BB signals in .bin
 * 3D targets and scene rendering with imaging side by side radar
@@ -43,7 +47,7 @@ Check on Google Colab the code:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/matt-chv/bdd8b835c5cb7e739bb8b68d00257690/fmcw-radar-101.ipynb)
 
-Or Read the Docs on [RTD](https://mmwrt.readthedocs.io/en/latest/Intro.html)
+Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedocs-hosted.com/_images/logo-wordmark-light.png)](https://mmwrt.readthedocs.io/en/latest/Intro.html)
 
 ## Release process
 
