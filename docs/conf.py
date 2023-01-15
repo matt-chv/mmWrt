@@ -10,13 +10,13 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.append(os.path.abspath(
-    os.path.join(__file__, os.pardir, os.pardir, "src")))
+    os.path.join(__file__, os.pardir, os.pardir, "mmWrt")))
 
 
 project = 'mmWrt'
 copyright = '2023, matt-chv'
 author = 'matt-chv'
-release = '0.0.1'
+release = '0.0.3'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -32,7 +32,7 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-add_module_names = False
+add_module_names = True
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
