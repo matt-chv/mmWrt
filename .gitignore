@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
 *.py[cod]
 *$py.class
 
@@ -9,7 +10,10 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+mmWrt_venv/
 develop-eggs/
+docs/*.rst
+docs/html
 dist/
 downloads/
 eggs/
@@ -17,6 +21,7 @@ eggs/
 lib/
 lib64/
 parts/
+read_the_docs/
 sdist/
 var/
 wheels/
@@ -105,7 +110,7 @@ celerybeat.pid
 .env
 .venv
 env/
-venv/
+venv*/
 ENV/
 env.bak/
 venv.bak/

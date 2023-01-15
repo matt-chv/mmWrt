@@ -1,0 +1,9 @@
+pyroma
+darglint
+flake8
+pytest
+coverage
+tox
+sphinx
+myst-parser
+sphinx_markdown_builder
