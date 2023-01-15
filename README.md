@@ -76,7 +76,7 @@ should yield 100% pass
 7.run sphinx-api 
 `updates the *.rst in docs/ folder`
 
-> sphinx-apidoc -f -o docs src
+> sphinx-apidoc -f -o docs mmWrt
 
 8. run spinx-build 
 (updates the read_the_docs folder)
