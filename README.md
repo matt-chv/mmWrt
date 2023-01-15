@@ -43,6 +43,7 @@ Check on Google Colab the code:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/matt-chv/bdd8b835c5cb7e739bb8b68d00257690/fmcw-radar-101.ipynb)
 
+Or Read the Docs on [RTD](https://mmwrt.readthedocs.io/en/latest/Intro.html)
 
 ## Release process
 
