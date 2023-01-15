@@ -2,3 +2,6 @@ numpy
 scipy
 matplotlib
 semver
+sphinx
+myst-parser
+sphinx_markdown_builder
