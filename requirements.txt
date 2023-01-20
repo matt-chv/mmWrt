@@ -5,3 +5,7 @@ semver
 sphinx
 myst-parser
 sphinx_markdown_builder
+nbsphinx
+jupyter
+recommonmark
+sphinx-rtd-theme

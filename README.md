@@ -83,10 +83,10 @@ should yield 100% pass
 
 > sphinx-apidoc -f -o docs mmWrt
 
-8. run spinx-build 
+8. run sphinx-build
 (updates the read_the_docs folder)
 
-> sphinx-build -b html docs read_the_docs
+> sphinx-build -b html docs build/html
 
 9. release to pypi-test
 
