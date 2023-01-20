@@ -8,5 +8,7 @@ caption: modules
 maxdepth: 3
 ---
 Intro_nb
+Grouping
+Chirp_Solver
 modules.rst
 ```
