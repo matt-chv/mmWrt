@@ -35,7 +35,106 @@ def test_FMCW_real():
     target_filter = ((mag_r > mag_c) & (mag_r > 5))
 
     index_peaks = where(target_filter)[0]
-    grouped_peaks = rsp.peak_grouping_1d(index_peaks)
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+
+    found_targets = [Target(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(targets, found_targets)
+    assert error < 3
+
+
+def test_FMCW_radar_equation():
+    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
+                  debug=True)
+
+    # adding RCS to ensure targets are detected ...
+    target1 = Target(5.1, rcs_f=lambda f: 10824)
+    target2 = Target(10, 0, 0, vx=lambda t: 2*t+3, rcs_f=lambda f: 43000)
+    targets = [target1, target2]
+
+    bb = rt_points(radar, targets, radar_equation=True, debug=False)
+    # data_matrix = bb['adc_cube'][0][0][0]
+    Distances, range_profile = rsp.range_fft(bb)
+    ca_cfar = rsp.cfar_ca_1d(range_profile)
+
+    range_profile = range_profile
+    ca_cfar = ca_cfar
+
+    mag_r = abs(range_profile)
+    mag_c = abs(ca_cfar)
+    # little hack to remove small FFT ripples : mag_r> 5
+    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+
+    index_peaks = where(target_filter)[0]
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+
+    found_targets = [Target(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(targets, found_targets)
+    assert error < 3
+
+
+def test_FMCW_radar_equation_corner_reflector():
+    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
+                  debug=True)
+
+    # adding RCS to ensure targets are detected ...
+    target1 = Target(5.1, rcs_f=lambda f: 10824,
+                     target_type="corner_reflector")
+    target2 = Target(10, 0, 0, vx=lambda t: 2*t+3, rcs_f=lambda f: 43000)
+    targets = [target1, target2]
+
+    bb = rt_points(radar, targets, radar_equation=True, debug=False)
+    # data_matrix = bb['adc_cube'][0][0][0]
+    Distances, range_profile = rsp.range_fft(bb)
+    ca_cfar = rsp.cfar_ca_1d(range_profile)
+
+    range_profile = range_profile
+    ca_cfar = ca_cfar
+
+    mag_r = abs(range_profile)
+    mag_c = abs(ca_cfar)
+    # little hack to remove small FFT ripples : mag_r> 5
+    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+
+    index_peaks = where(target_filter)[0]
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+
+    found_targets = [Target(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(targets, found_targets)
+    try:
+        assert error < 3
+    except Exception as ex:
+        print("found targets", [str(t) for t in found_targets])
+        print("expected targets", [str(t) for t in targets])
+        raise Exception(str(ex))
+
+
+def test_FMCW_real_adc_po2():
+    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
+                  adc_po2=True,
+                  debug=True)
+
+    target1 = Target(5.1)
+    target2 = Target(10, 0, 0, vx=lambda t: 2*t+3)
+    targets = [target1, target2]
+
+    bb = rt_points(radar, targets, debug=False)
+    # data_matrix = bb['adc_cube'][0][0][0]
+    Distances, range_profile = rsp.range_fft(bb)
+    ca_cfar = rsp.cfar_ca_1d(range_profile)
+
+    range_profile = range_profile
+    ca_cfar = ca_cfar
+
+    mag_r = abs(range_profile)
+    mag_c = abs(ca_cfar)
+    # little hack to remove small FFT ripples : mag_r> 5
+    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+
+    index_peaks = where(target_filter)[0]
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
     found_targets = [Target(Distances[i]) for i in grouped_peaks]
     error = rsp.error(targets, found_targets)
@@ -65,7 +164,7 @@ def test_FMCW_real_error():
     target_filter = ((mag_r > mag_c) & (mag_r > 5))
 
     index_peaks = where(target_filter)[0]
-    grouped_peaks = rsp.peak_grouping_1d(index_peaks)
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
     found_targets = [Target(Distances[i]) for i in grouped_peaks]
     error = rsp.error([target2, target1], found_targets)
@@ -160,7 +259,7 @@ def test_FMCW_cfar_names_ok():
     target_filter = ((mag_r > mag_c) & (mag_r > 5))
 
     index_peaks = where(target_filter)[0]
-    grouped_peaks = rsp.peak_grouping_1d(index_peaks)
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
     found_targets = [Target(Distances[i]) for i in grouped_peaks]
     error = rsp.error([target2, target1], found_targets)
@@ -212,7 +311,7 @@ def test_FMCW_1j():
     target_filter = ((mag_r > mag_c) & (mag_r > 5))
 
     index_peaks = where(target_filter)[0]
-    grouped_peaks = rsp.peak_grouping_1d(index_peaks)
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
     found_targets = [Target(Distances[i]) for i in grouped_peaks]
     error = rsp.error(targets, found_targets)
