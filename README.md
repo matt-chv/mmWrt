@@ -93,13 +93,14 @@ should yield 100% pass
 > python setup.py bdist_wheel
 > twine upload -r testpypi dist\*
 
-10. check on read_the_docs
+10. update on read_the_docs
+
+
 
 11. check on Google Colab
 (Google Colab requires py3.8 as off 2023-Jan-15)
 
 12. release on pypi
 > twine upload -r pypi dist\*
-
 
 

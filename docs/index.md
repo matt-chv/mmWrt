@@ -4,14 +4,10 @@ Welcome to mmWrt: the minimal raytracing radar python module.
 
 ```{toctree}
 ---
-caption: modules
-maxdepth: 3
+caption: Table of Content
+maxdepth: 1
 ---
 Overview
-Intro_FMCW
-FMCW_FFT
-CFAR
-Grouping
-Chirp_Solver
+Radar_Training
 modules.rst
 ```
