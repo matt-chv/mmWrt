@@ -8,13 +8,6 @@ Below diagram shows the context in which mmWrt operates
 
 ![](C4_Context.png)
 
-
-## mmWrt Components
-
-* Scene: Classes used to define the scene
-* Raytracing: functions used to generate the IF signals
-* Radar Signal processing: functions used to process the IF signals
-
 ## Credits
 
 > This overview leverages the [C4 model for visualising software architecture](https://c4model.com/)

@@ -1,13 +1,12 @@
-# README
+# Welcome
 
-Welcome to mmWrt: the minimal raytracing radar python module.
+Welcome to mmWrt: a python module offering minimal raytracing capabilities for FMCW MIMO radars.
 
 ```{toctree}
 ---
 caption: Table of Content
-maxdepth: 1
+maxdepth: 2
 ---
-Overview
+mmWrt_Documentation
 Radar_Training
-modules.rst
 ```
