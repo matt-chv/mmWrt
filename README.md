@@ -9,37 +9,37 @@ Intended usage:
 
 ### Released
 
-v0.1: 
+v0.0.3: first release 
 
     * point targets only
     * 1D compute of baseband if signal for scene
     * 1D FFT, CFAR, peak grouping and target position error compute
     * single reflections
 
+v0.0.4:
 
-### NEXT
+    * adding frequency estimator
+    * added speed processing
+    * added support for radar equation (RCS, distance, ...)
+    * antenna gains in azimumth, elevation and freq
 
-v0.2:
+### NEXT ()
 
-    * point targets only with RCS
     * 2D (AoA)
-    * velocity
     * 2D FFT: range+velocity, range+AoA
     * 2D peak grouping (by velocity sign)
     * 3D position error compute
-v0.3:
-
     * 3D targets (at least spheres)
     * medium attenuation
     * 3D point clouds (i.e. over multiple CTI)
     * multiple single reflections
 
-Not planned yet bu considered:
+Not planned yet but considered:
 
 * reads and loads .bin
-* record BB signals in .bin
-* 3D targets and scene rendering with imaging side by side radar
-* Swerling's scatter
+  * record BB signals in .bin
+  * 3D targets and scene rendering with imaging side by side radar
+  * Swerling's scattering
 
 ## Example Code
 
@@ -91,6 +91,7 @@ should yield 100% pass
 9. release to pypi-test
 
 > python setup.py bdist_wheel
+
 > twine upload -r testpypi dist\*
 
 10. update on read_the_docs
