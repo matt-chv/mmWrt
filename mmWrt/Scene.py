@@ -116,8 +116,8 @@ class Antenna:
         overall_gain: float
             antenna gain at freq and given direction
         """
-        azimuth_deg = int((azimuth+pi)*180/pi)
-        elevation_deg = int((elevation+pi)*180/pi)
+        azimuth_deg = int((azimuth+pi)*180/pi) % 360
+        elevation_deg = int((elevation+pi)*180/pi) % 360
         gain_angle_db = self.angle_gains_db10[azimuth_deg, elevation_deg]
         gain_freq = self.freq_gain_db10(freq)
         overall_gain = 10**gain_angle_db * 10**gain_freq
@@ -150,8 +150,9 @@ class Transmitter():
                  slope=250e6,
                  bw=4e9,
                  antennas=(Antenna(),),
-                 t_interchirp=0,
+                 t_inter_chirp=0,
                  chirps_count=1,
+                 t_inter_frame=0,
                  frames_count=1,
                  conf=None):
         """Transmitter class models a radar transmitter
@@ -166,10 +167,13 @@ class Transmitter():
             bandwidth of the chirp (i.e. fmax-fmin)
         antennas: List[Antenna]
             transmitter Antennas instances
-        t_interchirp: float
+        t_inter_chirp: float
             time increment between two TX antennas sending a chirp
         chirps_count: int
             The # chirps each TX antenna sends per frame
+        t_inter_frame: float
+            time increment between end of last chirp in frame N-1 and first chirp in frame N (offset on top of
+            t_inter_chirp). If t_interframe==0, then there will be a single t_inter_chirp offset.
         frames_count: int
             The number of iterations where each TX antennas send chirps_count
         conf: dict
@@ -177,25 +181,59 @@ class Transmitter():
         """
         self.f0_min = f0_min
         self.slope = slope
-        self.t_interchirp = t_interchirp
+        self.t_inter_chirp = t_inter_chirp
         self.chirps_count = chirps_count
         self.antennas = antennas
+        self.t_inter_frame = t_inter_frame
         self.frames_count = frames_count
         self.bw = bw
         return
 
 
 class Medium:
-    def __init__(self, v=3e8, L=0):
-        # v default to c=3e8 speed of light in void
-        # L defaults to 0 dB/m losses in medium
+    def __init__(self, v=3e8, L=0, name="void"):
+        """
+        v: float
+            speed of light in the given medium, defaults to 3e8 for void
+        L: float
+            attenuation in dB/m in given medium, defaults to 0 for void
+        name: str
+            name of the given medium, defaults to void
+        """
         self.v = v
         self.L = L
+        self.name = name
+        if name == "void":
+            # adding checks to make sure name is updated if non default values passed
+            assert v == 3e8
+            assert L == 0
 
 
 class Radar:
     def __init__(self, transmitter=Transmitter(), receiver=Receiver(),
                  medium=Medium(), adc_po2=False, debug=False):
+        """ Defines a Radar instance from Transmitter class, Receiver class, Medium class
+        and allows overriding the number of adc samples.
+
+        Parameters
+        ----------
+        transmitter: Transmitter()
+            definition of the transmitter chain used
+        receiver: Receiver()
+            definition of the receiver chain used
+        medium: Medium()
+            definition of the medium used (currently only uniform medium)
+        adc_po2: bool
+            if true sets number of ADC to next power of 2 from current value
+        debug: bool
+            if True: prints error message
+            else: raises exception
+
+        Raises
+        ------
+        ValueError
+            if ADC buffer exceeds maximum buffer size
+        """
         self.transmitter = transmitter
         self.rx_antennas = receiver.antennas
         self.tx_antennas = transmitter.antennas
@@ -208,8 +246,10 @@ class Radar:
             assert n_adc / receiver.fs * transmitter.slope < transmitter.bw
         self.f0_min = transmitter.f0_min
         self.slope = transmitter.slope
-        self.t_interchirp = transmitter.t_interchirp
+        self.t_inter_chirp = transmitter.t_inter_chirp
         self.chirps_count = transmitter.chirps_count
+        self.t_inter_frame = transmitter.t_inter_frame
+        self.frames_count = transmitter.frames_count
         self.v = medium.v
         self.medium = medium
         self.range_bin = self.fs * self.v / 2 / self.slope / self.n_adc

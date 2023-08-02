@@ -3,6 +3,7 @@ import sys
 
 from numpy import where
 from numpy import complex_ as complex
+from numpy import float32  # alternatives: float16, float64
 
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
@@ -12,7 +13,7 @@ from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 
-def test_FMCW_real():
+def test_FMCW_float32():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
                   receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
                   debug=True)
@@ -21,7 +22,40 @@ def test_FMCW_real():
     target2 = Target(10, 0, 0, vx=lambda t: 2*t+3)
     targets = [target1, target2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, targets,
+                   datatype=float32,
+                   debug=False)
+    # data_matrix = bb['adc_cube'][0][0][0]
+    Distances, range_profile = rsp.range_fft(bb)
+    ca_cfar = rsp.cfar_ca_1d(range_profile)
+
+    range_profile = range_profile
+    ca_cfar = ca_cfar
+
+    mag_r = abs(range_profile)
+    mag_c = abs(ca_cfar)
+    # little hack to remove small FFT ripples : mag_r> 5
+    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+
+    index_peaks = where(target_filter)[0]
+    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+
+    found_targets = [Target(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(targets, found_targets)
+    assert error < 3
+
+
+def test_FMCW_1j():
+    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
+                  debug=True)
+
+    target1 = Target(5.1)
+    target2 = Target(10, 0, 0, vx=lambda t: 2*t+3)
+    targets = [target1, target2]
+    bb = rt_points(radar, targets,
+                   datatype=complex,
+                   debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_ca_1d(range_profile)
@@ -287,32 +321,4 @@ def test_FMCW_cfar_names_nok():
     assert str_ex == f"Unsupported CFAR type: {cfar_type}"
 
 
-def test_FMCW_1j():
-    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
-                  debug=True)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, vx=lambda t: 2*t+3)
-    targets = [target1, target2]
-    bb = rt_points(radar, targets,
-                   datatype=complex,
-                   debug=False)
-    # data_matrix = bb['adc_cube'][0][0][0]
-    Distances, range_profile = rsp.range_fft(bb)
-    ca_cfar = rsp.cfar_ca_1d(range_profile)
-
-    range_profile = range_profile
-    ca_cfar = ca_cfar
-
-    mag_r = abs(range_profile)
-    mag_c = abs(ca_cfar)
-    # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
-
-    index_peaks = where(target_filter)[0]
-    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
-
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
-    assert error < 3
