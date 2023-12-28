@@ -21,7 +21,6 @@ sphinx:
 # see yaml which yields to pip install .[docs]
 
 python:
-  version: 3.11
   install:
     - method: pip
       path: .
