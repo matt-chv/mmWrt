@@ -101,6 +101,22 @@ should yield 100% pass
 11. check on Google Colab
 (Google Colab requires py3.8 as off 2023-Jan-15)
 
+11.a. if testing release-candidate need to spell out or will install latest stable version
+
+```
+!pip install -i https://test.pypi.org/simple/ mmWrt==0.0.5rc3
+from mmWrt import __version__
+print(__version__)
+```
+
+11.b seems extras cannot be imported from versions, so `pip install mmWrt=0.0.5rc3[dev]` or `pip install mmWrt==0.0.5[dev]` does not work. Need to upgrade to full version to test dev.
+
+```
+!pip install -i https://test.pypi.org/simple/ mmWrt[dev]
+from mmWrt import __version__
+print(__version__)
+```
+
 12. release on pypi
 > twine upload -r pypi dist\*
 

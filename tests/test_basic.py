@@ -1,4 +1,6 @@
 from os.path import abspath, join, pardir
+import re
+from semver import VersionInfo
 import sys
 
 from numpy import where
@@ -11,6 +13,17 @@ from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
+def test_semver():
+    """ Ensures the module version is compatible with semver """
+    fp = abspath(join(__file__, pardir, pardir, "mmWrt", "__init__.py"))
+    with open(fp) as fi:
+        package_version = re.search(
+            r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+            fi.read(),
+            re.MULTILINE
+            ).group(1)
+
+    assert VersionInfo.is_valid(package_version)
 
 def test_FMCW_real():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),

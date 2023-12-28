@@ -5,7 +5,7 @@
 ```{toctree}
 ---
 caption: Theoretical or hands-on
-maxdepth: 3
+maxdepth: 2
 ---
 Terminology
 Hands-on
