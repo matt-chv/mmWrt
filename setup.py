@@ -29,7 +29,7 @@ setup(
     description='minimal raytracing code example for MIMO FMCW radar',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://matt-chv.github.io/mmWrt/',
+    url='https://github.com/matt-chv/mmWrt',
     project_urls={
         "Bug Tracker": "https://github.com/matt-chv/mmWrt/issues",
     },
