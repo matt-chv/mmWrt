@@ -2,40 +2,41 @@
 # from .Receiver import Receiver as Receiver
 # from .Radar import Radar as Radar
 
-from numpy import log2, pi, sqrt, zeros
+from numpy import all, log2, pi, sqrt, zeros
 
 
 class Target():
     def __init__(self, x=0, y=0, z=0,
-                 vx=lambda t: 0, vy=lambda t: 0, vz=lambda t: 0,
+                 xt=lambda t: 0, yt=lambda t: 0, zt=lambda t: 0,
                  rcs_f=lambda f: 1,
                  target_type="point"):
         self.x = x
         self.y = y
         self.z = z
-        self.vx = vx
-        self.vy = vy
-        self.vz = vz
+        self.xt = xt
+        self.yt = yt
+        self.zt = zt
         self.rcs_f = rcs_f
         self.target_type = target_type
 
     def speed(self):
+        raise ValueError("speed not in usage anymore")
         v = (self.vx, self.vy, self.vz)
         return v
 
     def distance(self, target=None, t=0):
-        x0, y0, z0 = self.pos(t)
+        x0, y0, z0 = self.pos_t(t)
         if target is None:
             x1, y1, z1 = 0, 0, 0
         else:
-            x1, y1, z1 = target.pos(t)
+            x1, y1, z1 = target.pos_t(t)
         dist = sqrt((x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2)
         return dist
 
-    def pos(self, t=0):
+    def pos_t(self, t=0):
         x0, y0, z0 = self.x, self.y, self.z
-        vx, vy, vz = self.speed()
-        position_t = (x0+vx(t), y0+vy(t), z0+vz(t))
+        xt, yt, zt = self.xt(t), self.yt(t), self.zt(t)
+        position_t = (x0+xt, y0+yt, z0+zt)
         return position_t
 
     def __str__(self):
@@ -93,7 +94,11 @@ class Antenna:
 
         """
         freq_GHz = freq / 1e9
-        assert freq_GHz > self.f_min_GHz
+        try:
+            assert freq_GHz > self.f_min_GHz
+        except Exception as ex:
+            print("freq_GHz, self.f_min_GHz", freq_GHz, self.f_min_GHz)
+            raise
         assert freq_GHz < self.f_max_GHz
         idx = int((freq_GHz-self.f_min_GHz)*self.look_up)
         gain_db10 = self.freq_gains_db10[idx]
@@ -184,7 +189,10 @@ class Transmitter():
         self.t_inter_chirp = t_inter_chirp
         self.chirps_count = chirps_count
         self.antennas = antennas
-        self.t_inter_frame = t_inter_frame
+        if t_inter_frame == 0:
+            self.t_inter_frame = t_inter_chirp
+        else:
+            self.t_inter_frame = t_inter_frame
         self.frames_count = frames_count
         self.bw = bw
         return
@@ -237,8 +245,10 @@ class Radar:
         self.transmitter = transmitter
         self.rx_antennas = receiver.antennas
         self.tx_antennas = transmitter.antennas
+
         self.frames_count = transmitter.frames_count
         self.fs = receiver.fs
+        self.bw = transmitter.bw
         self.n_adc = int(transmitter.bw / transmitter.slope * receiver.fs)
         if adc_po2:
             self.n_adc = 2 ** int(log2(self.n_adc))
@@ -252,9 +262,25 @@ class Radar:
         self.frames_count = transmitter.frames_count
         self.v = medium.v
         self.medium = medium
+        self.bw = transmitter.bw
         self.range_bin = self.fs * self.v / 2 / self.slope / self.n_adc
         # f*c/2/k
         self.f2d = medium.v * receiver.fs / 2 / transmitter.slope / self.n_adc
+
+        if all(self.rx_antennas[0].angle_gains_db10==0):
+            for idx, _ in enumerate(self.rx_antennas):
+                self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
+                self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
+            print("rx fmin", self.rx_antennas[idx].f_min_GHz)
+            print("rx fmax", self.rx_antennas[idx].f_max_GHz)
+
+        if all(self.tx_antennas[0].angle_gains_db10==0):
+            for idx, _ in enumerate(self.rx_antennas):
+                self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
+                self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
+            print("tx fmin", self.tx_antennas[idx].f_min_GHz)
+            print("tx fmax", self.tx_antennas[idx].f_max_GHz)
+
         try:
             assert self.n_adc < receiver.max_adc_buffer_size
         except AssertionError:
