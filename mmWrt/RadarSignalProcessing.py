@@ -228,6 +228,9 @@ def range_fft(baseband, chirp_index=0, fft_window=None, fft_padding=0):
     Range_FFT = (Distances, FT)
     return Range_FFT
 
+def plot_range_doppler():
+    pass
+
 
 def __quinnsecond__(FT, k):
     """ Provide frequency estimator via Quinn's second estimate
