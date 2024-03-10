@@ -55,6 +55,7 @@ setup(
             "coverage",
             "darglint",
             "flake8",
+            "jupyter",
             "myst-parser",
             "nbsphinx",
             "pyroma",
