@@ -23,6 +23,13 @@ v0.0.4:
     * added support for radar equation (RCS, distance, ...)
     * antenna gains in azimumth, elevation and freq
 
+v0.0.5:
+
+    * moved dependancies from requirements to setup.py
+    * added extras [dev] for developpers (and documentation and read the docs)
+    * moved version checking from setup.py to test_basic.py
+    * added readthedocs.yaml
+
 ### NEXT ()
 
     * 2D (AoA)
@@ -94,14 +101,43 @@ should yield 100% pass
 
 > twine upload -r testpypi dist\*
 
-10. update on read_the_docs
+10. check updates on read_the_docs
 
-
+> push to git to trigger readthedocs build:
+> git push
+> navigate to https://readthedocs.org/projects/mmwrt/builds/
+> ensure build is successful
 
 11. check on Google Colab
 (Google Colab requires py3.8 as off 2023-Jan-15)
 
+11.a. if testing release-candidate need to spell out or will install latest stable version
+
+```
+!python -m pip install -i https://test.pypi.org/simple/ mmWrt==0.0.5rc3
+from mmWrt import __version__
+print(__version__)
+```
+
+11.b seems extras cannot be imported from versions, so `pip install mmWrt=0.0.5rc3[dev]` or `pip install mmWrt==0.0.5[dev]` does not work. Need to upgrade to full version to test dev.
+
+```
+!python -m pip install -i https://test.pypi.org/simple/ mmWrt[dev]
+from mmWrt import __version__
+print(__version__)
+```
+
 12. release on pypi
 > twine upload -r pypi dist\*
+
+13. check on colab that pypi package works:
+
+>!python -m pip install mmWrt
+from mmWrt import __version__
+print(__version__)
+
+13.b. then check dev extras install works
+
+>!python -m pip install mmWrt[dev]
 
 

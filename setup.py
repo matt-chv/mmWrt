@@ -7,7 +7,6 @@ Created on 2022-Dec-31
 """
 import re
 from os.path import abspath, join, pardir
-from semver import VersionInfo
 from setuptools import setup
 
 fp_readme = abspath(join(__file__, pardir, "README.md"))
@@ -19,8 +18,11 @@ with open("mmWrt/__init__.py", "r") as fi:
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fi.read(), re.MULTILINE
     ).group(1)
 
+<<<<<<< HEAD
 assert VersionInfo.is_valid(package_version)
 
+=======
+>>>>>>> 5a64109fbadc48d3ce388c33a35e02733aaf88ff
 setup(
     name='mmWrt',
     version=package_version,
@@ -53,17 +55,21 @@ setup(
                 "Topic :: Utilities",
     ],
     install_requires=["numpy", "scipy", "matplotlib", "semver"],
-    extra_require= {
+    extras_require={
         "dev": [
-            "recommonmark",
-            "pyroma",
+            "coverage",
             "darglint",
             "flake8",
-            "pytest",
-            "coverage",
-            "tox",
-            "sphinx",
-            "nbsphinx",
+            "jupyter",
             "myst-parser",
-            "sphinx_markdown_builder" ]}
+            "nbsphinx",
+            "pyroma",
+            "pytest",
+            "recommonmark",
+            "sphinx",
+            "sphinx_markdown_builder",
+            "sphinx-rtd-theme",
+            "tox",
+            "twine",
+            "wheel"]}
 )
