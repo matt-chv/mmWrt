@@ -18,11 +18,6 @@ with open("mmWrt/__init__.py", "r") as fi:
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fi.read(), re.MULTILINE
     ).group(1)
 
-<<<<<<< HEAD
-assert VersionInfo.is_valid(package_version)
-
-=======
->>>>>>> 5a64109fbadc48d3ce388c33a35e02733aaf88ff
 setup(
     name='mmWrt',
     version=package_version,
