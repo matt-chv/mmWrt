@@ -63,6 +63,8 @@ Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedo
 
 ## Release process
 
+0. Ensure all the new .ipynb are added in docs/Hands-on.md 
+
 1. run pyroma
 (should be 10/10)
 
