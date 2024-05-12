@@ -59,7 +59,7 @@ Check on Google Colab the code:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/matt-chv/bdd8b835c5cb7e739bb8b68d00257690/fmcw-radar-101.ipynb)
 
-Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedocs-hosted.com/_images/logo-wordmark-light.png)](https://mmwrt.readthedocs.io/en/latest/Intro.html)
+Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedocs-hosted.com/_images/logo-wordmark-light.png)](https://mmwrt.readthedocs.io/en/latest/)
 
 ## Release process
 
@@ -132,8 +132,8 @@ from mmWrt import __version__
 print(__version__)
 ```
 
-12. release on pypi
-> twine upload -r pypi dist\*
+12. release on pypi (assumes your pypirc is local to the project)
+> twine upload -r pypi --config-file=.\.pypirc dist\*
 
 13. check on colab that pypi package works:
 
