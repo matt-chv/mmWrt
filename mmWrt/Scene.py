@@ -6,16 +6,76 @@ from numpy import all, log2, pi, sqrt, zeros
 
 
 class Target():
-    def __init__(self, x=0, y=0, z=0,
-                 xt=lambda t: 0, yt=lambda t: 0, zt=lambda t: 0,
+    def __init__(self, x=0.0, y=0.0, z=0.0,
+                 xt=None, yt=None, zt=None,
                  rcs_f=lambda f: 1,
                  target_type="point"):
+        """ Initializes a target, ease of use vs simplicity at definition
+
+        Parameters
+        ----------
+        x: float
+            x-coordinate
+        y: float
+            y-coordinate
+        z: float
+            z-coordindate
+        xt: lambda
+            x-coordinate in time
+        yt: lamda
+            y-coordinate in time
+        zt: lambda
+            z-coordinate in time
+        rcs_f: lambda
+            lambda of rcs as function of frequency
+        target_type: str
+            point or volume
+
+        Raises
+        ------
+        ValueError
+            when definition of x(0) is not x and x is different than 0
+
+        Usage:
+        ------
+        define a target at (x,y,z)=(0,0,0)
+        > target = Target()
+        define a target at (x,y,z)=(10,0,0)
+        > target = Target(10)
+        define a target with a position in time x(t) = 10 + 10*t
+        > target = Target(xt= lambda t: 10 + 10*t)
+        """
         self.x = x
         self.y = y
         self.z = z
-        self.xt = xt
-        self.yt = yt
-        self.zt = zt
+
+        if xt is not None:
+            if x != 0:
+                assert x == xt(0)
+            else:
+                self.x = xt(0)
+            self.xt = xt
+        else:
+            self.xt = lambda t: x
+
+        if yt is not None:
+            if y != 0:
+                assert y == yt(0)
+            else:
+                self.y = yt(0)
+            self.yt = yt
+        else:
+            self.yt = lambda t: y
+
+        if zt is not None:
+            if z != 0:
+                assert z == zt(0)
+            else:
+                self.z = zt(0)
+            self.zt = zt
+        else:
+            self.zt = lambda t: z
+
         self.rcs_f = rcs_f
         self.target_type = target_type
 
@@ -34,9 +94,9 @@ class Target():
         return dist
 
     def pos_t(self, t=0):
-        x0, y0, z0 = self.x, self.y, self.z
+        # x0, y0, z0 = self.x, self.y, self.z
         xt, yt, zt = self.xt(t), self.yt(t), self.zt(t)
-        position_t = (x0+xt, y0+yt, z0+zt)
+        position_t = (xt, yt, zt)
         return position_t
 
     def __str__(self):
@@ -92,13 +152,18 @@ class Antenna:
         gain_dB: float
             gain in dB
 
+        Raises
+        ------
+        ValueError
+            if freq is too low
         """
         freq_GHz = freq / 1e9
         try:
             assert freq_GHz > self.f_min_GHz
         except Exception as ex:
-            print("freq_GHz, self.f_min_GHz", freq_GHz, self.f_min_GHz)
-            raise
+            print(f"{str(ex)}freq_GHz, self.f_min_GHz",
+                  freq_GHz, self.f_min_GHz)
+            raise ValueError("freq")
         assert freq_GHz < self.f_max_GHz
         idx = int((freq_GHz-self.f_min_GHz)*self.look_up)
         gain_db10 = self.freq_gains_db10[idx]
@@ -135,11 +200,13 @@ class Receiver():
                  antennas=(Antenna(),),
                  max_adc_buffer_size=1024,
                  max_fs=25e6,
+                 n_adc=0,
                  config=None,
                  debug=False):
         self.fs = fs
         self.antennas = antennas
         self.max_adc_buffer_size = max_adc_buffer_size
+        self.n_adc = n_adc
         try:
             assert fs < max_fs
         except AssertionError:
@@ -152,12 +219,13 @@ class Receiver():
 class Transmitter():
     def __init__(self,
                  f0_min=60e9,
-                 slope=250e6,
+                 slope=None,
+                 slope_MHz_us=None,
                  bw=4e9,
                  antennas=(Antenna(),),
-                 t_inter_chirp=0,
+                 t_inter_chirp=0.0,
                  chirps_count=1,
-                 t_inter_frame=0,
+                 t_inter_frame=0.0,
                  frames_count=1,
                  conf=None):
         """Transmitter class models a radar transmitter
@@ -166,8 +234,11 @@ class Transmitter():
         ----------
         f0_min: float
             start frequency of the chirp
-        slope: float
+        slope: Optional[float]
             the slope of the linearly growing chirp frequency
+        slope_MHz_us: Optional[float]
+            mutually exclusive with slope being slope parameter
+            slope in MHz/us: a 4 GHz in 16 us is 250 MHz/us.
         bw: float
             bandwidth of the chirp (i.e. fmax-fmin)
         antennas: List[Antenna]
@@ -177,13 +248,22 @@ class Transmitter():
         chirps_count: int
             The # chirps each TX antenna sends per frame
         t_inter_frame: float
-            time increment between end of last chirp in frame N-1 and first chirp in frame N (offset on top of
-            t_inter_chirp). If t_interframe==0, then there will be a single t_inter_chirp offset.
+            time increment between end of last chirp in frame N-1 and
+            first chirp in frame N (offset on top of
+            t_inter_chirp). If t_interframe==0, then there will be a
+            single t_inter_chirp offset.
         frames_count: int
             The number of iterations where each TX antennas send chirps_count
         conf: dict
             additional optional parameters (reserved for future usage)
         """
+        if slope is None and slope_MHz_us is None:
+            slope_MHz_us = 250
+        if slope is not None and slope_MHz_us is not None:
+            assert ValueError("only slope or slope_MHz_us can be specified")
+        if slope is None:
+            slope = slope_MHz_us * 1e12  # type: ignore
+        assert slope > 1e8
         self.f0_min = f0_min
         self.slope = slope
         self.t_inter_chirp = t_inter_chirp
@@ -192,6 +272,7 @@ class Transmitter():
         if t_inter_frame == 0:
             self.t_inter_frame = t_inter_chirp
         else:
+            assert t_inter_frame >= t_inter_chirp
             self.t_inter_frame = t_inter_frame
         self.frames_count = frames_count
         self.bw = bw
@@ -200,7 +281,10 @@ class Transmitter():
 
 class Medium:
     def __init__(self, v=3e8, L=0, name="void"):
-        """
+        """ initialises the medium where demo runs
+
+        Parameters
+        ----------
         v: float
             speed of light in the given medium, defaults to 3e8 for void
         L: float
@@ -212,7 +296,7 @@ class Medium:
         self.L = L
         self.name = name
         if name == "void":
-            # adding checks to make sure name is updated if non default values passed
+            # Ensuring consistency with physics
             assert v == 3e8
             assert L == 0
 
@@ -220,7 +304,8 @@ class Medium:
 class Radar:
     def __init__(self, transmitter=Transmitter(), receiver=Receiver(),
                  medium=Medium(), adc_po2=False, debug=False):
-        """ Defines a Radar instance from Transmitter class, Receiver class, Medium class
+        """ Defines a Radar instance from Transmitter class, Receiver class,
+        Medium class
         and allows overriding the number of adc samples.
 
         Parameters
@@ -247,9 +332,37 @@ class Radar:
         self.tx_antennas = transmitter.antennas
 
         self.frames_count = transmitter.frames_count
+        self.n_adc = receiver.n_adc
         self.fs = receiver.fs
         self.bw = transmitter.bw
-        self.n_adc = int(transmitter.bw / transmitter.slope * receiver.fs)
+        if self.n_adc == 0:
+            self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
+            if self.n_adc == 0:
+                log_msg = f"nadc updated to 0: {transmitter.bw:.2g}" +\
+                    f"{receiver.fs:.2g}= {transmitter.bw*receiver.fs:.2g}" +\
+                    f" /  {transmitter.slope:.2g}"
+                # , transmitter.bw, receiver.fs, transmitter.slope
+                print(log_msg)
+            if debug:
+                print("updating NADC from 0 to:", self.n_adc)
+        t_fft = receiver.n_adc / receiver.fs
+        t_chirp = transmitter.bw / transmitter.slope
+
+        bw_adc = self.n_adc*transmitter.slope/receiver.fs
+        if bw_adc < 0.8 * transmitter.bw:
+            print(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
+        if debug:
+            print(f"Bandwidth in chirp: {transmitter.bw:.2g}")
+            print(f"Bandwidth in ADC buffers: {bw_adc:.2g}")
+        if self.n_adc < 8:
+            print("!!!! ADC # low", self.n_adc)
+            print("BW", transmitter.bw)
+            print("BW GHz", transmitter.bw/1e9)
+            print("K", transmitter.slope)
+            print("K/1e12", transmitter.slope/1e12)
+            print("TC", transmitter.bw / transmitter.slope)
+            print("N_ADC", transmitter.bw / transmitter.slope * receiver.fs)
+
         if adc_po2:
             self.n_adc = 2 ** int(log2(self.n_adc))
             n_adc = self.n_adc
@@ -263,23 +376,33 @@ class Radar:
         self.v = medium.v
         self.medium = medium
         self.bw = transmitter.bw
-        self.range_bin = self.fs * self.v / 2 / self.slope / self.n_adc
-        # f*c/2/k
-        self.f2d = medium.v * receiver.fs / 2 / transmitter.slope / self.n_adc
+        # FIXME: moves this to simulation level
+        # __range_bin: deprecated as relies on c for compute
+        # __c = 3e8
+        # self.range_bin_deprec = receiver.fs*__c/2/self.slope/self.n_adc
 
-        if all(self.rx_antennas[0].angle_gains_db10==0):
+        if all(self.rx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.rx_antennas):
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            print("rx fmin", self.rx_antennas[idx].f_min_GHz)
-            print("rx fmax", self.rx_antennas[idx].f_max_GHz)
+            if debug:
+                print("rx fmin", self.rx_antennas[idx].f_min_GHz)
+                print("rx fmax", self.rx_antennas[idx].f_max_GHz)
 
-        if all(self.tx_antennas[0].angle_gains_db10==0):
+        if all(self.tx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.rx_antennas):
                 self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            print("tx fmin", self.tx_antennas[idx].f_min_GHz)
-            print("tx fmax", self.tx_antennas[idx].f_max_GHz)
+            if debug:
+                print("tx fmin", self.tx_antennas[idx].f_min_GHz)
+                print("tx fmax", self.tx_antennas[idx].f_max_GHz)
+        try:
+            assert t_fft <= t_chirp
+        except AssertionError:
+            if debug:
+                print(f"T_FFT: {t_fft:.2g}")
+                print(f"T_C: {t_chirp:.2g}")
+            raise ValueError("TC should be longer than T_FFT")
 
         try:
             assert self.n_adc < receiver.max_adc_buffer_size

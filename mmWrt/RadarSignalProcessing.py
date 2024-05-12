@@ -1,6 +1,5 @@
 from numpy import array, sqrt, log2, log, pi
 from scipy.fft import fft
-from numpy import complex_ as complex
 from numpy import angle
 
 
@@ -39,6 +38,7 @@ def error(targets_synthetics, targets_f):
     # if less targets found than inserted
     # add the remaining ones to the error
     for t in targets_i:
+        # d = t.distance()
         total_error += t.distance()
 
     # FIXME: add here code in case missing targets or
@@ -169,7 +169,61 @@ def peak_grouping_1d(cfar_idx, mag_r):
     return idx_peaks
 
 
-def range_fft(baseband, chirp_index=0, fft_window=None, fft_padding=0):
+def range_resolution(v, B):
+    """ Range resolution is c/2B
+
+    Parameters
+    ----------
+    v: float
+        celerity of light in medium
+    B: float
+        Bandwidth of signal sampled (often simplified as chirped)
+
+    Returns
+    -------
+    delta_R: float
+        Range Resolution
+    """
+    delta_R = v/2/B
+    return delta_R
+
+
+def if2d(radar):
+    """ ratio from IF frequency to distance
+    !!! important
+
+        the ratio is 1/2 of the d2f as the IF frequency results from the wave
+        traveling to the target and back. Whereas if2d gives the distance
+        between the radar and the scatterer which is 1/2 the distance
+        travelled by the radar EM wave.
+
+    Parameters
+    ----------
+    radar: object
+        a radar object
+
+    Returns
+    --------
+    f2d: float
+        ratio between frequency and distance for given radar
+        settings
+
+    Usage
+    -----
+    f2d = if2d(radar)
+    # assuming f_if is an IF frequency
+    # then d will be the distsance to the target
+    d = f2d * f_if
+    """
+
+    f2d = radar.v/2/radar.slope
+    return f2d
+
+
+def range_fft(baseband, chirp_index=0,
+              fft_window=None, fft_padding=0,
+              full_FFT=False,
+              debug=False):
     """ scipy FFT wrapper with windowing and padding options
 
     Parameters
@@ -184,6 +238,10 @@ def range_fft(baseband, chirp_index=0, fft_window=None, fft_padding=0):
         if 0 - no padding
         if -1: padding to next level of power of 2
         other values: padding to those values
+    full_FFT: bool
+        if True returns the full FFT, else only 0..d_max_unambiguous
+    debug: bool
+        if True logs debug information on console
 
     Returns
     -------
@@ -198,38 +256,63 @@ def range_fft(baseband, chirp_index=0, fft_window=None, fft_padding=0):
     """
     if chirp_index == 0:
         # v0.1.1: adc = baseband['adc_cube'][0][0][0]
-        adc = baseband['adc_cube'][0, chirp_index, 0, 0, :]
+        frame_idx = 0
+        rx_idx = 0
+        tx_idx = 0
+        adc = baseband['adc_cube'][frame_idx, chirp_index, tx_idx, rx_idx, :]
     else:
         raise ValueError("chirp index value not supported yet")
 
     if fft_padding == -1:
+        if debug:
+            print("padding FFT to next **2")
         fft_length = 2**int(log2(len(adc)) + 1)
     elif fft_padding == 0:
+        if debug:
+            print(f"no FFT padding, using len: {len(adc)}")
         fft_length = len(adc)
-    elif fft_padding < 0:
+    elif fft_padding < -1:
         raise ValueError(f"Unsupported fft padding value with : {fft_padding}")
     else:
+        if debug:
+            print(f"padding up to len: {fft_padding} as opposed " +
+                  f"to adc len of: {len(adc)}")
         fft_length = fft_padding
 
     if fft_window is None:
+        if debug:
+            print("FFT without windowing")
         FT = fft(adc, n=fft_length)
     else:
+        if debug:
+            print(f"FFT windowing, using: {fft_window}")
         from scipy.signal import get_window
         w = get_window(fft_window, len(adc))
         FT = fft(adc * w, n=fft_length)
-    if baseband["datatype"] == complex:
-        pass
+
+    delta_R = range_resolution(baseband["v"], baseband["bw"])
+    # Because R_MAX is real, FS-MAX > FIF_MAX * 2
+    delta_R_FFT = (baseband["fs"]/2)*baseband["v"] \
+        / ((len(FT)) * baseband["slope"] * 2)
+    Distances = [i * delta_R_FFT for i in range(len(FT)//2)] + \
+        [-i * delta_R_FFT for i in range(len(FT)//2, len(FT))]
+
+    if debug:
+        print(f"Range Resolution: {delta_R:.2g}, based on chirping")
+        print(f"Range resolution based on sampling:{delta_R_FFT:.2g}")
+
+    if full_FFT:
+        if debug:
+            print("FULL FFT")
     else:
         # return half of FFT for real bb signal
+        if debug:
+            print("returning only half of FFT (non ambiguous ranges/volicity)")
         FT = FT[:len(FT)//2]
-    Distances = [i * baseband["fs"] / adc.shape[0] *
-                 baseband["v"]/2/baseband["slope"]
-                 for i in range(len(FT))]
+        Distances = Distances[:len(Distances)//2]
+
     Range_FFT = (Distances, FT)
     return Range_FFT
-
-def plot_range_doppler():
-    pass
 
 
 def __quinnsecond__(FT, k):

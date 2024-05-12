@@ -4,6 +4,14 @@ mmWrt package
 Submodules
 ----------
 
+mmWrt.Plots module
+------------------
+
+.. automodule:: mmWrt.Plots
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 mmWrt.PointCloud module
 -----------------------
 
