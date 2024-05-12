@@ -9,19 +9,10 @@ Intended usage:
 
 ### Released
 
-v0.0.3: first release 
+v0.0.6:
 
-    * point targets only
-    * 1D compute of baseband if signal for scene
-    * 1D FFT, CFAR, peak grouping and target position error compute
-    * single reflections
-
-v0.0.4:
-
-    * adding frequency estimator
-    * added speed processing
-    * added support for radar equation (RCS, distance, ...)
-    * antenna gains in azimumth, elevation and freq
+    * added micro-doppler
+    * added non-regression on .ipynb in docs/ folder
 
 v0.0.5:
 
@@ -30,10 +21,19 @@ v0.0.5:
     * moved version checking from setup.py to test_basic.py
     * added readthedocs.yaml
 
-v0.0.6:
+v0.0.4:
 
-    * added micro-doppler
-    * added non-regression on .ipynb in docs/ folder
+    * adding frequency estimator
+    * added speed processing
+    * added support for radar equation (RCS, distance, ...)
+    * antenna gains in azimumth, elevation and freq
+
+v0.0.3: first release 
+
+    * point targets only
+    * 1D compute of baseband if signal for scene
+    * 1D FFT, CFAR, peak grouping and target position error compute
+    * single reflections
 
 ### NEXT ()
 
@@ -48,7 +48,7 @@ v0.0.6:
 
 Not planned yet but considered:
 
-* reads and loads .bin
+* reads and loads .bin from DCA1000
   * record BB signals in .bin
   * 3D targets and scene rendering with imaging side by side radar
   * Swerling's scattering
@@ -118,10 +118,10 @@ should yield 100% pass
 11. check on Google Colab
 (Google Colab requires py3.8 as off 2023-Jan-15)
 
-11.a. if testing release-candidate need to spell out or will install latest stable version
+11.a. if testing release-candidate need to add `--pre -U` or will install latest stable version. 
 
 ```
-!python -m pip install -i https://test.pypi.org/simple/ mmWrt==0.0.5rc3
+!python -m pip install -i https://test.pypi.org/simple/ --pre -U mmWrt
 from mmWrt import __version__
 print(__version__)
 ```
