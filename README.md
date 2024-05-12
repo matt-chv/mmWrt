@@ -30,6 +30,11 @@ v0.0.5:
     * moved version checking from setup.py to test_basic.py
     * added readthedocs.yaml
 
+v0.0.6:
+
+    * added micro-doppler
+    * added non-regression on .ipynb in docs/ folder
+
 ### NEXT ()
 
     * 2D (AoA)
