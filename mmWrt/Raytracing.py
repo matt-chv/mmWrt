@@ -58,11 +58,10 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
     fif_max = 2*slope*distance/v
     if debug:
         print("fi_if", fif_max)
-    # FIXME: replace here T by Time inside chirp (different from system time)
+
     YIF = exp(2 * pi * 1j *
-              (f0_min * delta + 2 * slope * delta * Tc - slope * delta**2))
-    # if debug:
-    #    print("YIF", YIF)
+              (f0_min * delta + slope * delta * Tc - slope/2 * delta**2))
+
     if not datatype == complex:
         YIF = real(YIF)
     # if datatype == complex:
@@ -108,6 +107,7 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
         else:
             YIF = YIF / distance**4
         YIF = YIF * 10**(L*distance)
+        # FIXME: add here that YIF = 0 for t<ToF
     IF = (YIF, fif_max)
     return IF
 

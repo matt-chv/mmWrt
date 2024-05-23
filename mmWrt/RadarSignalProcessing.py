@@ -291,11 +291,12 @@ def range_fft(baseband, chirp_index=0,
         FT = fft(adc * w, n=fft_length)
 
     delta_R = range_resolution(baseband["v"], baseband["bw"])
-    # Because R_MAX is real, FS-MAX > FIF_MAX * 2
-    delta_R_FFT = (baseband["fs"]/2)*baseband["v"] \
-        / ((len(FT)) * baseband["slope"] * 2)
-    Distances = [i * delta_R_FFT for i in range(len(FT)//2)] + \
-        [-i * delta_R_FFT for i in range(len(FT)//2, len(FT))]
+    # D_max = c*f_if_max/(2*S)
+    # if complex FFT, f_if_max = fs
+    # if real FFT, f_if_max = fs/2 (for non-ambiguous)
+    delta_R_FFT = baseband["fs"] * baseband["v"] \
+        / (2 * len(FT) * baseband["slope"])
+    Distances = [i * delta_R_FFT for i in range(len(FT))]
 
     if debug:
         print(f"Range Resolution: {delta_R:.2g}, based on chirping")

@@ -49,15 +49,15 @@ def plot_range_doppler(cube, radar, _d0=None, _v0=None, no_speed_shift=True):
         title = f"Range-Doppler  (d0, v0)={_d0}, {_v0:.2g}"
 
     if no_speed_shift:
-        ranges = arange(0, _fs*c/4/_k, _fs*c/4/_k/_NA)
-        speeds = arange(0, _L0M/4/_TIC,
-                        _L0M/4/_TIC/_NC)
+        ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
+        speeds = arange(0, _L0M/2/_TIC,
+                        _L0M/2/_TIC/_NC)
         rdop = abs(fft2(cube))
     else:
         # if ranges could be negative
         # ranges = arange(-_fs*c/8/_k, _fs*c/8/_k, _fs*c/4/_k/_NA)
         # but physics must prevail ...
-        ranges = arange(0, _fs*c/4/_k, _fs*c/4/_k/_NA)
+        ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
         speeds = arange(-_L0M/4/_TIC, _L0M/4/_TIC,
                         _L0M/2/_TIC/_NC)
         # frequency shift the doppler axes as distances cannot be negative

@@ -15,4 +15,5 @@ Chirp_Solver
 Speed
 Precision
 micro_doppler
+Minimum Reproducible Examples (MRE)
 ```
