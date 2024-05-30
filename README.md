@@ -102,23 +102,17 @@ should yield 100% pass
 
 > sphinx-build -b html docs build/html
 
-9. release to pypi-test
+9. release the Release-Candidate to pypi-test
+check that __init__.py is "0.0.X-pre.Y" for RC numbering
 
 > python setup.py bdist_wheel
 
 > twine upload -r testpypi dist\*
 
-10. check updates on read_the_docs
-
-> push to git to trigger readthedocs build:
-> git push
-> navigate to https://readthedocs.org/projects/mmwrt/builds/
-> ensure build is successful
-
-11. check on Google Colab
+10. check on Google Colab
 (Google Colab requires py3.8 as off 2023-Jan-15)
 
-11.a. if testing release-candidate need to add `--pre -U` or will install latest stable version. 
+if testing release-candidate need to add `--pre -U` or will install latest stable version. 
 
 ```
 !python -m pip install -i https://test.pypi.org/simple/ --pre -U mmWrt
@@ -126,24 +120,32 @@ from mmWrt import __version__
 print(__version__)
 ```
 
-11.b seems extras cannot be imported from versions, so `pip install mmWrt=0.0.5rc3[dev]` or `pip install mmWrt==0.0.5[dev]` does not work. Need to upgrade to full version to test dev.
+11. merge dev branch with main
 
-```
-!python -m pip install -i https://test.pypi.org/simple/ mmWrt[dev]
-from mmWrt import __version__
-print(__version__)
-```
+> git checkout main
+> git merge dev_branch_name
 
-12. release on pypi (assumes your pypirc is local to the project)
+12. update the version to final
+update  __init__.py to remove the suffix -pre.Y "0.0.X-pre.Y"
+
+13. release on pypi (assumes your pypirc is local to the project)
+
 > twine upload -r pypi --config-file=.\.pypirc dist\*
 
-13. check on colab that pypi package works:
+14. check on colab that pypi package works:
 
 >!python -m pip install mmWrt
 from mmWrt import __version__
 print(__version__)
 
-13.b. then check dev extras install works
+15. check updates on read_the_docs
+
+> push to git to trigger readthedocs build:
+> git push
+> navigate to https://readthedocs.org/projects/mmwrt/builds/
+> ensure build is successful
+
+16. then check on google colab dev extras instals works
 
 >!python -m pip install mmWrt[dev]
 
