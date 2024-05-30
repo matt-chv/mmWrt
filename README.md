@@ -145,7 +145,12 @@ print(__version__)
 > navigate to https://readthedocs.org/projects/mmwrt/builds/
 > ensure build is successful
 
-16. then check on google colab dev extras instals works
+16. (optional) add tag for release
+
+> git tag -a v0.0.X -m "version comment"
+> git push origin v0.0.X
+
+17. then check on google colab dev extras instals works
 
 >!python -m pip install mmWrt[dev]
 
