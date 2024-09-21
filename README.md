@@ -3,7 +3,7 @@
 minimal raytracing for MIMO FMCW radar systems.
 
 Intended usage:
-1. educational
+1. educational & experimental
 
 ## Release Notes and Roadmap
 
