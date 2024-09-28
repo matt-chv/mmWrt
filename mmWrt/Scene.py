@@ -222,7 +222,7 @@ class Transmitter():
                  slope=None,
                  slope_MHz_us=None,
                  bw=4e9,
-                 antennas=(Antenna(),),
+                 antennas=[Antenna()],
                  t_inter_chirp=0.0,
                  chirps_count=1,
                  t_inter_frame=0.0,
@@ -390,7 +390,8 @@ class Radar:
                 print("rx fmax", self.rx_antennas[idx].f_max_GHz)
 
         if all(self.tx_antennas[0].angle_gains_db10 == 0):
-            for idx, _ in enumerate(self.rx_antennas):
+            for idx, _ in enumerate(self.tx_antennas):
+                print(394, idx)
                 self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
             if debug:
