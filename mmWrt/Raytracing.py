@@ -162,8 +162,8 @@ def rt_points(radar, targets, radar_equation=False,
     # T is the absolute time across the simulation
     T = T*ts
     assert len(T) == n_adc
-    if "T_start" in raytracing_opt:
-        T += raytracing_opt["T_start"]
+    # if "T_start" in raytracing_opt:
+    #    T += raytracing_opt["T_start"]
     if "logger" not in raytracing_opt:
         raytracing_opt["logger"] = "logger"
 
@@ -171,12 +171,13 @@ def rt_points(radar, targets, radar_equation=False,
     Tc = bw/slope
     if n_chirps > 1:
         try:
-            assert Tc > n_adc*ts
-        except Exception as ex:
+            assert Tc >= n_adc*ts
+        except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs NA*TS: {n_adc*ts: .2g}"
+            raise ValueError(log_msg)
         try:
             assert radar.t_inter_chirp > Tc
-        except Exception as ex:
+        except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs " + \
                 f"T_interchip: {radar.t_inter_chirp: .2g}"
             raise ValueError(log_msg)
@@ -184,7 +185,7 @@ def rt_points(radar, targets, radar_equation=False,
     if n_frames > 1:
         try:
             assert radar.t_inter_frame > (radar.t_inter_chirp*n_chirps)
-        except Exception as ex:
+        except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for TF: {radar.t_inter_frame:.2g} " +\
                 f"vs NC*T_interchip: {radar.t_inter_chirp*n_chirps: .2g}"
             raise ValueError(log_msg)
@@ -246,7 +247,7 @@ def rt_points(radar, targets, radar_equation=False,
         baseband["times"] = times
         baseband["T_fin"] = T[-1]
 
-    if debug:
+    if debug:  # pragma: no cover
         print("Generic observations about the simulation")
         print(f"Compute: {raytracing_opt['compute']}")
         print(f"Radar freq: {radar.tx_antennas[0].f_min_GHz} GHz")

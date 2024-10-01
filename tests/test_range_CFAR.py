@@ -12,6 +12,7 @@ sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
+from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 
@@ -145,7 +146,7 @@ def test_FMCW_radar_equation_corner_reflector():
     error = rsp.error(targets, found_targets)
     try:
         assert error < 3
-    except Exception as ex:
+    except Exception as ex:  # pragma: no cover
         print("found targets", [str(t) for t in found_targets])
         print("expected targets", [str(t) for t in targets])
         raise Exception(str(ex))
@@ -223,6 +224,18 @@ def test_FMCW_ADC_fs_vs_fs_max():
     except ValueError as ex:
         str_ex = str(ex)
     assert str_ex == "ADC sampling value must stay below max_fs"
+
+
+def test_TFFT_lte_TC():
+    try:
+        _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=1e4,
+                                    max_fs=1e5,
+                                    max_adc_buffer_size=2048*4, n_adc=2048*3,
+                                    debug=True))
+    except ValueError as ex:
+        str_ex = str(ex)
+    assert str_ex == ERR_TFFT_lte_TC
 
 
 def test_Nyquist():
@@ -322,3 +335,33 @@ def test_FMCW_cfar_names_nok():
     except ValueError as ex:
         str_ex = str(ex)
     assert str_ex == f"Unsupported CFAR type: {cfar_type}"
+
+
+def test_if2d():
+    radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
+                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  debug=False)
+    f2d = rsp.if2d(radar)
+    assert f2d == 0.02142857142857143
+
+
+def test_target_def():
+    """ Ensures code for target default values logic remains
+    constant in time"""
+    _ = Target(10, 0, 0, xt=lambda t: 2*t+10)
+    try:
+        _ = Target(20, xt=lambda t: 2*t+10)
+    except Exception as ex:
+        assert str(ex) == ERR_TARGET_T0
+
+    _ = Target(0, 10, 0, yt=lambda t: 2*t+10)
+    try:
+        _ = Target(0, 20, 0, yt=lambda t: 2*t+10)
+    except Exception as ex:
+        assert str(ex) == ERR_TARGET_T0
+
+    _ = Target(0, 0, 10, zt=lambda t: 2*t+10)
+    try:
+        _ = Target(0, 0, 20, zt=lambda t: 2*t+10)
+    except Exception as ex:
+        assert str(ex) == ERR_TARGET_T0

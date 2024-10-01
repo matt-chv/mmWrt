@@ -148,8 +148,8 @@ def peak_grouping_1d(cfar_idx, mag_r):
     cluster = [cfar_idx[0]]
     if cfar_idx.shape[0] > 1:
         idx_peaks = []
-    else:
-        idx_peaks = [cfar_idx[0]]
+    # else:
+    #    idx_peaks = [cfar_idx[0]]
 
     for i in range(1, cfar_idx.shape[0]):
         # iterate to build cluster
@@ -264,27 +264,27 @@ def range_fft(baseband, chirp_index=0,
         raise ValueError("chirp index value not supported yet")
 
     if fft_padding == -1:
-        if debug:
+        if debug:  # pragma: no cover
             print("padding FFT to next **2")
         fft_length = 2**int(log2(len(adc)) + 1)
     elif fft_padding == 0:
-        if debug:
+        if debug:  # pragma: no cover
             print(f"no FFT padding, using len: {len(adc)}")
         fft_length = len(adc)
     elif fft_padding < -1:
         raise ValueError(f"Unsupported fft padding value with : {fft_padding}")
     else:
-        if debug:
+        if debug:  # pragma: no cover
             print(f"padding up to len: {fft_padding} as opposed " +
                   f"to adc len of: {len(adc)}")
         fft_length = fft_padding
 
     if fft_window is None:
-        if debug:
+        if debug:  # pragma: no cover
             print("FFT without windowing")
         FT = fft(adc, n=fft_length)
     else:
-        if debug:
+        if debug:  # pragma: no cover
             print(f"FFT windowing, using: {fft_window}")
         from scipy.signal import get_window
         w = get_window(fft_window, len(adc))
@@ -298,16 +298,16 @@ def range_fft(baseband, chirp_index=0,
         / (2 * len(FT) * baseband["slope"])
     Distances = [i * delta_R_FFT for i in range(len(FT))]
 
-    if debug:
+    if debug:  # pragma: no cover
         print(f"Range Resolution: {delta_R:.2g}, based on chirping")
         print(f"Range resolution based on sampling:{delta_R_FFT:.2g}")
 
     if full_FFT:
-        if debug:
+        if debug:  # pragma: no cover
             print("FULL FFT")
     else:
         # return half of FFT for real bb signal
-        if debug:
+        if debug:  # pragma: no cover
             print("returning only half of FFT (non ambiguous ranges/volicity)")
         FT = FT[:len(FT)//2]
         Distances = Distances[:len(Distances)//2]

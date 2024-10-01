@@ -13,7 +13,6 @@ v0.0.7
     * adding AoA
     * adding sparse array support
 
-
 v0.0.6:
 
     * added micro-doppler

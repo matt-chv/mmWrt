@@ -12,6 +12,7 @@ from mmWrt.Scene import Antenna, Medium, Radar, Receiver, Target, Transmitter
 from mmWrt.Raytracing import rt_points
 from mmWrt import __version__
 
+
 def test_SIMO_AoA():
     f0 = 62e9
     # Number of ADC samples
@@ -26,7 +27,7 @@ def test_SIMO_AoA():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048,
                                     n_adc=NA,
                                     antennas=RXs),
-                  debug=True)
+                  debug=False)
     target1 = Target(5.1, 0, 0)
     target2 = Target(0, 10.1, 0)
     targets = [target1, target2]
@@ -50,14 +51,11 @@ def test_SIMO_AoA():
     # compute spare array AoA FFT
     for idx in range(10):
         pk = find_peaks(abs(R_fft[0,0,0,idx,:NA//2]))
-        print(pk[0])
-        print("--")
-    plt.title("AoA FFT")
-    plt.plot(abs(A_FFT[0,0,0,:,4]))
+        print(pk[0][0])
+        assert pk[0][0] == 4
+        # print(pk[0])
+        # print("--")
+    # plt.title("AoA FFT")
+    # plt.plot(abs(A_FFT[0,0,0,:,4]))
     # plt.savefig("AoA FFT B4.png")
-    plt.savefig("AoA FFT A8_3.png")
-
-
-if __name__ == "__main__":
-    print(__version__)
-    test_SIMO_AoA()
+    # plt.savefig("AoA FFT A8_3.png")

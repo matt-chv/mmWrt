@@ -4,6 +4,9 @@
 
 from numpy import all, log2, pi, sqrt, zeros
 
+ERR_TARGET_T0 = "xyz<>xyzt(0)"
+ERR_TFFT_lte_TC = "TFFT should be shorter than TC"
+
 
 class Target():
     def __init__(self, x=0.0, y=0.0, z=0.0,
@@ -51,8 +54,11 @@ class Target():
 
         if xt is not None:
             if x != 0:
-                assert x == xt(0)
-            else:
+                try:
+                    assert x == xt(0)
+                except Exception as ex:
+                    raise ValueError(ERR_TARGET_T0)
+            else:  # pragma: no cover
                 self.x = xt(0)
             self.xt = xt
         else:
@@ -60,8 +66,11 @@ class Target():
 
         if yt is not None:
             if y != 0:
-                assert y == yt(0)
-            else:
+                try:
+                    assert y == yt(0)
+                except Exception as ex:
+                    raise ValueError(ERR_TARGET_T0)
+            else:  # pragma: no cover
                 self.y = yt(0)
             self.yt = yt
         else:
@@ -69,8 +78,12 @@ class Target():
 
         if zt is not None:
             if z != 0:
-                assert z == zt(0)
-            else:
+                try:
+                    assert z == zt(0)
+                except Exception as ex:
+                    raise ValueError(ERR_TARGET_T0)
+
+            else:  # pragma: no cover
                 self.z = zt(0)
             self.zt = zt
         else:
@@ -79,10 +92,10 @@ class Target():
         self.rcs_f = rcs_f
         self.target_type = target_type
 
-    def speed(self):
-        raise ValueError("speed not in usage anymore")
-        v = (self.vx, self.vy, self.vz)
-        return v
+    # def speed(self):
+    #    raise ValueError("speed not in usage anymore")
+    #    v = (self.vx, self.vy, self.vz)
+    #    return v
 
     def distance(self, target=None, t=0):
         x0, y0, z0 = self.pos_t(t)
@@ -107,7 +120,7 @@ class Target():
 
 
 class Antenna:
-    def __init__(self, x=0, y=0, z=0, angle_gains_db10=zeros((360, 360)),
+    def __init__(self, x=0.0, y=0, z=0, angle_gains_db10=zeros((360, 360)),
                  f_min_GHz=60, f_max_GHz=64, freq_gains_db10=zeros(4)):
         """ initialize antenna position and gains.
         Defaults to isotropic radiation pattern
@@ -160,7 +173,7 @@ class Antenna:
         freq_GHz = freq / 1e9
         try:
             assert freq_GHz > self.f_min_GHz
-        except Exception as ex:
+        except Exception as ex:  # pragma: no cover
             print(f"{str(ex)}freq_GHz, self.f_min_GHz",
                   freq_GHz, self.f_min_GHz)
             raise ValueError("freq")
@@ -259,7 +272,7 @@ class Transmitter():
         """
         if slope is None and slope_MHz_us is None:
             slope_MHz_us = 250
-        if slope is not None and slope_MHz_us is not None:
+        if slope is not None and slope_MHz_us is not None:  # pragma: no cover
             assert ValueError("only slope or slope_MHz_us can be specified")
         if slope is None:
             slope = slope_MHz_us * 1e12  # type: ignore
@@ -337,24 +350,25 @@ class Radar:
         self.bw = transmitter.bw
         if self.n_adc == 0:
             self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
-            if self.n_adc == 0:
+            if self.n_adc == 0:  # pragma: no cover
                 log_msg = f"nadc updated to 0: {transmitter.bw:.2g}" +\
                     f"{receiver.fs:.2g}= {transmitter.bw*receiver.fs:.2g}" +\
                     f" /  {transmitter.slope:.2g}"
                 # , transmitter.bw, receiver.fs, transmitter.slope
-                print(log_msg)
-            if debug:
+                raise ValueError(log_msg)
+            if debug:  # pragma: no cover
                 print("updating NADC from 0 to:", self.n_adc)
         t_fft = receiver.n_adc / receiver.fs
         t_chirp = transmitter.bw / transmitter.slope
 
         bw_adc = self.n_adc*transmitter.slope/receiver.fs
-        if bw_adc < 0.8 * transmitter.bw:
-            print(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
-        if debug:
+
+        if debug:  # pragma: no cover
+            if bw_adc < 0.8 * transmitter.bw:
+                print(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
             print(f"Bandwidth in chirp: {transmitter.bw:.2g}")
             print(f"Bandwidth in ADC buffers: {bw_adc:.2g}")
-        if self.n_adc < 8:
+        if self.n_adc < 8:  # pragma: no cover
             print("!!!! ADC # low", self.n_adc)
             print("BW", transmitter.bw)
             print("BW GHz", transmitter.bw/1e9)
@@ -385,30 +399,29 @@ class Radar:
             for idx, _ in enumerate(self.rx_antennas):
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            if debug:
+            if debug:  # pragma: no cover
                 print("rx fmin", self.rx_antennas[idx].f_min_GHz)
                 print("rx fmax", self.rx_antennas[idx].f_max_GHz)
 
         if all(self.tx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.tx_antennas):
-                print(394, idx)
                 self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            if debug:
+            if debug:  # pragma: no cover
                 print("tx fmin", self.tx_antennas[idx].f_min_GHz)
                 print("tx fmax", self.tx_antennas[idx].f_max_GHz)
         try:
             assert t_fft <= t_chirp
         except AssertionError:
-            if debug:
+            if debug:  # pragma: no cover
                 print(f"T_FFT: {t_fft:.2g}")
                 print(f"T_C: {t_chirp:.2g}")
-            raise ValueError("TC should be longer than T_FFT")
+            raise ValueError(ERR_TFFT_lte_TC)
 
         try:
             assert self.n_adc < receiver.max_adc_buffer_size
         except AssertionError:
-            if debug:
+            if debug:  # pragma: no cover
                 print(f"buffer size: {self.n_adc} > " +
                       f"vs max buffer size: {receiver.max_adc_buffer_size}" +
                       f"ratio: {self.n_adc/receiver.max_adc_buffer_size}")
