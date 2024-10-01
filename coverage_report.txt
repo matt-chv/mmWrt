@@ -1,0 +1,13 @@
+Name                             Stmts   Miss  Cover   Missing
+--------------------------------------------------------------
+mmWrt\RadarSignalProcessing.py     128     33    74%   269, 274-280, 289-291, 349-361, 379-382, 410-424
+mmWrt\Raytracing.py                 90      0   100%
+mmWrt\Scene.py                     159      0   100%
+mmWrt\__init__.py                    1      0   100%
+tests\test_AoA.py                   35      0   100%
+tests\test_docs.py                  25      0   100%
+tests\test_nb.py                     0      0   100%
+tests\test_range_CFAR.py           220      0   100%
+tests\test_range_doppler.py         36      0   100%
+--------------------------------------------------------------
+TOTAL                              694     33    95%

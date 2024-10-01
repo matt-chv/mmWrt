@@ -37,10 +37,10 @@ class Target():
         Raises
         ------
         ValueError
-            when definition of x(0) is not x and x is different than 0
+            when definition of xyz(0) is not xyz and xyz is different than 0
 
-        Usage:
-        ------
+        Examples
+        --------
         define a target at (x,y,z)=(0,0,0)
         > target = Target()
         define a target at (x,y,z)=(10,0,0)
@@ -56,7 +56,7 @@ class Target():
             if x != 0:
                 try:
                     assert x == xt(0)
-                except Exception as ex:
+                except AssertionError:
                     raise ValueError(ERR_TARGET_T0)
             else:  # pragma: no cover
                 self.x = xt(0)
@@ -68,7 +68,7 @@ class Target():
             if y != 0:
                 try:
                     assert y == yt(0)
-                except Exception as ex:
+                except AssertionError:
                     raise ValueError(ERR_TARGET_T0)
             else:  # pragma: no cover
                 self.y = yt(0)
@@ -80,7 +80,7 @@ class Target():
             if z != 0:
                 try:
                     assert z == zt(0)
-                except Exception as ex:
+                except AssertionError:
                     raise ValueError(ERR_TARGET_T0)
 
             else:  # pragma: no cover
@@ -91,11 +91,6 @@ class Target():
 
         self.rcs_f = rcs_f
         self.target_type = target_type
-
-    # def speed(self):
-    #    raise ValueError("speed not in usage anymore")
-    #    v = (self.vx, self.vy, self.vz)
-    #    return v
 
     def distance(self, target=None, t=0):
         x0, y0, z0 = self.pos_t(t)
@@ -333,7 +328,7 @@ class Radar:
             if true sets number of ADC to next power of 2 from current value
         debug: bool
             if True: prints error message
-            else: raises exception
+            if False: exception
 
         Raises
         ------

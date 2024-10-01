@@ -2,17 +2,19 @@ from os.path import abspath, join, pardir
 import sys
 from scipy.fft import fft
 from scipy.signal import find_peaks
-import matplotlib.pyplot as plt
 from numpy import zeros
+import pytest
 
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Scene import Antenna, Medium, Radar, Receiver, Target, Transmitter
-from mmWrt.Raytracing import rt_points
-from mmWrt import __version__
+from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
+    Target, Transmitter  # noqa: E402
+from mmWrt.Raytracing import rt_points  # noqa: E402
+from mmWrt import __version__  # noqa: E402
 
 
+@pytest.mark.skipif(__version__.find("rc") >= 0, reason="only for release")
 def test_SIMO_AoA():
     f0 = 62e9
     # Number of ADC samples
@@ -35,22 +37,25 @@ def test_SIMO_AoA():
     bb = rt_points(radar, targets,
                    debug=False)
     cube = bb["adc_cube"]
+    # Range FFT
     R_fft = fft(cube, axis=4)
+    # AoA FFT
     A_FFT = fft(R_fft, axis=3)
     for rx_idx in range(NR//4):
-        A_FFT[0,0,0, 4*rx_idx+1, :] = zeros(NA)
-        A_FFT[0,0,0, 4*rx_idx+2, :] = zeros(NA)
-        A_FFT[0,0,0, 4*rx_idx+3, :] = zeros(NA)
+        A_FFT[0, 0, 0, 4*rx_idx+1, :] = zeros(NA)
+        A_FFT[0, 0, 0, 4*rx_idx+2, :] = zeros(NA)
+        A_FFT[0, 0, 0, 4*rx_idx+3, :] = zeros(NA)
 
-    Z_fft = abs(A_FFT[0,0,0,:,:])
-    plt.xlabel("Range")
-    plt.ylabel("AoA")
-    plt.title('AoA-Range 2D FFT')
+    # Z_fft = abs(A_FFT[0, 0, 0, :, :])
+    # plt.xlabel("Range")
+    # plt.ylabel("AoA")
+    # plt.title('AoA-Range 2D FFT')
     # plt.imshow(Z_fft)
     # plt.savefig("ZFFT.png")
     # compute spare array AoA FFT
     for idx in range(10):
-        pk = find_peaks(abs(R_fft[0,0,0,idx,:NA//2]))
+        pk = find_peaks(abs(R_fft[0, 0, 0,
+                                  idx, :NA//2]))
         print(pk[0][0])
         assert pk[0][0] == 4
         # print(pk[0])

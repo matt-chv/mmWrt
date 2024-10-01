@@ -96,6 +96,8 @@ should yield 100% pass
 
 6. run tox
 
+> tox
+
 7.run sphinx-api 
 `updates the *.rst in docs/ folder`
 
