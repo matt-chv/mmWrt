@@ -24,7 +24,8 @@ Reciprocally the `Output` of the medium will be the RX antenna(s).
 * SIMO: Single Input Multiple Outputs (1 TX, multiple RX)
 * MIMO: Multiple Inputs Multiple Outputs (multiple TX, multiple RX)
   * TDM-MIMO: TX antennas transmit according to a `Time Division Multiplexing` scheme. i.e. one after another
-  * BMD-MIMO: TX antennas transmit with a `Binary Phase Modulation`
+  * BPM-MIMO: TX antennas transmit with a `Binary Phase Modulation`
+  * DDM-MIMO: TX antennas transmit with `Doppler Division Multiplexing`
 
 ## FMCW
 

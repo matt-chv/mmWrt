@@ -15,6 +15,9 @@ from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
+# FIXME: add here tests that T[0] for different chirps configuration
+# is the good one in TDM and DDMs
+
 
 def test_semver():
     """ Ensures the module version is compatible with semver """

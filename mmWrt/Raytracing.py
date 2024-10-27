@@ -1,10 +1,12 @@
-from numpy import arctan2, arange, exp, pi, sqrt, zeros, real
+from numpy import arctan2, arange, array, exp, mean, pi, sqrt, zeros, real
 from numpy import float32  # alternatives: float16, float64
 from numpy import complex_ as complex
 
 
 def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
-          medium, datatype=float32, radar_equation=False, debug=False):
+          medium,
+          TX_phase_offset=0.0,
+          datatype=float32, radar_equation=False, debug=False):
     """ This function implements the mathematical IF defined in latex as
     y_{IF} = cos(2 \\pi [f_0\\delta + s * \\delta * t - s* \\delta^2])
     into following python code
@@ -26,6 +28,8 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
         instance of Target()
     medium : Medium
         instance of Medium
+    TX_phase_offset: Float
+        phase offset (TX phase for given TX channel), defaults to 0
     datatype: type
         either float16, 32, 64 or complex128
     radar_equation: bool
@@ -47,20 +51,21 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
     L = medium.L
     distance = sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 + (tx_z - t_z)**2)
     distance += sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
-    if debug:
-        print(f"distance: {distance:.2g}")
+    # if debug:
+    #    print(f"distance: {distance:.2g}")
     # note delta_time is d/v because d is already there and back
     # (usually 2*d in text books)
     delta = distance / v
-    if debug:
-        print(f"delta t: {delta:.2g}")
+    # if debug:
+    #    print(f"delta t: {delta:.2g}")
     # compute fif_max for upper layer to ensure Nyquist
     fif_max = 2*slope*distance/v
-    if debug:
-        print("fi_if", fif_max)
+    # if debug:
+    #    print("fi_if", fif_max)
 
     YIF = exp(2 * pi * 1j *
-              (f0_min * delta + slope * delta * Tc - slope/2 * delta**2))
+              (f0_min * delta + slope * delta * Tc - slope/2 * delta**2) +
+              1j*TX_phase_offset)
 
     if not datatype == complex:
         YIF = real(YIF)
@@ -154,6 +159,14 @@ def rt_points(radar, targets, radar_equation=False,
     n_adc = radar.n_adc
     ts = 1/radar.fs
     bw = radar.bw
+    mimo_mode = "TDM"
+    TX_phase_offsets = []
+    if radar.tx_conf is not None:
+        if "mimo_mode" in radar.tx_conf:
+            mimo_mode = radar.tx_conf["mimo_mode"]
+            if mimo_mode == "DDM":
+                assert "TX_phase_offsets" in radar.tx_conf
+                TX_phase_offsets = radar.tx_conf["TX_phase_offsets"]
     adc_cube = zeros((n_frames, n_chirps, n_tx, n_rx, n_adc)).astype(datatype)
     times = zeros((n_frames, n_chirps, n_tx, n_rx, n_adc))
     f0_min = radar.f0_min
@@ -213,16 +226,35 @@ def rt_points(radar, targets, radar_equation=False,
         for frame_i in range(n_frames):
             for chirp_i in range(n_chirps):
                 for tx_i in range(n_tx):
+                    phaser = 0
+                    if mimo_mode == "TDM":
+                        # in TDM TX transmit one after the other
+                        # one chirp apart
+                        # to T[0] is incremented by t_inter_chirp
+                        T = Tc + (radar.t_inter_frame*frame_i) + \
+                                (radar.t_inter_chirp*(chirp_i+1)*(tx_i+1))
+                    elif mimo_mode == "DDM":
+                        # in DDM all TX transmit at once
+                        # so T[0] used to compute target distance
+                        # does not change
+                        T = Tc + (radar.t_inter_frame*frame_i) + \
+                                (radar.t_inter_chirp*(chirp_i+1))
+                        # T = array(T)
+                        # here define the phaser from the passed
+                        # configuration
+                        phaser = 2*pi*TX_phase_offsets[tx_i]*chirp_i
+                    else:
+                        raise ValueError(f"MIMO mode: {mimo_mode} not valid")
+
                     for rx_i in range(n_rx):
                         YIF = zeros(n_adc).astype(datatype)
-                        T = Tc + (radar.t_inter_frame*frame_i) + \
-                            (radar.t_inter_chirp*(chirp_i+1))
                         for target in targets:
                             YIFi, fif_max = BB_IF(f0_min, slope, T,
                                                   radar.tx_antennas[tx_i],
                                                   radar.rx_antennas[rx_i],
                                                   target,
                                                   radar.medium,
+                                                  TX_phase_offset=phaser,
                                                   radar_equation=radar_equation,  # noqa E501
                                                   datatype=datatype,
                                                   debug=debug)
@@ -238,9 +270,15 @@ def rt_points(radar, targets, radar_equation=False,
                                           f"radar ADC fs is: {radar.fs}")
                                     raise ValueError(log_msg)
                             YIF += YIFi
-                        adc_cube[frame_i, chirp_i, tx_i, rx_i, :] = YIF
-                        times[frame_i, chirp_i, tx_i, rx_i, :] = T
-                        YIF, YIFi = None, None
+                        if mimo_mode == "TDM":
+                            adc_cube[frame_i, chirp_i, tx_i, rx_i, :] = YIF
+                            times[frame_i, chirp_i, tx_i, rx_i, :] = T
+                            YIF, YIFi = None, None
+                        elif mimo_mode == "DDM":
+                            # nth RX receives all the TXs at once
+                            adc_cube[frame_i, chirp_i, 0, rx_i, :] += YIF
+                        else:
+                            raise ValueError(f"un supported mimo_mode: :{mimo_mode}")
 
         baseband["adc_cube"] = adc_cube
         # T_fin = ((Tc +t_inter_chirp * NC) + t_inter_frame)*n_frames+ Tc
@@ -261,6 +299,19 @@ def rt_points(radar, targets, radar_equation=False,
         else:
             print("Range resolution", range_resolution)
         Tc = bw/slope
+        if "mimo_mode" in radar.tx_conf:
+            if radar.tx_conf == "DDM":
+                try:
+                    assert "TX_phase_offsets" in radar.tx_conf
+                except AssertionError:
+                    ValueError("In DDM , TX_phase_offsets must be provided")
+                else:
+                    for phi0 in radar.tx_conf["TX_phase_offsets"]:
+                        try:
+                            phi0 = float(phi0)  # force type to float
+                            assert -1.0 < phi0 < 1.0
+                        except AssertionError:
+                            ValueError("TX_phase_offsets must be in [-1, 1]")
         print("Tc", Tc)
         print("T[-1]", T[-1])
         print("ts", ts)
@@ -274,11 +325,16 @@ def rt_points(radar, targets, radar_equation=False,
         print("Dmax as function fs", radar.fs*v/2/slope)
         radar_lambda = radar.medium.v/radar.tx_antennas[0].f_min_GHz/1e9
         print(f"radar lambda: {radar_lambda}")
+        vmax = None
+        vmax_ddm = None
         if radar.t_inter_chirp > 0 and radar.chirps_count > 0:
             vmax = radar_lambda/4/radar.t_inter_chirp
             print(f"vmax :{vmax}")
             vref_IF = radar_lambda/2/radar.chirps_count/Tc
             print(f"speed resolution (within a frame of N chirps): {vref_IF}")
+
+            if mimo_mode == "DDM":
+                vmax_ddm = vmax / n_tx
         else:
             print("no speed info as only one chirp transmitted")
         # vres = lambda / 2 / N / Tc
@@ -297,6 +353,21 @@ def rt_points(radar, targets, radar_equation=False,
             distance_covered = sqrt((x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2)
             target_if = 2*slope*target.distance()/radar.medium.v
 
+            from numpy import gradient
+            vxt = gradient(target.xt(T), T[1]-T[0])
+            vyt = array(gradient(target.yt(T), T[1]-T[0]))
+            vzt = array(gradient(target.zt(T), T[1]-T[0]))
+            vt = sqrt(vxt**2+vyt**2+vzt**2)
+            vt_max = max(vt)
+            vt_min = min(vt)
+            vt_mean = mean(vt)
+
+            if vt_max > 0:
+                try:
+                    assert vt_max < vmax
+                except AssertionError:
+                    raise ValueError("!!! Vmax exceeds unambiguous speed")
+
             print(f"IF frequency for target[{idx}] is {target_if}, "
                   f"which is {target_if/radar.fs:.2g} of fs")
 
@@ -309,5 +380,18 @@ def rt_points(radar, targets, radar_equation=False,
                       f"{distance_covered} < {range_resolution} range res.")
             print(f"Range index: from {d0//range_resolution} "
                   f"to {d1//range_resolution}")
+
+            if vt_max > vmax:
+                print(f"!!!! vmax of target is: {vt_max} > " +
+                      f"unambiguous speed: {vmax}")
+            else:
+                print(f"vmax of target is: {vt_max} < unambiguous" +
+                      f" speed: {vmax}")
+            print(f"vt_min: {vt_min}, vt_mean: {vt_mean}, vt_max:{vt_max}")
+            if mimo_mode == "DDM":
+                if vt_max > vmax_ddm:
+                    print(f"!!!! vmax of target is: {vt_max} > DDM" +
+                          f"unambiguous speed: {vmax_ddm}")
+
             print(f"End of simulation time: {T[-1]}")
     return baseband

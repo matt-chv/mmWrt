@@ -7,7 +7,7 @@ and ran without installation constraints.
 ```{toctree}
 ---
 caption: Hands-on notebookd based on mmWrt
-maxdepth: 3
+maxdepth: 4
 ---
 Intro_nb
 Grouping
@@ -16,5 +16,7 @@ Speed
 Precision
 micro_doppler
 Angle_of_Arrival
+TDM_MIMO
+DDM_MIMO
 Minimum Reproducible Examples (MRE)
 ```

@@ -62,7 +62,11 @@ class Target():
                 self.x = xt(0)
             self.xt = xt
         else:
-            self.xt = lambda t: x
+            # seems that
+            # self.xt = lambdat t: x
+            # does not always work to return an array when fed an array
+            # so writting it lambda t: 0*t + x
+            self.xt = lambda t: 0*t + x
 
         if yt is not None:
             if y != 0:
@@ -74,7 +78,7 @@ class Target():
                 self.y = yt(0)
             self.yt = yt
         else:
-            self.yt = lambda t: y
+            self.yt = lambda t: 0*t + y
 
         if zt is not None:
             if z != 0:
@@ -87,7 +91,7 @@ class Target():
                 self.z = zt(0)
             self.zt = zt
         else:
-            self.zt = lambda t: z
+            self.zt = lambda t: 0*t + z
 
         self.rcs_f = rcs_f
         self.target_type = target_type
@@ -264,6 +268,7 @@ class Transmitter():
             The number of iterations where each TX antennas send chirps_count
         conf: dict
             additional optional parameters (reserved for future usage)
+            includes mimo_mode = [TDM, DDM]
         """
         if slope is None and slope_MHz_us is None:
             slope_MHz_us = 250
@@ -284,6 +289,14 @@ class Transmitter():
             self.t_inter_frame = t_inter_frame
         self.frames_count = frames_count
         self.bw = bw
+        self.conf = conf
+        if conf is None:
+            self.conf = {"mimo_mode": "TDM"}
+        else:
+            if "mimo_mode" in self.conf:
+                assert self.conf["mimo_mode"] in ["TDM", "DDM"]
+            else:
+                self.conf["mimo_mode"] = "TDM"
         return
 
 
@@ -343,6 +356,7 @@ class Radar:
         self.n_adc = receiver.n_adc
         self.fs = receiver.fs
         self.bw = transmitter.bw
+        self.tx_conf = transmitter.conf
         if self.n_adc == 0:
             self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
             if self.n_adc == 0:  # pragma: no cover

@@ -9,6 +9,10 @@ Intended usage:
 
 ### Released
 
+v0.0.8:
+    * adding TDM MIMO
+    * adding DDM MIMO (including Doppler desambiguation)
+
 v0.0.7
     * adding AoA
     * adding sparse array support
@@ -41,8 +45,8 @@ v0.0.3: first release
 
 ### NEXT ()
 
-    * 2D (AoA)
-    * 2D FFT: range+velocity, range+AoA
+    * ~2D (AoA)~
+    * ~2D FFT: range+velocity, range+AoA~
     * 2D peak grouping (by velocity sign)
     * 3D position error compute
     * 3D targets (at least spheres)
@@ -159,5 +163,3 @@ print(__version__)
 17. then check on google colab dev extras instals works
 
 >!python -m pip install mmWrt[dev]
-
-

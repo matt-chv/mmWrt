@@ -39,6 +39,10 @@ def test_ipynb(dp=None):
                     nb = nbformat.read(fp, as_version=4)
                     client = NotebookClient(nb, kernel_name='python3')
                     # client.on_cell_complete()
-                    _ = client.execute()
+                    try:
+                        _ = client.execute()
+                    except Exception as ex:
+                        print(f"!!!!!!!!!!{fn}")
+                        raise
                 else:
                     print("skipping", fp)
