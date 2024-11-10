@@ -12,11 +12,12 @@ sys.path.insert(0, os.path.abspath('..'))
 sys.path.append(os.path.abspath(
     os.path.join(__file__, os.pardir, os.pardir, "mmWrt")))
 
+from mmWrt import __version__ as mmWrt_ver
 
 project = 'mmWrt'
 copyright = '2023, matt-chv'
 author = 'matt-chv'
-release = '0.0.9'
+release = mmWrt_ver
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
