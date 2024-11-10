@@ -205,6 +205,9 @@ class Antenna:
         overall_gain = 10**gain_angle_db * 10**gain_freq
         return overall_gain
 
+    def __str__(self):
+        return f"x,y,z: ({self.x}, {self.y}, {self.z})"
+
 
 class Receiver():
     def __init__(self,
@@ -290,11 +293,13 @@ class Transmitter():
         self.frames_count = frames_count
         self.bw = bw
         self.conf = conf
+        self.mimo_mode = "TDM"
         if conf is None:
             self.conf = {"mimo_mode": "TDM"}
         else:
             if "mimo_mode" in self.conf:
                 assert self.conf["mimo_mode"] in ["TDM", "DDM"]
+                self.mimo_mode = self.conf["mimo_mode"]
             else:
                 self.conf["mimo_mode"] = "TDM"
         return
@@ -357,6 +362,7 @@ class Radar:
         self.fs = receiver.fs
         self.bw = transmitter.bw
         self.tx_conf = transmitter.conf
+        self.mimo_mode = transmitter.conf["mimo_mode"]
         if self.n_adc == 0:
             self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
             if self.n_adc == 0:  # pragma: no cover

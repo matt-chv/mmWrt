@@ -9,13 +9,20 @@ Intended usage:
 
 ### Released
 
+v0.0.9:
+
+    * adding ULA, URA for TDM MIMO
+    * adding 3D points for TDM MIMO (x,y,z)
+
 v0.0.8:
+
     * adding TDM MIMO
     * adding DDM MIMO (including Doppler desambiguation)
 
 v0.0.7
+
     * adding AoA
-    * adding sparse array support
+    * adding sparse array initial example (feature dedicated to Amine L.)
 
 v0.0.6:
 
@@ -45,8 +52,8 @@ v0.0.3: first release
 
 ### NEXT ()
 
-    * ~2D (AoA)~
-    * ~2D FFT: range+velocity, range+AoA~
+    * 2D (AoA)
+    * 2D FFT: range+velocity, range+AoA
     * 2D peak grouping (by velocity sign)
     * 3D position error compute
     * 3D targets (at least spheres)

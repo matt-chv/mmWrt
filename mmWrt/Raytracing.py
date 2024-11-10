@@ -325,8 +325,8 @@ def rt_points(radar, targets, radar_equation=False,
         print("Dmax as function fs", radar.fs*v/2/slope)
         radar_lambda = radar.medium.v/radar.tx_antennas[0].f_min_GHz/1e9
         print(f"radar lambda: {radar_lambda}")
-        vmax = None
-        vmax_ddm = None
+        vmax = 0
+        vmax_ddm = 0
         if radar.t_inter_chirp > 0 and radar.chirps_count > 0:
             vmax = radar_lambda/4/radar.t_inter_chirp
             print(f"vmax :{vmax}")
@@ -362,7 +362,7 @@ def rt_points(radar, targets, radar_equation=False,
             vt_min = min(vt)
             vt_mean = mean(vt)
 
-            if vt_max > 0:
+            if vt_max > 0 and radar.t_inter_chirp > 0 and radar.chirps_count > 0:
                 try:
                     assert vt_max < vmax
                 except AssertionError:
@@ -381,7 +381,7 @@ def rt_points(radar, targets, radar_equation=False,
             print(f"Range index: from {d0//range_resolution} "
                   f"to {d1//range_resolution}")
 
-            if vt_max > vmax:
+            if vt_max > vmax and radar.t_inter_chirp > 0 and radar.chirps_count > 0:
                 print(f"!!!! vmax of target is: {vt_max} > " +
                       f"unambiguous speed: {vmax}")
             else:

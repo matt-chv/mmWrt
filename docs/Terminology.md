@@ -12,6 +12,15 @@ Monostatic radar is when both RX and TX are co-located.
 
 Bistatic radar is when transmit and receive systems are physically separated.
 
+## Antenna Arrays
+
+* `ULA` (Uniform Linear Array) describes an arrangement where the antennas are distributed on a single axis with a constant distance between each element.
+* `UPA` (Uniform Planar Array) describes an arrangement where the antennas are distributed on a plane with a contant distance between elements on one axis which may differ from the distance between elements on the second axis. The two axis are not parallel but do not have to be rectangular. In the later case it might be refer to as a URA (see below) 
+  * `URA` (Uniform Rectangular Array): special case of the UPA where the two axis forming the base for the UPA are orthogonal.
+  * `USA` (Uniform Square Array): subset of `URA` where all dimensions are equal. 
+
+Other arrangements might include: `STAR`, `UCA` (Uniform Circular Array) describes an arrangement where the antennas are distributed on a circle (constant distance from a point) or `Sparse Array` which is a subset of the others where the distance between each antenna is not constant. It often varies in multiple of a specific step size (often $\frac{\lambda}{2}) $ but it is not always the case.
+
 ## SISO, SIMO, MIMO Radar
 
 ```{admonition} Convention
@@ -27,6 +36,7 @@ Reciprocally the `Output` of the medium will be the RX antenna(s).
   * BPM-MIMO: TX antennas transmit with a `Binary Phase Modulation`
   * DDM-MIMO: TX antennas transmit with `Doppler Division Multiplexing`
 
-## FMCW
+## Modulation
 
-Frequency Modulated Continuous Wave
+* FMCW: Frequency Modulated Continuous Wave
+

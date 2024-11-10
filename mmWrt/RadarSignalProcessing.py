@@ -1,4 +1,4 @@
-from numpy import array, sqrt, log2, log, pi
+from numpy import append, array, concatenate, log2, log, pi, sqrt, zeros
 from scipy.fft import fft
 from numpy import angle
 
@@ -47,8 +47,11 @@ def error(targets_synthetics, targets_f):
     return total_error
 
 
-def cfar_ca_1d(X, count_train_cells=10, count_guard_cells=2,
-               Pfa=1e-2):
+def cfar_ca_1d(X, num_training_cells=10,
+               num_guard_cells=2,
+               Pfa=1e-2,
+               mode="same",
+               debug=False):
     """ Retuns indexs of peaks found via CA-CFAR
     i.e Cell Averaging Constant False Alarm Rate algorithm
 
@@ -56,12 +59,16 @@ def cfar_ca_1d(X, count_train_cells=10, count_guard_cells=2,
     ----------
     X: numpy ndarray
         signal whose peaks have to be detected and reported
-    count_train_cells : int
+    num_training_cells : int
         number of cells used to train CA-CFAR
-    count_guard_cells : int
+    num_guard_cells : int
         number of cells guarding CUT against noise power calculation
     Pfa : float
         Probability of false alert, used to compute the variable threshold
+    mode: str
+        same meaning as np.convolve
+    debug: bool
+        if True will output debug info
 
     Returns
     --------
@@ -69,9 +76,9 @@ def cfar_ca_1d(X, count_train_cells=10, count_guard_cells=2,
         CFAR threshold values
     """
     signal_length = X.size
-    M = count_train_cells
+    M = num_training_cells
     half_M = round(M / 2)
-    count_leading_guard_cells = round(count_guard_cells / 2)
+    count_leading_guard_cells = round(num_guard_cells / 2)
     half_window_size = half_M + count_leading_guard_cells
     # compute power of signal
     P = [abs(x)**2 for x in X]
@@ -82,31 +89,69 @@ def cfar_ca_1d(X, count_train_cells=10, count_guard_cells=2,
     T = M*(Pfa**(-1/M) - 1)
 
     peak_locations = []
-    thresholds = [0]*(half_window_size)
-    for i in range(half_window_size, signal_length - half_window_size):
-        p_noise = sum(P[i - half_M: i + half_M + 1])
-        p_noise -= sum(P[i - count_leading_guard_cells:
-                       i + count_leading_guard_cells + 1])
+    # thresholds = [0]*(half_window_size)
+    thresholds = zeros(signal_length)
+    if mode == "same":
+        start = half_window_size
+        end = signal_length - half_window_size
+    elif mode == "full":
+        start = 0
+        end = signal_length
+
+    for idx in range(start, end):
+        p_noise = sum(P[idx - half_M: idx + half_M + 1])
+        p_noise -= sum(P[idx - count_leading_guard_cells:
+                       idx + count_leading_guard_cells + 1])
+        if debug:
+            print("MCV 106", p_noise, M)
+            print("MCV 107", p_noise/M)
         p_noise = p_noise / M
         threshold = T * p_noise
-        thresholds.append(sqrt(threshold))
-        if P[i] > threshold:
-            peak_locations.append(i)
+        if debug:
+            print("idx, th", idx, threshold)
+            print("idx pnoise", p_noise)
+            print("P idx", P[idx])
+        # thresholds.append(sqrt(threshold))
+        thresholds[idx] = sqrt(threshold)
+        if P[idx] > threshold:
+            peak_locations.append(idx)
     peak_locations = array(peak_locations, dtype=int)
-
-    cfar_th = array(thresholds + [0]*(half_window_size))
+    if debug:
+        print("CFAR CA debug---")
+        print("signal length", X.shape)
+        print("debug cfar CA mag", abs(X))
+        print("tresholds", thresholds)
+        print("T", T)
+        print("E", sum(P)/M)
+        print("th=sqrt(T*sum(P)/M)",sqrt(T*sum(P)/M))
+        print("peaks", peak_locations)
+        print("CFAR CA TH shape", thresholds.shape)
+        print("---CFAR CA EOM")
+    cfar_th = thresholds
     return cfar_th
 
 
-def cfar_1d(cfar_type, FT):
+def cfar_1d(FT,
+            num_training_cells=10,
+            num_guard_cells=2, mode="same",
+            cfar_type="CA",
+            debug=False):
     """ CFAR for 1D FFT values
 
     Parameters
     ----------
-    cfar_type: str
-        valid value CA, OS, GO
     FT: ndarray
         signal whose peaks have to be detected and reported
+    num_training_cells: int
+        sum of left and right train cells count
+    num_guard_cells: int
+        sum of left and right guard cells count
+    mode: str
+        same as np.convolve
+    cfar_type: str
+        valid value CA, OS, GO
+    debug: bool
+        if True outputs debug info
 
     Returns
     -------
@@ -120,10 +165,24 @@ def cfar_1d(cfar_type, FT):
     """
     # TBD
     if cfar_type == "CA":
-        cfar_th = cfar_ca_1d(FT)
+        if mode == "full":
+            zero_train = zeros(num_training_cells+num_guard_cells+FT.shape[0])\
+                .astype(complex)
+            zero_train[(num_training_cells+num_guard_cells)//2:
+                       -(num_training_cells+num_guard_cells)//2] = FT
+            FT = zero_train
+        cfar_th = cfar_ca_1d(FT, num_training_cells=num_training_cells,
+                             num_guard_cells=num_guard_cells,
+                             debug=debug)
+        if mode == "full":
+            cfar_th = cfar_th[(num_training_cells+num_guard_cells)//2:
+                              -(num_training_cells+num_guard_cells)//2]
     else:
         raise ValueError(f"Unsupported CFAR type: {cfar_type}")
 
+    if debug:
+        print("CFAR 1D debug---")
+        print("CFAR_TH shape", cfar_th.shape)
     return cfar_th
 
 
@@ -422,3 +481,21 @@ def frequency_estimator(FFT, idxs, estimator_name="fft"):
         i_peaks.append(idx_est)
     i_peaks = array(i_peaks)
     return i_peaks
+
+def pcl(cube):
+    """ returns array of 3D pcl
+
+    Parameters
+    ----------
+    cube: numpy array
+        cube is [chirp][elevation][azimuth][adc]
+
+    Returns
+    -------
+    pcl: numpy array
+        pcl is a 1D array of point
+        each point is defined by (x,y,z,vr,mag)
+    """
+    pass
+    points = []
+    return points
