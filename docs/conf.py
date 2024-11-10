@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(
 project = 'mmWrt'
 copyright = '2023, matt-chv'
 author = 'matt-chv'
-release = '0.0.3'
+release = '0.0.9'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
