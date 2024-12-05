@@ -9,6 +9,11 @@ Intended usage:
 
 ### Released
 
+*v0.0.10:
+
+    * adding distance as a function of time in IF compute - allowing for simulation of target chaning bin ranges through single chirp
+    * 
+
 v0.0.9:
 
     * adding ULA, URA for TDM MIMO
