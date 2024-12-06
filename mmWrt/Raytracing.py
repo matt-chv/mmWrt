@@ -2,6 +2,8 @@ from numpy import arctan2, arange, array, exp, mean, pi, sqrt, zeros, real
 from numpy import float32  # alternatives: float16, float64
 from numpy import complex_ as complex
 
+from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
+
 
 def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
           medium,
@@ -44,9 +46,10 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
     # while T is the absolute time
     # Tc is the relative time to begining of chirp (and of the ramp)
     Tc = T-T[0]
+
     tx_x, tx_y, tx_z = antenna_tx.xyz
     rx_x, rx_y, rx_z = antenna_rx.xyz
-    t_x, t_y, t_z = target.pos_t(T[0])
+    t_x, t_y, t_z = target.pos_t(T) # [0])
     v = medium.v
     L = medium.L
     distance = sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 + (tx_z - t_z)**2)
@@ -59,7 +62,7 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
     # if debug:
     #    print(f"delta t: {delta:.2g}")
     # compute fif_max for upper layer to ensure Nyquist
-    fif_max = 2*slope*distance/v
+    fif_max = 2*slope*max(distance)/v
     # if debug:
     #    print("fi_if", fif_max)
 
@@ -134,7 +137,7 @@ def rt_points(radar, targets, radar_equation=False,
     datatype: Type
         type of data to be generate by rt: float16, float32, ... or complex
     debug: bool
-        if True increases level of print messages seen
+        if True prints log messages
     raytracing_opt: dict
         compute: bool
             if True computes raytracing (use False for radar statistics tuning)
@@ -177,8 +180,10 @@ def rt_points(radar, targets, radar_equation=False,
     assert len(T) == n_adc
     # if "T_start" in raytracing_opt:
     #    T += raytracing_opt["T_start"]
-    if "logger" not in raytracing_opt:
-        raytracing_opt["logger"] = "logger"
+    if "logging_level" not in raytracing_opt:
+        raytracing_opt["logging_level"] = 40
+    if "compute" not in raytracing_opt:
+        raytracing_opt["compute"] = True
 
     v = radar.medium.v
     Tc = bw/slope
@@ -187,13 +192,20 @@ def rt_points(radar, targets, radar_equation=False,
             assert Tc >= n_adc*ts
         except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs NA*TS: {n_adc*ts: .2g}"
-            raise ValueError(log_msg)
+            if debug:
+                print(log_msg)
+            if raytracing_opt["logging_level"] >= 40:
+                raise ValueError(log_msg)
+            
         try:
             assert radar.t_inter_chirp > Tc
         except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs " + \
                 f"T_interchip: {radar.t_inter_chirp: .2g}"
-            raise ValueError(log_msg)
+            if debug:
+                print(log_msg)
+            if raytracing_opt["logging_level"] >= 40:
+                raise ValueError(log_msg)
 
     if n_frames > 1:
         try:
@@ -201,7 +213,10 @@ def rt_points(radar, targets, radar_equation=False,
         except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for TF: {radar.t_inter_frame:.2g} " +\
                 f"vs NC*T_interchip: {radar.t_inter_chirp*n_chirps: .2g}"
-            raise ValueError(log_msg)
+            if debug:
+                print(log_msg)
+            if raytracing_opt["logging_level"] >= 40:
+                raise ValueError(log_msg)
 
     baseband = {"adc_cube": adc_cube,
                 "frames_count": n_frames,
@@ -220,6 +235,7 @@ def rt_points(radar, targets, radar_equation=False,
                 "fs": radar.fs, "v": radar.v}
 
     # T_start = T[0]
+    # FIXME Tc should be int, now array
     Tc = T
     # compute can be set to False, when only interested in chirp statistics
     if raytracing_opt["compute"]:
@@ -244,7 +260,11 @@ def rt_points(radar, targets, radar_equation=False,
                         # configuration
                         phaser = 2*pi*TX_phase_offsets[tx_i]*chirp_i
                     else:
-                        raise ValueError(f"MIMO mode: {mimo_mode} not valid")
+                        log_msg = f"MIMO mode: {mimo_mode} not valid"
+                        if debug:
+                            print(log_msg)
+                        if raytracing_opt["logging_level"] >= 40:
+                            raise ValueError(log_msg)
 
                     for rx_i in range(n_rx):
                         YIF = zeros(n_adc).astype(datatype)
@@ -268,6 +288,7 @@ def rt_points(radar, targets, radar_equation=False,
                                     print(f"!! Nyquist for target: {target}" +
                                           f"fif_max is: {fif_max} " +
                                           f"radar ADC fs is: {radar.fs}")
+                                if raytracing_opt["logging_level"] >= 40:
                                     raise ValueError(log_msg)
                             YIF += YIFi
                         if mimo_mode == "TDM":
@@ -278,7 +299,11 @@ def rt_points(radar, targets, radar_equation=False,
                             # nth RX receives all the TXs at once
                             adc_cube[frame_i, chirp_i, 0, rx_i, :] += YIF
                         else:
-                            raise ValueError(f"un supported mimo_mode: :{mimo_mode}")
+                            log_msg = f"un supported mimo_mode: :{mimo_mode}"
+                            if debug:
+                                print(log_msg)
+                            if raytracing_opt["logging_level"] >= 40:
+                                raise ValueError(log_msg)
 
         baseband["adc_cube"] = adc_cube
         # T_fin = ((Tc +t_inter_chirp * NC) + t_inter_frame)*n_frames+ Tc
@@ -286,6 +311,7 @@ def rt_points(radar, targets, radar_equation=False,
         baseband["T_fin"] = T[-1]
 
     if debug:  # pragma: no cover
+        Tc = bw/slope
         print("Generic observations about the simulation")
         print(f"Compute: {raytracing_opt['compute']}")
         print(f"Radar freq: {radar.tx_antennas[0].f_min_GHz} GHz")
@@ -297,8 +323,9 @@ def rt_points(radar, targets, radar_equation=False,
             print("Range resolution target vs actual",
                   raytracing_opt["Dres_min"], range_resolution)
         else:
-            print("Range resolution", range_resolution)
-        Tc = bw/slope
+            print("Chirp Range resolution", range_resolution)
+            print("FFT Range resolution", v*Tc/2/n_adc)
+
         if "mimo_mode" in radar.tx_conf:
             if radar.tx_conf == "DDM":
                 try:
@@ -321,8 +348,9 @@ def rt_points(radar, targets, radar_equation=False,
         print("frame timing:", frame_time)
         print("simulation time", frame_time * n_frames)
 
-        print("Dmax", v*Tc/2)
+        print("Dmax (ToF horizon)", v*Tc/2)
         print("Dmax as function fs", radar.fs*v/2/slope)
+        print("Dres as function fs and NA", radar.fs*v/2/slope/n_adc)
         radar_lambda = radar.medium.v/radar.tx_antennas[0].f_min_GHz/1e9
         print(f"radar lambda: {radar_lambda}")
         vmax = 0
@@ -366,7 +394,11 @@ def rt_points(radar, targets, radar_equation=False,
                 try:
                     assert vt_max < vmax
                 except AssertionError:
-                    raise ValueError("!!! Vmax exceeds unambiguous speed")
+                    log_msg = "!!! Vmax exceeds unambiguous speed"
+                    if debug:
+                        print(log_msg)
+                    if raytracing_opt["logging_level"] >= 40:
+                        raise ValueError(log_msg)
 
             print(f"IF frequency for target[{idx}] is {target_if}, "
                   f"which is {target_if/radar.fs:.2g} of fs")
