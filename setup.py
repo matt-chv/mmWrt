@@ -52,6 +52,7 @@ setup(
     install_requires=["numpy", "scipy", "matplotlib", "semver"],
     extras_require={
         "dev": [
+            "antlr4-python3-runtime==4.11",
             "coverage",
             "darglint",
             "flake8",
@@ -64,6 +65,7 @@ setup(
             "sphinx",
             "sphinx_markdown_builder",
             "sphinx-rtd-theme",
+            "sympy",
             "tox",
             "twine",
             "wheel"]}

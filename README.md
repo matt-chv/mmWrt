@@ -5,13 +5,21 @@ minimal raytracing for MIMO FMCW radar systems.
 Intended usage:
 1. educational & experimental
 
+simple install:
+1. git clone
+2. pip install .
+
+for install for developpers:
+1. git clone
+2. pip install .[dev]
+
 ## Release Notes and Roadmap
 
 ### Released
 
 *v0.0.10:
 
-    * adding distance as a function of time in IF compute - allowing for simulation of target chaning bin ranges through single chirp
+    * adding distance as a function of time in IF compute - allowing for simulation of target changing bin ranges through single chirp
     * 
 
 v0.0.9:
