@@ -8,8 +8,9 @@ caption: Table of Content
 maxdepth: 5
 ---
 Overview
-FMCW_radar_105_mmWave_Atmospheric_Absorption
-FMCW-Radar 201-CFAR_Pd
 Components
 modules.rst
+# Theoretical Training
+FMCW_radar_105_mmWave_Atmospheric_Absorption
+FMCW-Radar 201-CFAR_Pd
 ```
