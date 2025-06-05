@@ -1,3 +1,5 @@
+# Theory
+
 This section introduces key concepts and theoretical reminders which will be leveraged in the `Hands-on` section
 
 ```{toctree}
