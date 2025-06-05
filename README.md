@@ -89,6 +89,10 @@ Check on Google Colab the code:
 
 Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedocs-hosted.com/_images/logo-wordmark-light.png)](https://mmwrt.readthedocs.io/en/latest/)
 
+## On dependencies
+
+* jupyterlab-myst: used for displaying admonition in jupyter notebook (and thus documentation on read the docs)
+
 ## Release process
 
 0. Ensure all the new .ipynb are added in docs/Hands-on.md 

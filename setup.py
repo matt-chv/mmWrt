@@ -57,6 +57,7 @@ setup(
             "darglint",
             "flake8",
             "jupyter",
+            "jupyterlab-myst"
             "myst-parser",
             "nbsphinx",
             "pyroma",
