@@ -22,8 +22,10 @@ release = mmWrt_ver
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+# for specifics on dollarmath
+# check https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-math
 extensions = ['myst_parser', 'sphinx.ext.napoleon', 'sphinx_markdown_builder',
-              'nbsphinx']
+              'nbsphinx','dollarmath','html_admonition']
 
 templates_path = ['_templates']
 exclude_patterns = []
