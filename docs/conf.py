@@ -28,7 +28,7 @@ extensions = ['myst_parser', 'sphinx.ext.napoleon', 'sphinx_markdown_builder',
 # https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html
 # for specifics on dollarmath
 # check https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-math
-myst_enable_extensions = ['dollarmath','html_admonition'}
+myst_enable_extensions = ['dollarmath','html_admonition']
 
 templates_path = ['_templates']
 exclude_patterns = []
