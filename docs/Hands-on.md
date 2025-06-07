@@ -19,5 +19,4 @@ Angle_of_Arrival
 TDM_MIMO
 DDM_MIMO
 Minimum Reproducible Examples (MRE)
-FMCW_MIMO_Maths_proofing
 ```
