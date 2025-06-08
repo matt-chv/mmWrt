@@ -5,7 +5,7 @@ This section introduces key concepts and theoretical reminders which will be lev
 ```{toctree}
 ---
 caption: Theoretical refreshers
-maxdepth: 4
+maxdepth: 2
 ---
 # Theoretical Training
 FMCW-Radar-100_Radar_Imaging
