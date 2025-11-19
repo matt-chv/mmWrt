@@ -1,6 +1,6 @@
 from numpy import arctan2, arange, array, exp, mean, pi, sqrt, zeros, real
 from numpy import float32  # alternatives: float16, float64
-from numpy import complex_ as complex
+from numpy import complex128 as complex
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 

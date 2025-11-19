@@ -3,7 +3,7 @@ import sys
 
 from numpy import sin, pi, zeros
 from numpy.fft import fftshift, fft, fft2
-from numpy import complex_ as complex
+from numpy import complex128 as complex
 from scipy.signal import find_peaks
 
 dp = abspath(join(__file__, pardir, pardir))

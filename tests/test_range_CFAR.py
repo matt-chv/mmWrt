@@ -4,7 +4,7 @@ from semver import VersionInfo
 import sys
 
 from numpy import where
-from numpy import complex_ as complex
+from numpy import complex128 as complex
 from numpy import float32  # alternatives: float16, float64
 
 dp = abspath(join(__file__, pardir, pardir))

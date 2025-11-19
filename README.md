@@ -23,7 +23,7 @@ for install for developpers:
 *v0.0.10:
 
     * adding distance as a function of time in IF compute - allowing for simulation of target changing bin ranges through single chirp
-    * 
+    * 0.0.10-pre.6: fixes #3 (numpy deprecating complex_ replacing with complex128)
 
 v0.0.9:
 
