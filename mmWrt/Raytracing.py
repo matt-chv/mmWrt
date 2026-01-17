@@ -1,11 +1,99 @@
-from numpy import arctan2, arange, array, exp, mean, pi, sqrt, zeros, real
-from numpy import float32  # alternatives: float16, float64
+""" This is where the raytracing happens
+rt_points - main function to perform raytracing with point targets
+BB_IF - function to compute the BaseBand Intermediate Frequency
+
+BB_IF is called by rt_points to compute each respective scatterer's IF contribution
+"""
+
+from numpy import any, arctan2, arange, array, exp, mean, newaxis, pi, real, sqrt, where, zeros
+from numpy import abs as np_abs, max as np_max
+from numpy.typing import NDArray
+from numpy import float64, float32, float16, int64, int32, int16  # alternatives: float16, float64
 from numpy import complex128 as complex
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 
-def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
+def BB_IF_v2(Tc, fif,
+          rx_hpf=1e3, rx_lpf=1e8,
+          tx_phase_offset=0,
+          debug=False) -> NDArray[complex]:
+    YIF = zeros(fif.shape)
+    IF_filter = ((rx_hpf <= abs(fif)) &
+                 (abs(fif) <= rx_lpf))
+    YIF = where(IF_filter,
+                exp(2 * pi * 1j * (fif) * Tc + 1j*tx_phase_offset),
+                YIF)
+    YIF = sum(YIF, axis=1)
+    return YIF
+
+
+def BB_IF(Tc, fif,
+          rx_hpf=1e3, rx_lpf=1e8,
+          tx_phase_offset=0,
+          debug=False) -> NDArray[complex]:
+    """ Simplified intermediate frequency function,
+    allowing to account for interferer radars.
+
+    Parameters
+    ----------
+    Tc: NDArray[float32]
+        the relative time to start of chirp in (s)
+    f_rx: NDArray[float32]
+        the local TX chirp transmit frequency in (Hz)
+    f_tx: NDArray[float32]
+        the frequency at which chirp was trasmitted in (Hz)
+    rx_hpf: float
+        high-pass filter - cutting off DC component. brikwall so far. (Hz)
+    rx_lpf: float
+        low-pass filter - cutting off beyond Nyquist. (Hz)
+    tx_phase_offset: float
+        used especially for DDMA modulation in radian
+    debug: bool
+        if True displays debug information
+    Returns
+    -------
+    YIF: NDArray[complex]
+        the ADC values in complex
+    Example
+    -------
+    >> BB_IF(array([0,3e-7,6.6e-7,1.e-6]),
+             array([6e10,6.0003e10,6.0006e+10,6.001e10]),
+             array([6.1e10,6.1003e10,6.1006e10,6.101e10]),
+             rx_hpf=1e3, rx_lpf=1e8)
+    << [0.+0.j 0.+0.j 0.+0.j 0.+0.j]
+    >> BB_IF(array([0, 1.3e-7, 2.6e-7, 4e-7,
+                       5.3e-7, 6.6e-7, 8e-7, 9.3e-7,
+                       1e-6, 1.2e-6, 1.3e-6, 1.46e-6,
+                       1.6e-6, 1.73e-6, 1.86e-6, 2e-6]),
+                array([6.001e9, 6.007e9,6.014e9,6.021e9,
+                       6.027e9,6.034e9,6.041e9,6.047e9,
+                       6.054e9,6.061e9,6.067e9,6.074e9,
+                       6.081e9,6.087e9,6.094e9,6.101e9]),
+                array([6e9,6.006e9,6.013e9,6.02e9,
+                       6.026e9,6.033e9,6.04e9,6.046e9,
+                       6.053e9,6.06e9,6.066e9,6.073e9,
+                       6.08e9,6.086e9,6.093e9,6.1e9]),
+                rx_hpf=1e3, rx_lpf=1e8)
+    << [ 1.        +0.00000000e+00j  0.68454711-7.28968627e-01j
+        -0.06279052-9.98026728e-01j -0.80901699-5.87785252e-01j
+        -0.98228725+1.87381315e-01j -0.53582679+8.44327926e-01j
+        0.30901699+9.51056516e-01j  0.90482705+4.25779292e-01j
+        1.        +1.13310778e-15j  0.30901699-9.51056516e-01j
+        -0.30901699-9.51056516e-01j -0.96858316-2.48689887e-01j
+        -0.80901699+5.87785252e-01j -0.12533323+9.92114701e-01j
+        0.63742399+7.70513243e-01j  1.        +2.26621556e-15j]
+    """
+    YIF = zeros(Tc.shape)
+    IF_filter = ((rx_hpf <= abs(fif)) &
+                 (abs(fif) <= rx_lpf))
+    YIF = where(IF_filter,
+                exp(2 * pi * 1j * (fif) * Tc + 1j*tx_phase_offset),
+                YIF)
+    return YIF
+
+
+def BB_IF_single_radar(f0_min, slope, T, antenna_tx, antenna_rx, target,
           medium,
           TX_phase_offset=0.0,
           datatype=float32, radar_equation=False, debug=False):
@@ -120,15 +208,351 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target,
     return IF
 
 
-def rt_points(radar, targets, radar_equation=False,
+def adc_chirp_v0(adc_times, receiver_radar,
+             targets, radars, datatype=float32,
+             debug=False):
+    numer_adc_samples = receiver_radar.n_adc
+    n_rx = len(receiver_radar.rx_antennas)
+    adc_samples = zeros((n_rx, numer_adc_samples)).astype(datatype)
+    YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
+    f_rx = receiver_radar.TX_freqs(adc_times)
+    tr_chirp = adc_times - adc_times[0]
+    for rx_idx, rx_antenna in enumerate(receiver_radar.rx_antennas):
+        # FIXME: later these need to be parametrised
+        rx_hpf = 1e3
+        rx_lpf = 1e8
+        rx_x, rx_y, rx_z = rx_antenna.xyz
+        for target in targets:
+            t_x, t_y, t_z = target.pos_t(adc_times)
+            distance_rx_target = sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
+            for radar in radars:
+                for tx_idx, tx_antenna in enumerate(radar.tx_antennas):
+                    # compute distance and then delta time from RX to TX
+                    # to compute the received chirp frequency and phase
+                    tx_x, tx_y, tx_z = tx_antenna.xyz
+                    v = radar.v
+                    # L = radar.L
+                    distance = distance_rx_target +\
+                        sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 +\
+                                (tx_z - t_z)**2)
+
+                    time_of_flight = distance / v
+
+                    f_tx = radar.TX_freqs(adc_times-time_of_flight)
+                    ph_tx = radar.TX_phases(adc_times-time_of_flight, tx_idx)
+
+                    fif = np_abs(f_tx-f_rx)
+                    if_filter = (rx_hpf < fif) & (fif < rx_lpf)
+
+                    fif[~(if_filter)] = 0
+                    print("fif", fif)
+
+                    if any(if_filter):
+                        # skip computing the IF if all the frequencies are too low or too high
+                        # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+                        YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
+                                     ph_tx, debug=debug)
+                        fif_max = max(fif)
+                        print(260, fif_max, radar.fs)
+                        try:
+                            assert fif_max * 2 <= radar.fs
+                        except AssertionError:
+                            
+                            log_msg = "Nyquist will always prevail: " +\
+                                f"fs:{radar.fs:.2g} vs f_if:{fif_max:.2g}"
+                            if debug:
+                                print(f"!! Nyquist for target: {target}" +
+                                        f"fif_max is: {fif_max} " +
+                                        f"radar ADC fs is: {radar.fs}")
+                                raise ValueError(log_msg)
+                        except Exception as ex:
+                            print(260, fif_max, radar.fs)
+                            raise Exception(ex)
+                        YIF += YIFi
+
+                    elif any(0 < np_abs(f_tx-f_rx)):
+                        raise ValueError("Corner Case for near DC frequency not handled")
+                    else:
+                        raise ValueError("Corner Case")
+        adc_samples[rx_idx, :] = YIF
+    return adc_samples
+
+def adc_chirp_v1(adc_times, receiver_radar,
+             targets, radars, datatype=float32,
+             debug=False):
+    from numpy.linalg import norm as euclidian_distance
+    number_adc_samples = receiver_radar.n_adc
+    n_rx = len(receiver_radar.rx_antennas)
+    adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
+    rx_antennas_pos = zeros((n_rx, number_adc_samples))
+    tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
+    tx_antennas_pos = zeros((n_rx, number_adc_samples))
+    # targets_pos = zeros((len(targets), 3, numer_adc_samples))
+
+    YIF, YIFi = zeros(number_adc_samples).astype(datatype), zeros(number_adc_samples).astype(datatype)
+    f_rx = receiver_radar.TX_freqs(adc_times)
+    tr_chirp = adc_times - adc_times[0]
+
+    # rx_antennas_pos[,:] = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
+    #tx_antennas_pos[,:] = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
+
+
+    # FIXME: later these need to be parametrised
+    rx_hpf = 1e3
+    rx_lpf = 1e8
+
+    targets_positions = targets[0].pos_t(adc_times)
+    distance_tx_target = euclidian_distance(tx_antennas_pos - targets_positions, axis=0)
+
+    # Compute the distance from target to rx for each time point
+    distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=0)
+
+    # Total distance is the sum of both distances for each time point
+    total_distance = distance_tx_target + distance_target_rx
+    time_of_flight = total_distance/receiver_radar.v
+
+    for radar in radars:
+        f_tx = radar.TX_freqs(adc_times-time_of_flight)
+        ph_tx = radar.TX_phases(adc_times-time_of_flight)
+        fif = np_abs(f_tx-f_rx)
+        if_filter = (rx_hpf < fif) & (fif < rx_lpf)
+
+        fif[~(if_filter)] = 0
+
+        if any(if_filter):
+            # skip computing the IF if all the frequencies are too low or too high
+            # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+            YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
+                         ph_tx, debug=debug)
+            fif_max = max(fif)
+            YIF += YIFi
+
+    adc_samples[:, :] = YIF
+
+    return adc_samples
+
+
+def adc_samples_v2(adc_times, receiver_radar,
+                   targets, radars, datatype=float32,
+                   radar_equation=False,
+                   debug=False) -> NDArray:
+    """ Computes the ADC samples at the given ADC times for the receiver radar
+
+    Returns
+    -------
+    adc_samples: NDArray
+        adc_times x receiver antenna count
+    """
+    from numpy.linalg import norm as euclidian_distance
+    from numpy import tile, sum
+    rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
+    rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
+    number_adc_samples = adc_times.shape[0]
+    n_rx = len(receiver_radar.rx_antennas)
+    print("NRX",n_rx)
+    adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
+    print("adc_samples.shape", adc_samples.shape)
+    # rx_antennas_pos = zeros((n_rx, number_adc_samples))
+    tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
+    # tx_antennas_pos = zeros((n_rx, number_adc_samples))
+    # targets_pos = zeros((len(targets), 3, numer_adc_samples))
+
+    f_rx = receiver_radar.TX_freqs(adc_times)
+    tr_chirp = adc_times - adc_times[0]
+
+    rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas]).T
+    rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
+
+    tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas]).T
+    tx_antennas_pos = tile(tx_antennas_pos, (len(targets), 1, number_adc_samples))
+
+    targets_positions = array([target.pos_t(adc_times) for target in targets])
+
+    distance_tx_target = euclidian_distance(tx_antennas_pos - targets_positions, axis=1)
+
+    # Compute the distance from target to rx for each time point
+    distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
+
+    # Total distance is the sum of both distances for each time point
+    total_distance = distance_tx_target + distance_target_rx
+
+    time_of_flight = total_distance/receiver_radar.v
+
+    # for radar in radars:
+    f_tx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
+    ph_tx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
+    fif = np_abs(f_tx-f_rx)
+    if_filter = (rx_high_pass_freq < fif) & (fif < rx_low_pass_freq)
+
+    fif[~(if_filter)] = 0
+
+    if any(if_filter):
+        # skip computing the IF if all the frequencies are too low or too high
+        # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+        # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
+        #                       ph_tx, debug=debug)
+        YIF = zeros(fif.shape)
+        Tc = adc_times - adc_times[0]
+        IF_filter = ((rx_high_pass_freq <= abs(fif)) &
+                     (abs(fif) <= rx_low_pass_freq))
+        YIF = where(IF_filter,
+                    exp(2 * pi * 1j * (fif) * Tc + 1j*ph_tx),
+                    YIF)
+        
+        if radar_equation:
+            # FIXME: add here that with physic samples should be `0`
+            # for T<distance/v
+            # because of ToF no mixing possible...
+            azimuth_rx = arctan2(rx_x-t_x, rx_y-t_y)
+            azimuth_tx = arctan2(tx_x-t_x, tx_y-t_y)
+            elevation_rx = arctan2(rx_y-t_y, rx_z-t_z)
+            elevation_tx = arctan2(tx_y-t_y, tx_z-t_z)
+
+            f0 = f0_min + slope*(T[-1]-T[0])/2
+            YIF = YIF * antenna_tx.gain(azimuth_tx, elevation_tx, f0) \
+                * antenna_rx.gain(azimuth_rx, elevation_rx, f0)
+
+            YIF = YIF * target.rcs(f0)
+            if target.target_type == "corner_reflector":
+                YIF = YIF / distance**2
+            else:
+                YIF = YIF / distance**4
+            YIF = YIF * 10**(L*distance)
+
+
+
+
+        YIF = sum(YIF, axis=1)
+        if datatype in [float64, float32, float16]:
+            print("complex to flaot")
+            adc_samples = real(YIF)
+        elif datatype in [int64, int32, int16]:
+            print("complex to int")
+            adc_samples = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
+        fif_max = np_max(fif)
+        try:
+            assert fif_max * 2 <= receiver_radar.fs
+        except AssertionError:
+            log_msg = "Nyquist will always prevail: " +\
+                f"fs:{receiver_radar.fs:.2g} vs f_if:{fif_max:.2g}"
+            if debug:
+                raise ValueError(log_msg)
+        adc_samples = YIF
+    return adc_samples
+
+
+def adc_cube_v0(receiver_radar,
+             targets, radars, datatype=float32,
+             debug=False):
+    total_number_frames = receiver_radar.total_number_frames
+    total_chirps_per_frame = receiver_radar.total_chirps_per_frame
+    n_rx = len(receiver_radar.rx_antennas)
+    numer_adc_samples = receiver_radar.n_adc
+    # chirp timing - relative to start of chirp multiple of the ADC sampling time
+    tr_chirp = arange(0, numer_adc_samples, 1)*(1/receiver_radar.fs)
+    adc_samples_cube = zeros((total_number_frames, total_chirps_per_frame, n_rx, numer_adc_samples)).astype(datatype)
+    YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
+    for frame_idx in range(total_number_frames):
+        for chirp_idx in range(total_chirps_per_frame):
+            # classical ray-tracing now: starts from eye goes back to light
+            t_start_chirp = receiver_radar.chirp_t_start(frame_idx, chirp_idx)
+            T = tr_chirp + t_start_chirp
+
+            f_rx = receiver_radar.TX_freqs(T)
+            for rx_idx, rx_antenna in enumerate(receiver_radar.rx_antennas):
+                # FIXME: later these need to be parametrised
+                rx_hpf = 1e3
+                rx_lpf = 1e8
+                rx_x, rx_y, rx_z = rx_antenna.xyz
+                for target in targets:
+                    t_x, t_y, t_z = target.pos_t(T)
+                    distance_rx_target = sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
+                    for radar in radars:
+                        for tx_idx, tx_antenna in enumerate(radar.tx_antennas):
+                            # compute distance and then delta time from RX to TX
+                            # to compute the received chirp frequency and phase
+                            tx_x, tx_y, tx_z = tx_antenna.xyz
+                            v = radar.v
+                            # L = radar.L
+                            distance = distance_rx_target +\
+                                sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 +\
+                                     (tx_z - t_z)**2)
+                            time_of_flight = distance / v
+
+                            f_tx = radar.TX_freqs(T-time_of_flight)
+                            ph_tx = radar.TX_phases(T-time_of_flight, tx_idx)
+
+                            fif = np_abs(f_tx-f_rx)
+                            if_filter = (rx_hpf < fif) & (fif < rx_lpf)
+
+                            fif[~(if_filter)] = 0
+
+                            if any(if_filter):
+                                # skip computing the IF if all the frequencies are too low or too high
+                                # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+                                YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
+                                             ph_tx, debug=debug)
+                                fif_max = max(fif)
+                                try:
+                                    assert fif_max * 2 <= radar.fs
+                                except AssertionError:
+                                    log_msg = "Nyquist will always prevail: " +\
+                                        f"fs:{radar.fs:.2g} vs f_if:{fif_max:.2g}"
+                                    if debug:
+                                        print(f"!! Nyquist for target: {target}" +
+                                              f"fif_max is: {fif_max} " +
+                                              f"radar ADC fs is: {radar.fs}")
+                                        raise ValueError(log_msg)
+                                YIF += YIFi
+
+                            elif any(0 < np_abs(f_tx-f_rx)):
+                                raise ValueError("Corner Case for near DC frequency not handled")
+                            else:
+                                raise ValueError("Corner Case")
+                adc_samples_cube[frame_idx, chirp_idx, rx_idx, :] = YIF
+                YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
+    return adc_samples_cube
+
+
+def adc_cube_v2(receiver_radar,
+                targets, radars, datatype=float32,
+                debug=False):
+    """ computes adc cube for homogeneous frame
+    (where # chirps/frame & # ADC samples/chirp are constant)
+    multiple calls to this functions expected with different frames
+    definition and timing expected to address sub-frames
+    """
+    # frames = arange(0,len(receiver_radar.frames))
+    adc_cube = zeros(len(receiver_radar.frames)* len(receiver_radar.chirps)*len(receiver_radar.adc_sample_count))
+    from numpy import repeat, tile
+
+    frame_count = len(receiver_radar.frames)
+    chirp_per_frame = len(receiver_radar.chirps)
+    frame_idx = repeat(arange(chirp_per_frame), frame_count)
+    chirp_idx = tile(arange(chirp_per_frame), frame_count)
+
+    adc_times = receiver_radar.t_inter_frame*frame_idx + receiver_radar.t_inter_chirp*chirp_idx
+
+    adc_cube = adc_samples_v2(adc_times, receiver_radar,
+                              targets, radars)
+    # print(adc_cube[:receiver_radar.adc_sample_count])
+
+    
+
+def rt_points(receiver_radar, targets, radar_equation=False,
               datatype=float32, debug=False,
               raytracing_opt={"compute": True}):
     """ raytracing with points
 
     Parameters
     ----------
-    radar: Radar
-        instance of Radar
+    receiver_radar: Radar
+        instance of Radar for which the BB cube is computed. One of the radars in the scene.
+        (renamed in 0.0.10 from radar)
     targets: List[Target]
         list of targets in the Scene
     radar_equation: bool
@@ -143,7 +567,8 @@ def rt_points(radar, targets, radar_equation=False,
             if True computes raytracing (use False for radar statistics tuning)
         T_start: float
             time offset to start simulation
-
+        radars: List[radar]
+            list of interferer radars to include in the simulation, including own radar TX
     Returns
     -------
     baseband: dict
@@ -154,54 +579,36 @@ def rt_points(radar, targets, radar_equation=False,
     ValueError
         if Nyquist rule is not upheld
     """
-    n_frames = radar.frames_count
+    n_frames = receiver_radar.frames_count
     # n_chirps is the # chirps each TX antenna sends per frame
-    n_chirps = radar.chirps_count
-    n_tx = len(radar.tx_antennas)
-    n_rx = len(radar.rx_antennas)
-    n_adc = radar.n_adc
-    ts = 1/radar.fs
-    bw = radar.bw
-    mimo_mode = "TDM"
-    TX_phase_offsets = []
-    if radar.tx_conf is not None:
-        if "mimo_mode" in radar.tx_conf:
-            mimo_mode = radar.tx_conf["mimo_mode"]
-            if mimo_mode == "DDM":
-                assert "TX_phase_offsets" in radar.tx_conf
-                TX_phase_offsets = radar.tx_conf["TX_phase_offsets"]
-    adc_cube = zeros((n_frames, n_chirps, n_tx, n_rx, n_adc)).astype(datatype)
-    times = zeros((n_frames, n_chirps, n_tx, n_rx, n_adc))
-    f0_min = radar.f0_min
-    slope = radar.slope
+    n_chirps = receiver_radar.chirps_count
+    n_tx = len(receiver_radar.tx_antennas)
+    n_rx = len(receiver_radar.rx_antennas)
+    n_adc = receiver_radar.n_adc
+    ts = 1/receiver_radar.fs
+    bw = receiver_radar.bw
+    
+    adc_cube = zeros((n_frames, n_chirps, n_rx, n_adc)).astype(datatype)
+    times = zeros((n_frames, n_chirps, n_rx, n_adc))
+    f0_min = receiver_radar.f0_min
+    slope = receiver_radar.slope
     T = arange(0, n_adc, 1)
     # T is the absolute time across the simulation
     T = T*ts
-    assert len(T) == n_adc
-    # if "T_start" in raytracing_opt:
-    #    T += raytracing_opt["T_start"]
+
     if "logging_level" not in raytracing_opt:
         raytracing_opt["logging_level"] = 40
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = True
 
-    v = radar.medium.v
-    Tc = bw/slope
+    v = receiver_radar.medium.v
+    Tc = n_adc*ts #bw/slope
     if n_chirps > 1:
         try:
-            assert Tc >= n_adc*ts
-        except Exception as ex:  # pragma: no cover
-            log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs NA*TS: {n_adc*ts: .2g}"
-            if debug:
-                print(log_msg)
-            if raytracing_opt["logging_level"] >= 40:
-                raise ValueError(log_msg)
-            
-        try:
-            assert radar.t_inter_chirp > Tc
+            assert receiver_radar.t_inter_chirp > Tc
         except Exception as ex:  # pragma: no cover
             log_msg = f"{str(ex)} for Tc: {Tc:.2g} vs " + \
-                f"T_interchip: {radar.t_inter_chirp: .2g}"
+                f"T_interchip: {receiver_radar.t_inter_chirp: .2g}"
             if debug:
                 print(log_msg)
             if raytracing_opt["logging_level"] >= 40:
@@ -209,10 +616,10 @@ def rt_points(radar, targets, radar_equation=False,
 
     if n_frames > 1:
         try:
-            assert radar.t_inter_frame > (radar.t_inter_chirp*n_chirps)
+            assert receiver_radar.t_inter_frame > (receiver_radar.t_inter_chirp*n_chirps)
         except Exception as ex:  # pragma: no cover
-            log_msg = f"{str(ex)} for TF: {radar.t_inter_frame:.2g} " +\
-                f"vs NC*T_interchip: {radar.t_inter_chirp*n_chirps: .2g}"
+            log_msg = f"{str(ex)} for TF: {receiver_radar.t_inter_frame:.2g} " +\
+                f"vs NC*T_interchip: {receiver_radar.t_inter_chirp*n_chirps: .2g}"
             if debug:
                 print(log_msg)
             if raytracing_opt["logging_level"] >= 40:
@@ -220,8 +627,8 @@ def rt_points(radar, targets, radar_equation=False,
 
     baseband = {"adc_cube": adc_cube,
                 "frames_count": n_frames,
-                "chirps_count": radar.chirps_count,
-                "t_inter_chirp": radar.t_inter_chirp,
+                "chirps_count": receiver_radar.chirps_count,
+                "t_inter_chirp": receiver_radar.t_inter_chirp,
                 "n_tx": n_tx,
                 "n_rx": n_rx,
                 "n_adc": n_adc,
@@ -232,15 +639,137 @@ def rt_points(radar, targets, radar_equation=False,
                 "Tc": Tc,
                 "TFFT": n_adc*ts,
                 "T": T,
-                "fs": radar.fs, "v": radar.v}
+                "fs": receiver_radar.fs, "v": receiver_radar.v}
 
-    # T_start = T[0]
-    # FIXME Tc should be int, now array
+    # Tc is the relative time in the chirp
+    # T is the absolute time: it is incremented at end of each chirp/ before start of new chirp and new frames
     Tc = T
     # compute can be set to False, when only interested in chirp statistics
     if raytracing_opt["compute"]:
-        for frame_i in range(n_frames):
-            for chirp_i in range(n_chirps):
+        for frame_idx in range(n_frames):
+            for chirp_idx in range(n_chirps):
+                # classical ray-tracing now: starts from eye goes back to light
+                t_start_chirp = receiver_radar.chirp_t_start(frame_idx, chirp_idx)
+                T = Tc + t_start_chirp
+                for rx_idx, rx_antenna in enumerate(receiver_radar.rx_antennas):
+                    # FIXME: later these need to be parametrised
+                    rx_hpf = 1e3
+                    rx_lpf = 1e8
+                    for target in targets:
+                        for radar in raytracing_opt["radars"]:
+                            for tx_idx, transmitter in enumerate(radar.transmitters):
+                                # compute distance and then delta time from RX to TX
+                                # to compute the received chirp frequency and phase
+                                tx_x, tx_y, tx_z = transmitter.xyz
+                                rx_x, rx_y, rx_z = rx_antenna.xyz
+                                t_x, t_y, t_z = target.pos_t(T)
+                                v = radar.v
+                                # L = radar.L
+                                distance = sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 + (tx_z - t_z)**2)
+                                distance += sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
+                                time_of_flight = distance / v
+                                f_rx = receiver_radar.TX_freq(T)
+                                f_tx = transmitter.TX_freq(T-time_of_flight)
+                                ph_tx = transmitter.TX_phase(T-time_of_flight, tx_idx) #0
+                                # if transmitter.mimo_mode == "DDM":
+                                #    ph_tx = 2*pi*transmitter.tx_conf["TX_phase_offsets"][tx_idx]*chirp_idx
+                                #    # ph_tx = radar.TX_phase(T-time_of_flight)
+
+                                if any(rx_hpf < np_abs(f_tx-f_rx) < rx_lpf):
+                                    # skip computing the IF if all the frequencies are too low or too high
+                                    # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+                                    YIFi = BB_IF(f_rx, f_tx,
+                                                 rx_hpf, rx_lpf,
+                                                 ph_tx,
+                                                 debug=debug)
+                                    fif_max = max(abs(f_rx - f_tx))
+                                    try:
+                                        assert fif_max * 2 <= radar.fs
+                                    except AssertionError:
+                                        log_msg = "Nyquist will always prevail: " +\
+                                            f"fs:{radar.fs:.2g} vs f_if:{fif_max:.2g}"
+                                        if debug:
+                                            print(f"!! Nyquist for target: {target}" +
+                                                f"fif_max is: {fif_max} " +
+                                                f"radar ADC fs is: {radar.fs}")
+                                        if raytracing_opt["logging_level"] >= 40:
+                                            raise ValueError(log_msg)
+                                    YIF += YIFi
+
+                                elif any(0 < np_abs(f_tx-f_rx)):
+                                    raise ValueError("Corner Case for near DC frequency not handled")
+                                else:
+                                    raise ValueError("Corner Case")
+                    # adc_cube[frame_idx, chirp_idx, tx_idx, rx_idx, :] = YIF
+                    # times[frame_idx, chirp_idx, tx_idx, rx_idx, :] = T
+                    # fix #4 - removed the tx_idx dimension as now we have TX which are potentially interferer
+                    adc_cube[frame_idx, chirp_idx, rx_idx, :] = YIF
+                    times[frame_idx, chirp_idx, rx_idx, :] = T
+                    YIF, YIFi = None, None
+
+                    # DONE 1 - HERE:
+                    # add that TX is defined by TX slope and RX slope
+                    # to allow for interferers
+                    # increase n_tx to include possible interferers
+                    # add code to assess if the current chirp has interference
+                    # if not just `continue`
+
+                    # TODO 2 - HERE:
+                    # add code to include datatype as int16, int32
+                    # and add code in the RSP to include Q15 format support
+
+                    # TODO 3 - HERE:
+                    # generate a new release 0.0.10-RC when this code is done and "works"
+
+                    """ fix #4
+                    for transmitters in raytracing_opt["radars"]:
+                        for transmitter in transmitters:
+                            f_tx = transmitter.TX_freq(T)
+                            if f_tx:
+                                # TODO 4: check that we enter here if and only if intereferer is active
+                                # i.e. len of array is > 0
+                                for TX_antenna in transmitter.tx_antennas:
+                                    # chirp = (f0, slope, phi0, Tstart, Tend)
+                                    # BB_IF = to compute freq delta, phase delta, 
+                                    # define a new BB_IF - BB_IF_simple to BB_IF_slope_constant
+                                    # F_RX = lambda T: slope(T-delta)
+                                    # F_RX[T-delta<Tstart | T-delta>Tend] = 0 !!!!!!!
+                                    # F_IF = F_RX - F_TX_local
+                                    # BB_IF [F_IF>fmax] = 0 !!!!!!!!!!!!!!!
+
+                                    # have provisions for lambda function for f_TX
+                                    # remove amplitude from BB_IF and have it here 
+                                    YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+                                "" " !!!!!!!!!!!!!!!
+
+                                first idea: when receiving cycle over ALL the active TX, each with slope, Fmin and phase and antenna distance ...
+                                    so one active VCO for the receiver will then scan all active TX (either TDM, BPM, DDM & AND &&&&& interferers)
+                                
+                                how to get the phase and slope here?
+
+                                NEED to have have phase in the TX info to allow also for artifacts in between chirps .. ?!?
+
+                                how to have it work the same for normal TX and interferer TX
+                                
+                                
+                                USE TX phase offset to do TX0 vs TX_n or interferer phase offset
+                                
+                                "" "
+
+                    # TODO 4 - 
+                    # naming convention to be added in READM:
+                    # refer to PEP XXX:
+                    #    UPPER CASE is for constants
+                    #      tensors: t3, t4, ... tn_variable_name  for np arrays used as tensors of d>2
+                    #      arr_name1_name2_values for 2D arrays
+                    #      arr_name_values for 1D arrays
+                    #      name_values for python list of values
+                    # END OF updates for 0.0.10RC
+
+
+                "" " #4
                 for tx_i in range(n_tx):
                     phaser = 0
                     if mimo_mode == "TDM":
@@ -265,6 +794,9 @@ def rt_points(radar, targets, radar_equation=False,
                             print(log_msg)
                         if raytracing_opt["logging_level"] >= 40:
                             raise ValueError(log_msg)
+                    end of #4 - refactor for interferers
+                    "" "
+
 
                     for rx_i in range(n_rx):
                         YIF = zeros(n_adc).astype(datatype)
@@ -291,12 +823,25 @@ def rt_points(radar, targets, radar_equation=False,
                                 if raytracing_opt["logging_level"] >= 40:
                                     raise ValueError(log_msg)
                             YIF += YIFi
+
+                            # TODO here: add the interferers contribution
+                            "" "
+                            for interferer in interferers:
+                                # need to handle when the interferer starts
+                                # the slope of TX interferer not being the same as the TX 
+                                YIF_interfer_idx, fif_max = BB_IF(f0_min, slope, T, ...
+                                    # BB_IF needs to now handle TX slope, RX slope and Interfer TX slope and
+                                    # have a condition when f_IF > f_max f ==0 and then return the interference in the IF band only (0s elsewhere)
+                                YIF += YIF_interfer_idx
+                            "" "
+
                         if mimo_mode == "TDM":
                             adc_cube[frame_i, chirp_i, tx_i, rx_i, :] = YIF
                             times[frame_i, chirp_i, tx_i, rx_i, :] = T
                             YIF, YIFi = None, None
                         elif mimo_mode == "DDM":
                             # nth RX receives all the TXs at once
+                            # TODO: optimise here to avoid multiple re-calculations of the same YIF
                             adc_cube[frame_i, chirp_i, 0, rx_i, :] += YIF
                         else:
                             log_msg = f"un supported mimo_mode: :{mimo_mode}"
@@ -304,6 +849,7 @@ def rt_points(radar, targets, radar_equation=False,
                                 print(log_msg)
                             if raytracing_opt["logging_level"] >= 40:
                                 raise ValueError(log_msg)
+                        """
 
         baseband["adc_cube"] = adc_cube
         # T_fin = ((Tc +t_inter_chirp * NC) + t_inter_frame)*n_frames+ Tc
