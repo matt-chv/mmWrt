@@ -232,9 +232,11 @@ class Receiver():
                  config=None,
                  debug=False):
         self.fs = fs
+        self.adc_sampling_frequency = fs
         self.antennas = antennas
         self.max_adc_buffer_size = max_adc_buffer_size
         self.n_adc = n_adc
+        self.number_adc_samples = n_adc
         self.rx_high_pass_freq = 1e3
         self.rx_low_pass_freq = 1e8
 
@@ -266,7 +268,7 @@ class Transmitter():
                  f0_min=60e9,
                  slope=None,
                  slope_MHz_us=None,
-                 ramp_end_time : float =None,
+                 ramp_end_time: float = 1e-6,
                  bw=4e9,
                  antennas=[Antenna()],
                  t_inter_chirp=0.0,
@@ -499,7 +501,6 @@ class Transmitter():
         frame_idx = repeat(arange(0, self.frames_count), self.chirps_count)
         start_time = self.t_inter_frame*frame_idx + \
                         self.t_inter_chirp*chirp_idx + self.tx_start_time
-
         end_time = start_time + self.ramp_end_time
         freqs = [lambda t_adc, t_start_chirp=t_start_chirp: \
                         self.f0_min + (t_adc-t_start_chirp)*self.slope for t_start_chirp in start_time]
@@ -663,7 +664,7 @@ class Radar:
                 print("updating NADC from 0 to:", self.n_adc)
                 raise ValueError(log_msg)
         t_fft = receiver.n_adc / receiver.fs
-        t_chirp = transmitter.bw / transmitter.slope
+        t_chirp = transmitter.ramp_end_time  # transmitter.bw / transmitter.slope
 
         bw_adc = self.n_adc*transmitter.slope/receiver.fs
 

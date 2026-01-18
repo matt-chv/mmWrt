@@ -334,11 +334,15 @@ def adc_chirp_v1(adc_times, receiver_radar,
     return adc_samples
 
 
-def adc_samples_v2(adc_times, receiver_radar,
-                   targets, radars, datatype=float32,
-                   radar_equation=False,
-                   debug=False) -> NDArray:
+def adc_samples_v2(*args, **kwargs):
+    return adc_samples(*args, **kwargs)
+
+def adc_samples(adc_times, receiver_radar,
+                targets, radars, datatype=float32,
+                radar_equation=False,
+                debug=False) -> NDArray:
     """ Computes the ADC samples at the given ADC times for the receiver radar
+    v2 (now fully vectorised)
 
     Returns
     -------
@@ -351,9 +355,7 @@ def adc_samples_v2(adc_times, receiver_radar,
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     number_adc_samples = adc_times.shape[0]
     n_rx = len(receiver_radar.rx_antennas)
-    print("NRX",n_rx)
     adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
-    print("adc_samples.shape", adc_samples.shape)
     # rx_antennas_pos = zeros((n_rx, number_adc_samples))
     tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
     # tx_antennas_pos = zeros((n_rx, number_adc_samples))
@@ -384,6 +386,7 @@ def adc_samples_v2(adc_times, receiver_radar,
     f_tx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
     ph_tx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
     fif = np_abs(f_tx-f_rx)
+    
     if_filter = (rx_high_pass_freq < fif) & (fif < rx_low_pass_freq)
 
     fif[~(if_filter)] = 0
@@ -396,6 +399,9 @@ def adc_samples_v2(adc_times, receiver_radar,
         #                       ph_tx, debug=debug)
         YIF = zeros(fif.shape)
         Tc = adc_times - adc_times[0]
+        print("adc_times",adc_times)
+        print("Tc", Tc)
+        print(fif*Tc)
         IF_filter = ((rx_high_pass_freq <= abs(fif)) &
                      (abs(fif) <= rx_low_pass_freq))
         YIF = where(IF_filter,
@@ -422,16 +428,13 @@ def adc_samples_v2(adc_times, receiver_radar,
                 YIF = YIF / distance**4
             YIF = YIF * 10**(L*distance)
 
-
-
-
         YIF = sum(YIF, axis=1)
         if datatype in [float64, float32, float16]:
-            print("complex to flaot")
-            adc_samples = real(YIF)
+            print("complex to float")
+            YIF = real(YIF)
         elif datatype in [int64, int32, int16]:
             print("complex to int")
-            adc_samples = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
+            YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
         fif_max = np_max(fif)
         try:
             assert fif_max * 2 <= receiver_radar.fs
