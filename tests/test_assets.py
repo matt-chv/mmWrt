@@ -5,7 +5,7 @@ import sys
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Scene import Radar, Transmitter, Receiver, Target
+from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa E402
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -22,7 +22,8 @@ d1 = 10.1
 v_1mps = 1
 vmax = 2*v_1mps
 dphase_dt_1mps = 4*pi*v_1mps/lambda_60G
-# vmax = lambda_0/2/time_inter_chirp => t_inter_chirp_vmax_2mps = lambda_60G/2/vmax
+# vmax = lambda_0/2/time_inter_chirp
+# => t_inter_chirp_vmax_2mps = lambda_60G/2/vmax
 t_inter_chirp_vmax_2mps = lambda_60G/2/vmax
 fif00 = 2*chirp_slope_tdm0*d0/3e8
 fif01 = 2*chirp_slope_tdm0*d1/3e8

@@ -1,3 +1,5 @@
+""" This is mostly to test the TX_freq and phases of Scenes.py
+"""
 from os.path import abspath, join, pardir
 import sys
 from time import time, perf_counter
@@ -9,9 +11,7 @@ sys.path.insert(0, dp)
 from mmWrt.Raytracing import BB_IF, adc_cube_v2
 from mmWrt.Scene import Radar, Transmitter, TransmitterDDM, Antenna, Receiver, Target  # noqa: E402
 
-RED = "\033[31m"
-GREEN = "\033[32m"
-DEFAULT = "\033[0m"
+
 
 number_adc_samples = 8
 NA = number_adc_samples
@@ -260,7 +260,6 @@ def test_adc_chirp_v0():
         print(GREEN+"OK"+DEFAULT)
 
 
-
 def test_adc_chirp_v1():
     from mmWrt.Raytracing import adc_chirp_v0, adc_chirp_v1
     from numpy.fft import fft
@@ -307,9 +306,11 @@ def test_adc_chirp_v2():
 
     f0_start, number_adc_samples, adc_sampling_frequency = 60e9, 8, 5e5
     chirp_slope = 5e12
+    ramp_end_time0 = 1.2*number_adc_samples/adc_sampling_frequency
+    print("ramp_end_time0", ramp_end_time0)
 
     tdm1 = Transmitter(f0_min=f0_start,
-                       ramp_end_time=1.2*number_adc_samples/adc_sampling_frequency,
+                       ramp_end_time=ramp_end_time0,
                        slope=chirp_slope,
                        chirps_count=1,
                        frames_count=1)
@@ -391,7 +392,7 @@ if __name__ == "__main__":
     # test_transmitterDDM_phaser0_chirp0()
     # test_transmitterDDM_phaser1_chirp0()
     # test_transmitterDDM_phaser1_chirp1()
-    test_adc_chirp_v0()
-    test_adc_chirp_v1()
+    # test_adc_chirp_v0()
+    # test_adc_chirp_v1()
     test_adc_chirp_v2()
-    test_adc_frame_v2()
+    # test_adc_frame_v2()

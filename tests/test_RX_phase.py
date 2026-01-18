@@ -9,8 +9,8 @@ from scipy.signal import find_peaks
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Raytracing import adc_samples
-from test_assets import RED, GREEN, DEFAULT
+from mmWrt.Raytracing import adc_samples  # noqa E402
+from test_assets import RED, GREEN, DEFAULT # noqa E402
 
 
 def test_phase_delta_chirp_to_chirp():
@@ -23,24 +23,28 @@ def test_phase_delta_chirp_to_chirp():
     given the number of DFT bins in the velocity dimension (doppler dimension), which is the number of chirps
     the maximum error is 1 range bin:
     2*pi/t_inter_chirp/number_adc_samples
-    """
+    """  # noqa E501
 
     from test_assets import radar_tdm_2_chirp_8adc, \
         target_linear_speed_1mps, \
-        dphase_dt_1mps, lambda_60G
+        dphase_dt_1mps
 
     number_samples = radar_tdm_2_chirp_8adc.receiver.number_adc_samples
+    t_inter_chirp = radar_tdm_2_chirp_8adc.t_inter_chirp
 
-    chirp_idx = tile(arange(0, radar_tdm_2_chirp_8adc.transmitter.chirps_count),
+    chirp_idx = tile(arange(0,
+                            radar_tdm_2_chirp_8adc.transmitter.chirps_count),
                      radar_tdm_2_chirp_8adc.transmitter.frames_count)
-    frame_idx = repeat(arange(0, radar_tdm_2_chirp_8adc.transmitter.frames_count),
+    frame_idx = repeat(arange(0,
+                              radar_tdm_2_chirp_8adc.transmitter.frames_count),
                        radar_tdm_2_chirp_8adc.transmitter.chirps_count)
     start_time = radar_tdm_2_chirp_8adc.t_inter_frame*frame_idx + \
-        radar_tdm_2_chirp_8adc.t_inter_chirp*chirp_idx + radar_tdm_2_chirp_8adc.transmitter.tx_start_time
+        t_inter_chirp*chirp_idx + \
+        radar_tdm_2_chirp_8adc.transmitter.tx_start_time
 
     end_time = start_time + radar_tdm_2_chirp_8adc.transmitter.ramp_end_time
     adc_times_2d = linspace(start_time, end_time,
-                            num=radar_tdm_2_chirp_8adc.receiver.number_adc_samples,
+                            num=number_samples,
                             axis=1)
     adc_times = adc_times_2d.flatten()
 
@@ -57,9 +61,9 @@ def test_phase_delta_chirp_to_chirp():
     phase_peak_1st_chirp = angle(r_fft_1st_chirp[peak_1st_chirp])
     phase_peak_2nd_chirp = angle(r_fft_2nd_chirp[peak_2nd_chirp])
 
-    dphase_dt = (phase_peak_1st_chirp-phase_peak_2nd_chirp)/radar_tdm_2_chirp_8adc.t_inter_chirp
+    dphase_dt = (phase_peak_1st_chirp-phase_peak_2nd_chirp)/t_inter_chirp
 
-    max_expected_dphase_dt_error = 2*pi/radar_tdm_2_chirp_8adc.t_inter_chirp/radar_tdm_2_chirp_8adc.receiver.number_adc_samples
+    max_expected_dphase_dt_error = 2*pi/t_inter_chirp/number_samples
 
     try:
         assert abs(dphase_dt-dphase_dt_1mps) < max_expected_dphase_dt_error
@@ -68,9 +72,10 @@ def test_phase_delta_chirp_to_chirp():
         print("computed", dphase_dt)
         print("delta", dphase_dt_1mps-dphase_dt)
         print("bin size", max_expected_dphase_dt_error)
-        raise
+        raise Exception(ex)
     else:
         print("test_if_1_target_1_chirp:"+GREEN+"OK"+DEFAULT)
+
 
 if __name__ == "__main__":
     test_phase_delta_chirp_to_chirp()
