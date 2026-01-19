@@ -1,5 +1,8 @@
 from numpy import append, array, concatenate, log2, log, pi, sqrt, zeros
+from numpy import abs as np_abs
+from numpy.typing import NDArray
 from scipy.fft import fft
+from scipy.signal import find_peaks
 from numpy import angle
 
 
@@ -481,6 +484,41 @@ def frequency_estimator(FFT, idxs, estimator_name="fft"):
         i_peaks.append(idx_est)
     i_peaks = array(i_peaks)
     return i_peaks
+
+
+def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
+          adc_sample_rate:float,fft_threshold:float) -> NDArray:
+    """ returns a NDArray of ranges using a simple fft threshold for target 
+    detection, used for simple examples.
+    Not recommended in most cases, cfar peak detection recommended 
+
+    Parameters
+    ----------
+    adc_values: NDArray
+        the ADC values for a given chirp. assumed to be a 1D (adc_samples_per_chirp,) shape
+    chirp_slope: float
+        the chirp slope in Hz/s
+    adc_sample_rate: float
+        the ADC sampling rate in Hz
+    fft_threshold: float
+        threshold used by find peaks for peak detection
+
+    Returns
+    -------
+    ranges: numpy array
+        the ranges corresponding to each ADC sample
+    """
+    c = 3e8  # speed of light in m/s
+    adc_samples_per_chirp = adc_values.shape[0]
+    range_fft = fft(adc_values)
+
+    peaks = find_peaks(np_abs(range_fft[:len(range_fft)//2]),
+                       height=fft_threshold)[0]
+    # d = i * fs*c/2/k/NA
+    i2r = lambda idx: idx*adc_sample_rate * c / \
+        (2*chirp_slope*adc_samples_per_chirp)
+    ranges = array([i2r(peak_idx) for peak_idx in peaks])
+    return ranges
 
 def pcl(cube):
     """ returns array of 3D pcl

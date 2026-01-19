@@ -399,9 +399,6 @@ def adc_samples(adc_times, receiver_radar,
         #                       ph_tx, debug=debug)
         YIF = zeros(fif.shape)
         Tc = adc_times - adc_times[0]
-        print("adc_times",adc_times)
-        print("Tc", Tc)
-        print(fif*Tc)
         IF_filter = ((rx_high_pass_freq <= abs(fif)) &
                      (abs(fif) <= rx_low_pass_freq))
         YIF = where(IF_filter,

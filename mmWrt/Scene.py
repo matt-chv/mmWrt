@@ -233,10 +233,12 @@ class Receiver():
                  debug=False):
         self.fs = fs
         self.adc_sampling_frequency = fs
+        self.adc_sample_rate = fs
         self.antennas = antennas
         self.max_adc_buffer_size = max_adc_buffer_size
         self.n_adc = n_adc
         self.number_adc_samples = n_adc
+        self.adc_samples_per_chirp = n_adc
         self.rx_high_pass_freq = 1e3
         self.rx_low_pass_freq = 1e8
 
@@ -317,6 +319,7 @@ class Transmitter():
         assert slope > 1e8
         self.f0_min = f0_min
         self.slope = slope
+        self.chirp_slope = slope
         self.t_inter_chirp = t_inter_chirp
         self.chirps_count = chirps_count
         self.antennas = antennas
