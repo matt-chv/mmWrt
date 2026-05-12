@@ -5,11 +5,16 @@ BB_IF - function to compute the BaseBand Intermediate Frequency
 BB_IF is called by rt_points to compute each respective scatterer's IF contribution
 """
 
-from numpy import any, arctan2, arange, array, exp, mean, newaxis, pi, real, sqrt, where, zeros
+from numpy import any, arctan2, arange, array, exp, mean, newaxis, pi, real, sum, sqrt, where, zeros, empty
 from numpy import abs as np_abs, max as np_max
 from numpy.typing import NDArray
 from numpy import float64, float32, float16, int64, int32, int16  # alternatives: float16, float64
 from numpy import complex128 as complex
+from numpy import complex64
+from numpy.linalg import norm as euclidian_distance
+from numpy import tile, sum
+
+from time import perf_counter
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
@@ -208,135 +213,6 @@ def BB_IF_single_radar(f0_min, slope, T, antenna_tx, antenna_rx, target,
     return IF
 
 
-def adc_chirp_v0(adc_times, receiver_radar,
-             targets, radars, datatype=float32,
-             debug=False):
-    numer_adc_samples = receiver_radar.n_adc
-    n_rx = len(receiver_radar.rx_antennas)
-    adc_samples = zeros((n_rx, numer_adc_samples)).astype(datatype)
-    YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
-    f_rx = receiver_radar.TX_freqs(adc_times)
-    tr_chirp = adc_times - adc_times[0]
-    for rx_idx, rx_antenna in enumerate(receiver_radar.rx_antennas):
-        # FIXME: later these need to be parametrised
-        rx_hpf = 1e3
-        rx_lpf = 1e8
-        rx_x, rx_y, rx_z = rx_antenna.xyz
-        for target in targets:
-            t_x, t_y, t_z = target.pos_t(adc_times)
-            distance_rx_target = sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
-            for radar in radars:
-                for tx_idx, tx_antenna in enumerate(radar.tx_antennas):
-                    # compute distance and then delta time from RX to TX
-                    # to compute the received chirp frequency and phase
-                    tx_x, tx_y, tx_z = tx_antenna.xyz
-                    v = radar.v
-                    # L = radar.L
-                    distance = distance_rx_target +\
-                        sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 +\
-                                (tx_z - t_z)**2)
-
-                    time_of_flight = distance / v
-
-                    f_tx = radar.TX_freqs(adc_times-time_of_flight)
-                    ph_tx = radar.TX_phases(adc_times-time_of_flight, tx_idx)
-
-                    fif = np_abs(f_tx-f_rx)
-                    if_filter = (rx_hpf < fif) & (fif < rx_lpf)
-
-                    fif[~(if_filter)] = 0
-                    print("fif", fif)
-
-                    if any(if_filter):
-                        # skip computing the IF if all the frequencies are too low or too high
-                        # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
-
-                        YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
-                                     ph_tx, debug=debug)
-                        fif_max = max(fif)
-                        print(260, fif_max, radar.fs)
-                        try:
-                            assert fif_max * 2 <= radar.fs
-                        except AssertionError:
-                            
-                            log_msg = "Nyquist will always prevail: " +\
-                                f"fs:{radar.fs:.2g} vs f_if:{fif_max:.2g}"
-                            if debug:
-                                print(f"!! Nyquist for target: {target}" +
-                                        f"fif_max is: {fif_max} " +
-                                        f"radar ADC fs is: {radar.fs}")
-                                raise ValueError(log_msg)
-                        except Exception as ex:
-                            print(260, fif_max, radar.fs)
-                            raise Exception(ex)
-                        YIF += YIFi
-
-                    elif any(0 < np_abs(f_tx-f_rx)):
-                        raise ValueError("Corner Case for near DC frequency not handled")
-                    else:
-                        raise ValueError("Corner Case")
-        adc_samples[rx_idx, :] = YIF
-    return adc_samples
-
-def adc_chirp_v1(adc_times, receiver_radar,
-             targets, radars, datatype=float32,
-             debug=False):
-    from numpy.linalg import norm as euclidian_distance
-    number_adc_samples = receiver_radar.n_adc
-    n_rx = len(receiver_radar.rx_antennas)
-    adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
-    rx_antennas_pos = zeros((n_rx, number_adc_samples))
-    tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
-    tx_antennas_pos = zeros((n_rx, number_adc_samples))
-    # targets_pos = zeros((len(targets), 3, numer_adc_samples))
-
-    YIF, YIFi = zeros(number_adc_samples).astype(datatype), zeros(number_adc_samples).astype(datatype)
-    f_rx = receiver_radar.TX_freqs(adc_times)
-    tr_chirp = adc_times - adc_times[0]
-
-    # rx_antennas_pos[,:] = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
-    #tx_antennas_pos[,:] = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
-
-
-    # FIXME: later these need to be parametrised
-    rx_hpf = 1e3
-    rx_lpf = 1e8
-
-    targets_positions = targets[0].pos_t(adc_times)
-    distance_tx_target = euclidian_distance(tx_antennas_pos - targets_positions, axis=0)
-
-    # Compute the distance from target to rx for each time point
-    distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=0)
-
-    # Total distance is the sum of both distances for each time point
-    total_distance = distance_tx_target + distance_target_rx
-    time_of_flight = total_distance/receiver_radar.v
-
-    for radar in radars:
-        f_tx = radar.TX_freqs(adc_times-time_of_flight)
-        ph_tx = radar.TX_phases(adc_times-time_of_flight)
-        fif = np_abs(f_tx-f_rx)
-        if_filter = (rx_hpf < fif) & (fif < rx_lpf)
-
-        fif[~(if_filter)] = 0
-
-        if any(if_filter):
-            # skip computing the IF if all the frequencies are too low or too high
-            # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
-
-            YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
-                         ph_tx, debug=debug)
-            fif_max = max(fif)
-            YIF += YIFi
-
-    adc_samples[:, :] = YIF
-
-    return adc_samples
-
-
-def adc_samples_v2(*args, **kwargs):
-    return adc_samples(*args, **kwargs)
-
 def adc_samples(adc_times, receiver_radar,
                 targets, radars, datatype=float32,
                 radar_equation=False,
@@ -349,37 +225,36 @@ def adc_samples(adc_times, receiver_radar,
     adc_samples: NDArray
         adc_times x receiver antenna count
     """
-    from numpy.linalg import norm as euclidian_distance
-    from numpy import tile, sum
+    t_356 = perf_counter()
     rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     number_adc_samples = adc_times.shape[0]
     n_rx = len(receiver_radar.rx_antennas)
-    adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
+    # adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
     # rx_antennas_pos = zeros((n_rx, number_adc_samples))
-    tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
+    # tx_antennas_count = sum([len(radar.tx_antennas) for radar in radars])
     # tx_antennas_pos = zeros((n_rx, number_adc_samples))
     # targets_pos = zeros((len(targets), 3, numer_adc_samples))
 
     f_rx = receiver_radar.TX_freqs(adc_times)
     tr_chirp = adc_times - adc_times[0]
+    t_369 = perf_counter()
+    rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
+    # rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
 
-    rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas]).T
-    rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
+    tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
 
-    tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas]).T
-    tx_antennas_pos = tile(tx_antennas_pos, (len(targets), 1, number_adc_samples))
-
-    targets_positions = array([target.pos_t(adc_times) for target in targets])
-
-    distance_tx_target = euclidian_distance(tx_antennas_pos - targets_positions, axis=1)
-
+    targets_positions = empty((len(targets), adc_times.shape[0], 3))
+    for i, target in enumerate(targets):
+        targets_positions[i,:,:] = target.pos_t1(adc_times)
+    diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
+    distance_tx_target = sqrt(sum(diff * diff, axis=-1))
     # Compute the distance from target to rx for each time point
-    distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
-
+    # distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
+    diff = targets_positions - rx_antennas_pos
+    distance_target_rx = sqrt(sum(diff * diff, axis=-1))
     # Total distance is the sum of both distances for each time point
     total_distance = distance_tx_target + distance_target_rx
-
     time_of_flight = total_distance/receiver_radar.v
 
     # for radar in radars:
@@ -388,23 +263,26 @@ def adc_samples(adc_times, receiver_radar,
     fif = np_abs(f_tx-f_rx)
     
     if_filter = (rx_high_pass_freq < fif) & (fif < rx_low_pass_freq)
-
+    if debug:
+        print("rx hpf, rx lpf", rx_high_pass_freq, rx_low_pass_freq)
+        print("fif:")
+        print(fif)
+        print("if filter:")
+        print(if_filter)
     fif[~(if_filter)] = 0
-
+    YIF = zeros(fif.shape)
     if any(if_filter):
         # skip computing the IF if all the frequencies are too low or too high
         # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
 
         # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
         #                       ph_tx, debug=debug)
-        YIF = zeros(fif.shape)
         Tc = adc_times - adc_times[0]
         IF_filter = ((rx_high_pass_freq <= abs(fif)) &
                      (abs(fif) <= rx_low_pass_freq))
         YIF = where(IF_filter,
                     exp(2 * pi * 1j * (fif) * Tc + 1j*ph_tx),
                     YIF)
-        
         if radar_equation:
             # FIXME: add here that with physic samples should be `0`
             # for T<distance/v
@@ -427,11 +305,12 @@ def adc_samples(adc_times, receiver_radar,
 
         YIF = sum(YIF, axis=1)
         if datatype in [float64, float32, float16]:
-            print("complex to float")
             YIF = real(YIF)
+        elif datatype in [complex64, complex]:
+            pass
         elif datatype in [int64, int32, int16]:
-            print("complex to int")
             YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
+
         fif_max = np_max(fif)
         try:
             assert fif_max * 2 <= receiver_radar.fs
@@ -440,108 +319,8 @@ def adc_samples(adc_times, receiver_radar,
                 f"fs:{receiver_radar.fs:.2g} vs f_if:{fif_max:.2g}"
             if debug:
                 raise ValueError(log_msg)
-        adc_samples = YIF
-    return adc_samples
+    return YIF
 
-
-def adc_cube_v0(receiver_radar,
-             targets, radars, datatype=float32,
-             debug=False):
-    total_number_frames = receiver_radar.total_number_frames
-    total_chirps_per_frame = receiver_radar.total_chirps_per_frame
-    n_rx = len(receiver_radar.rx_antennas)
-    numer_adc_samples = receiver_radar.n_adc
-    # chirp timing - relative to start of chirp multiple of the ADC sampling time
-    tr_chirp = arange(0, numer_adc_samples, 1)*(1/receiver_radar.fs)
-    adc_samples_cube = zeros((total_number_frames, total_chirps_per_frame, n_rx, numer_adc_samples)).astype(datatype)
-    YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
-    for frame_idx in range(total_number_frames):
-        for chirp_idx in range(total_chirps_per_frame):
-            # classical ray-tracing now: starts from eye goes back to light
-            t_start_chirp = receiver_radar.chirp_t_start(frame_idx, chirp_idx)
-            T = tr_chirp + t_start_chirp
-
-            f_rx = receiver_radar.TX_freqs(T)
-            for rx_idx, rx_antenna in enumerate(receiver_radar.rx_antennas):
-                # FIXME: later these need to be parametrised
-                rx_hpf = 1e3
-                rx_lpf = 1e8
-                rx_x, rx_y, rx_z = rx_antenna.xyz
-                for target in targets:
-                    t_x, t_y, t_z = target.pos_t(T)
-                    distance_rx_target = sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
-                    for radar in radars:
-                        for tx_idx, tx_antenna in enumerate(radar.tx_antennas):
-                            # compute distance and then delta time from RX to TX
-                            # to compute the received chirp frequency and phase
-                            tx_x, tx_y, tx_z = tx_antenna.xyz
-                            v = radar.v
-                            # L = radar.L
-                            distance = distance_rx_target +\
-                                sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 +\
-                                     (tx_z - t_z)**2)
-                            time_of_flight = distance / v
-
-                            f_tx = radar.TX_freqs(T-time_of_flight)
-                            ph_tx = radar.TX_phases(T-time_of_flight, tx_idx)
-
-                            fif = np_abs(f_tx-f_rx)
-                            if_filter = (rx_hpf < fif) & (fif < rx_lpf)
-
-                            fif[~(if_filter)] = 0
-
-                            if any(if_filter):
-                                # skip computing the IF if all the frequencies are too low or too high
-                                # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
-
-                                YIFi = BB_IF(tr_chirp, fif, rx_hpf, rx_lpf,
-                                             ph_tx, debug=debug)
-                                fif_max = max(fif)
-                                try:
-                                    assert fif_max * 2 <= radar.fs
-                                except AssertionError:
-                                    log_msg = "Nyquist will always prevail: " +\
-                                        f"fs:{radar.fs:.2g} vs f_if:{fif_max:.2g}"
-                                    if debug:
-                                        print(f"!! Nyquist for target: {target}" +
-                                              f"fif_max is: {fif_max} " +
-                                              f"radar ADC fs is: {radar.fs}")
-                                        raise ValueError(log_msg)
-                                YIF += YIFi
-
-                            elif any(0 < np_abs(f_tx-f_rx)):
-                                raise ValueError("Corner Case for near DC frequency not handled")
-                            else:
-                                raise ValueError("Corner Case")
-                adc_samples_cube[frame_idx, chirp_idx, rx_idx, :] = YIF
-                YIF, YIFi = zeros(numer_adc_samples).astype(datatype), zeros(numer_adc_samples).astype(datatype)
-    return adc_samples_cube
-
-
-def adc_cube_v2(receiver_radar,
-                targets, radars, datatype=float32,
-                debug=False):
-    """ computes adc cube for homogeneous frame
-    (where # chirps/frame & # ADC samples/chirp are constant)
-    multiple calls to this functions expected with different frames
-    definition and timing expected to address sub-frames
-    """
-    # frames = arange(0,len(receiver_radar.frames))
-    adc_cube = zeros(len(receiver_radar.frames)* len(receiver_radar.chirps)*len(receiver_radar.adc_sample_count))
-    from numpy import repeat, tile
-
-    frame_count = len(receiver_radar.frames)
-    chirp_per_frame = len(receiver_radar.chirps)
-    frame_idx = repeat(arange(chirp_per_frame), frame_count)
-    chirp_idx = tile(arange(chirp_per_frame), frame_count)
-
-    adc_times = receiver_radar.t_inter_frame*frame_idx + receiver_radar.t_inter_chirp*chirp_idx
-
-    adc_cube = adc_samples_v2(adc_times, receiver_radar,
-                              targets, radars)
-    # print(adc_cube[:receiver_radar.adc_sample_count])
-
-    
 
 def rt_points(receiver_radar, targets, radar_equation=False,
               datatype=float32, debug=False,

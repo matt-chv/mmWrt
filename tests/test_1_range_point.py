@@ -76,6 +76,7 @@ def __range__wrapper(target_idxes=[0], radars_idxes=[0],
                              [targets[idx] for idx in target_idxes],
                              radars=[radars[idx] for idx in radars_idxes])
     if cfar_peak_detect:
+
         ranges = ranges_dft_cfar(adc_values[0, :],
                              chirp_slope=chirp_slope,
                              adc_sample_rate=adc_sample_rate,

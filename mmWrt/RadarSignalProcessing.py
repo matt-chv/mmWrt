@@ -668,15 +668,19 @@ def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
     """ returns a NDArray of ranges using a simple fft threshold for target """
     c = 3e8  # speed of light in m/s
     adc_samples_per_chirp = adc_values.shape[0]
-    range_fft = fft(adc_values).squeeze()
-    range_mag = np_abs(range_fft)
+    range_fft = fft(adc_values)
+    fft_values = np_abs(range_fft)
 
-    cfar_th = cfar_ca_1d(range_mag, num_training_cells=10,
-                               num_guard_cells=1,
-                               debug=False)
+    # fft_values = np.fft.fft(adc_values)
+    cfar_thresholds = cfar_ca(fft_values, guard_cell_count=1, train_cell_count=3,
+                              pfa=0.01)
 
-    peaks = range_mag > cfar_th
-    peak_idxs = where(range_mag > cfar_th)[0]
+    # cfar_th = cfar_ca_1d(range_mag, num_training_cells=10,
+    #                num_guard_cells=1,
+    #                           debug=False)
+
+    # peaks = range_mag > cfar_thresholds
+    peak_idxs = where(fft_values > cfar_thresholds + 1e-10)[0]
 
     # d = i * fs*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \

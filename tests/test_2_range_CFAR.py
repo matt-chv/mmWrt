@@ -29,13 +29,13 @@ from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 from test_1_range_point import __range__wrapper  # noqa: E402
-from test_assets import target_static_5p1m, tdm_1chirp_8adc, d_5p1m
+from test_assets import target_static_5p1m, radar_tdm_1_chirp_8_adc, d_5p1m
 
 def __range__wrapper2(targets, radars,
-                     distances,
-                     cfar_peak_detect=False,
-                     data_type=float32,
-                     peak_threshold=2):
+                      distances,
+                      cfar_peak_detect=False,
+                      data_type=float32,
+                      peak_threshold=2):
     from test_1_range_point import adc_samples
     from numpy import arange
     c = 3e8
@@ -55,12 +55,13 @@ def __range__wrapper2(targets, radars,
                              targets,
                              radars=radars)
     if cfar_peak_detect:
-        ranges = ranges_dft_cfar(adc_values[0, :],
-                             chirp_slope=chirp_slope,
-                             adc_sample_rate=adc_sample_rate,
-                             fft_threshold=peak_threshold)
+        ranges = rsp.ranges_dft_cfar(adc_values[0, :],
+                                    chirp_slope=chirp_slope,
+                                    adc_sample_rate=adc_sample_rate,
+                                    fft_threshold=peak_threshold)
+
     else:
-        ranges = ranges_from_fft_threshold(adc_values[0, :],
+        ranges = rsp.ranges_from_fft_threshold(adc_values[0, :],
                                         chirp_slope=chirp_slope,
                                         adc_sample_rate=adc_sample_rate,
                                         fft_threshold=peak_threshold)
@@ -68,8 +69,8 @@ def __range__wrapper2(targets, radars,
     range_bin_width = adc_sample_rate * c / \
         (2*chirp_slope*adc_samples_per_chirp)
 
-    for idx, _ in enumerate(target_idxes):
-        error = abs(ranges[idx]-distances[distance_idxes[idx]])
+    for idx, _ in enumerate(distances):
+        error = abs(ranges[idx]-distances[idx])
         try:
             assert  error < range_bin_width
         except Exception as ex:
@@ -93,32 +94,34 @@ def test_tdm_8adc_target0():
                      cfar_peak_detect=True)
 
 @pytest.mark.parametrize("targets, radars, distances, cfar_peak_detect", [
-    ([target_static_5p1m], [tdm_1chirp_8adc], [d_5p1m], False),
+    ([target_static_5p1m], [radar_tdm_1_chirp_8_adc], [d_5p1m], True),
 ])
-def nok_tdm_8adc_range0m():
+def test_tdm_8adc_range0m(targets, radars,
+                     distances,
+                     cfar_peak_detect):
     """ Test CFAR on range bin 0 as np.find_peaks does not work on range bin 0, 
     currently also broken with CFAR needs debug
     so we need to ensure CFAR can handle it. """
     __range__wrapper2(targets, radars,
-                     distances=[4],
-                     cfar_peak_detect=False)
+                     distances,
+                     cfar_peak_detect)
 
 
 def test_rsp_cfar_ex1():
-    from mmWrt.RadarSignalProcessing import cfar_new
+    from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 1: Peak at first range bin
     fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
-    threshold = cfar_new(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
     magnitude = np.abs(fft)
     peak_idx = np.argmax(magnitude)
     assert peak_idx == np.where(magnitude > threshold)[0][0]
 
 
 def test_rsp_cfar_ex2():
-    from mmWrt.RadarSignalProcessing import cfar_new
+    from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 2: Peak in the middle
     fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
-    threshold = cfar_new(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
     magnitude = np.abs(fft)
     peak_idx = np.argmax(magnitude)
     assert peak_idx == np.where(magnitude > threshold)[0][0]
