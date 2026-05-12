@@ -13,6 +13,7 @@ from os.path import abspath, join, pardir
 import re
 from semver import VersionInfo
 import sys
+import pytest
 
 from numpy import where
 from numpy import complex128 as complex
@@ -27,20 +28,79 @@ from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 from test_1_range_point import __range__wrapper  # noqa: E402
+from test_assets import target_static_5p1m, tdm_1chirp_8adc, d_5p1m
 
+def __range__wrapper2(targets, radars,
+                     distances,
+                     cfar_peak_detect=False,
+                     data_type=float32,
+                     peak_threshold=2):
+    from test_1_range_point import adc_samples
+    from numpy import arange
+    c = 3e8
+
+    radar = radars[0]
+
+    adc_sample_rate = radar.receiver.adc_sample_rate
+    chirp_slope = radar.transmitter.chirp_slope
+    adc_samples_per_chirp = radar.receiver.adc_samples_per_chirp
+
+    adc_sample_rate = radar.receiver.adc_sample_rate
+    chirp_slope = radar.transmitter.chirp_slope
+    adc_samples_per_chirp = radar.receiver.adc_samples_per_chirp
+    adc_times = arange(0, radar.number_adc_samples, 1) * \
+        (1/adc_sample_rate)
+    adc_values = adc_samples(adc_times, radar,
+                             targets,
+                             radars=radars)
+    if cfar_peak_detect:
+        ranges = ranges_dft_cfar(adc_values[0, :],
+                             chirp_slope=chirp_slope,
+                             adc_sample_rate=adc_sample_rate,
+                             fft_threshold=peak_threshold)
+    else:
+        ranges = ranges_from_fft_threshold(adc_values[0, :],
+                                        chirp_slope=chirp_slope,
+                                        adc_sample_rate=adc_sample_rate,
+                                        fft_threshold=peak_threshold)
+    
+    range_bin_width = adc_sample_rate * c / \
+        (2*chirp_slope*adc_samples_per_chirp)
+
+    for idx, _ in enumerate(target_idxes):
+        error = abs(ranges[idx]-distances[distance_idxes[idx]])
+        try:
+            assert  error < range_bin_width
+        except Exception as ex:
+            raise ValueError("Error too large")
+
+""" upgrade to
+@pytest.mark.parametrize("param_1, param_2", [
+    (min_1, min_2),
+    (min_1, max_2),
+    (max_1, min_2),
+    (max_1, max_2),
+])
+def test_my_function(param_1, param_2):
+    result = my_function(param_1, param_2)
+    assert result == expected
+"""
 
 def test_tdm_8adc_target0():
     __range__wrapper(target_idxes=[0], radars_idxes=[0],
                      distance_idxes=[0],
                      cfar_peak_detect=True)
 
+@pytest.mark.parametrize("targets, radars, distances, cfar_peak_detect", [
+    ([target_static_5p1m], [tdm_1chirp_8adc], [d_5p1m], False),
+])
 def nok_tdm_8adc_range0m():
     """ Test CFAR on range bin 0 as np.find_peaks does not work on range bin 0, 
     currently also broken with CFAR needs debug
     so we need to ensure CFAR can handle it. """
-    __range__wrapper(target_idxes=[4], radars_idxes=[1],
-                     distance_idxes=[4],
-                     cfar_peak_detect=True)
+    __range__wrapper2(targets, radars,
+                     distances=[4],
+                     cfar_peak_detect=False)
 
 
 def tbd_test_FMCW_1j():
