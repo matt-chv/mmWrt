@@ -1,5 +1,7 @@
-from numpy import append, array, concatenate, log2, log, pi, sqrt, zeros
+from numpy import append, array, concatenate, log2, log, pi, sqrt, where, zeros
 from numpy import abs as np_abs
+import numpy as np
+from numpy import sum as np_sum
 from numpy.typing import NDArray
 from scipy.fft import fft
 from scipy.signal import find_peaks
@@ -49,12 +51,41 @@ def error(targets_synthetics, targets_f):
 
     return total_error
 
+def cfar_1D_convolve(X, num_training_cells = 10,
+                     num_guard_cells=2, Pfa=0.1,
+                     mode="same", debug=False):
+    """ CFAR implementation via convolution the idea is to see 
+    CFAR as convolution with a kernel of 0 for guard an CuT cells and 1 for train cells, 
+    then scaling the output of the convolution by T/M for Pfa"""
+    from numpy import ones, convolve, pad
+    test = ones(len(X))
+    n = 2*num_training_cells+num_guard_cells
+    M = n
+    T = M*(Pfa**(-1/M) - 1)
+    P = [x**2 for x in X]
+    if n>len(P):
+        n=len(P)
+    exclude = ones(n)
+    extra_left = (len(P) - n )//2
+    extra_right = extra_left
+    
+    if extra_right+extra_left+n<len(P):
+        extra_right +=1
+    exclude2 = pad(exclude, ((extra_left),(extra_right)), mode='constant', constant_values=0)
+    test = test - exclude2
+    th = convolve(P, test, mode)
+    th = sqrt(th) * T/M
+    if debug:
+        import matplotlib.pyplot as plt
+        pass
+    return th
+
 
 def cfar_ca_1d(X, num_training_cells=10,
                num_guard_cells=2,
                Pfa=1e-2,
                mode="same",
-               debug=False):
+               debug=True):
     """ Retuns indexs of peaks found via CA-CFAR
     i.e Cell Averaging Constant False Alarm Rate algorithm
 
@@ -84,7 +115,12 @@ def cfar_ca_1d(X, num_training_cells=10,
     count_leading_guard_cells = round(num_guard_cells / 2)
     half_window_size = half_M + count_leading_guard_cells
     # compute power of signal
-    P = [abs(x)**2 for x in X]
+    P = np_abs(X)  # [abs(x)**2 for x in X]
+
+    if mode == "same":
+        # for same mode, we need to pad the signal at the beginning and end
+        # to be able to compute the CFAR threshold for the first and last samples
+        P_extended = concatenate((P[-half_window_size:], P, P[:half_window_size]))
 
     # T scaling factor for threshold
     # from Eq 6, Eq 7 from [1]
@@ -94,19 +130,15 @@ def cfar_ca_1d(X, num_training_cells=10,
     peak_locations = []
     # thresholds = [0]*(half_window_size)
     thresholds = zeros(signal_length)
-    if mode == "same":
-        start = half_window_size
-        end = signal_length - half_window_size
-    elif mode == "full":
-        start = 0
-        end = signal_length
 
-    for idx in range(start, end):
-        p_noise = sum(P[idx - half_M: idx + half_M + 1])
-        p_noise -= sum(P[idx - count_leading_guard_cells:
-                       idx + count_leading_guard_cells + 1])
+
+    for idx in range(0, signal_length):
+        p_noise = np_sum(P_extended[half_window_size+idx - half_M: half_window_size+idx + half_M + 1])
+        p_noise -= np_sum(P_extended[half_window_size+idx - count_leading_guard_cells:
+                    half_window_size+idx + count_leading_guard_cells + 1])
         if debug:
-            print("MCV 106", p_noise, M)
+            print("MCV 105 M", M)
+            print("MCV 106", p_noise)
             print("MCV 107", p_noise/M)
         p_noise = p_noise / M
         threshold = T * p_noise
@@ -120,10 +152,15 @@ def cfar_ca_1d(X, num_training_cells=10,
             peak_locations.append(idx)
     peak_locations = array(peak_locations, dtype=int)
     if debug:
+        import matplotlib.pyplot as plt
+        plt.plot(X, label="signal")
+        plt.plot(thresholds, label="CFAR threshold")
+        plt.show()
         print("CFAR CA debug---")
         print("signal length", X.shape)
         print("debug cfar CA mag", abs(X))
         print("tresholds", thresholds)
+        print("max(thresholds)", max(thresholds))
         print("T", T)
         print("E", sum(P)/M)
         print("th=sqrt(T*sum(P)/M)",sqrt(T*sum(P)/M))
@@ -187,6 +224,100 @@ def cfar_1d(FT,
         print("CFAR 1D debug---")
         print("CFAR_TH shape", cfar_th.shape)
     return cfar_th
+
+
+def cfar_ca(fft_values: np.ndarray,
+            guard_cell_count: int,
+            train_cell_count: int,
+            pfa: float) -> np.ndarray:
+    """
+    Constant False Alarm Rate (CFAR) detector.
+    Computes CFAR threshold for each range bin by averaging surrounding training
+    cells (excluding guard cells) to estimate background noise level. The threshold
+    is set based on the desired probability of false alarm (PFA).
+
+    Parameters
+    ----------
+    fft_values
+        Complex FFT values (1D array).
+    guard_cell_count
+        Number of guard cells on each side of the cell under test.
+    train_cell_count
+        Number of training cells on each side (excluding guard cells).
+    pfa:
+        Probability of False Alarm (0 < pfa < 1).
+
+    Returns
+    -------
+    cfar_thresholds
+        CFAR threshold for each range bin (same shape as fft_values).
+
+    Notes
+    -----
+    The CFAR algorithm:
+    1. For each cell under test, identify guard cells (immediately adjacent) and
+       training cells (surrounding the guard cells).
+    2. Compute mean power from training cells to estimate background noise.
+    3. Set threshold = noise_mean * threshold_factor, where threshold_factor is
+       derived from the desired PFA using chi-square statistics.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Example 1: Peak at first range bin
+    >>> fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    >>> threshold = cfar(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    >>> magnitude = np.abs(fft)
+    >>> peak_idx = np.argmax(magnitude)
+    >>> peak_idx
+    0
+    >>> np.where(magnitude > threshold)[0][0]
+    0
+    >>> # Example 2: Peak in the middle
+    >>> fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    >>> threshold = cfar(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    >>> magnitude = np.abs(fft)
+    >>> peak_idx = np.argmax(magnitude)
+    >>> peak_idx
+    2
+    >>> np.where(magnitude > threshold)[0][0]
+    2
+    """
+    # Convert complex FFT values to magnitude
+    magnitude = np.abs(fft_values)
+    n_bins = len(magnitude)
+    # Compute threshold factor from PFA
+    # Using chi-square approximation: for single cell test in noise,
+    # threshold_factor ≈ -ln(pfa)
+    num_train_cells = 2 * train_cell_count
+    threshold_factor = -np.log(pfa) / num_train_cells
+
+    # Initialize threshold array
+    cfar_threshold = np.zeros(n_bins, dtype=float)
+
+    # Compute threshold for each bin
+    for i in range(n_bins):
+        # Define indices for training cells on the left
+        left_start = i - train_cell_count - guard_cell_count
+        left_end = i - guard_cell_count
+        # Define indices for training cells on the right
+        right_start = i + guard_cell_count + 1
+        right_end = i + guard_cell_count + train_cell_count + 1
+        # Collect valid training cell indices
+        train_indices = []
+        if left_start >= 0:
+            train_indices.extend(range(left_start, left_end))
+        if right_end <= n_bins:
+            train_indices.extend(range(right_start, right_end))
+        # Compute mean noise power from available training cells
+        if train_indices:
+            mean_noise = np.mean(magnitude[train_indices])
+        else:
+            # Fallback if no training cells available
+            mean_noise = np.mean(magnitude)
+        # Compute CFAR threshold
+        cfar_threshold[i] = mean_noise * threshold_factor
+    return cfar_threshold
 
 
 def peak_grouping_1d(cfar_idx, mag_r):
@@ -282,7 +413,9 @@ def if2d(radar):
     return f2d
 
 
-def range_fft(baseband, chirp_index=0,
+def range_fft(adc_values: NDArray,
+              baseband: dict,
+              chirp_index=0,
               fft_window=None, fft_padding=0,
               full_FFT=False,
               debug=False):
@@ -290,10 +423,11 @@ def range_fft(baseband, chirp_index=0,
 
     Parameters
     ----------
-    baseband: numpy array
-        the IF ADC signals data matrix
+    adc_values: NDArray
+        the IF ADC signals of shape(N,) - i.e. 1D array
+    baseband: dict
     chirp_index: int
-        index of the chirp in the data matrix
+        (obsolete) index of the chirp in the data matrix
     fft_window: str
         FFT windowing names supported by scipy get_window
     fft_padding: int
@@ -316,14 +450,15 @@ def range_fft(baseband, chirp_index=0,
     ValueError
         when fft_padding has a value < -1
     """
-    if chirp_index == 0:
+    """if chirp_index == 0:
         # v0.1.1: adc = baseband['adc_cube'][0][0][0]
         frame_idx = 0
         rx_idx = 0
         tx_idx = 0
         adc = baseband['adc_cube'][frame_idx, chirp_index, tx_idx, rx_idx, :]
     else:
-        raise ValueError("chirp index value not supported yet")
+        raise ValueError("chirp index value not supported yet")"""
+    adc = adc_values
 
     if fft_padding == -1:
         if debug:  # pragma: no cover
@@ -344,6 +479,7 @@ def range_fft(baseband, chirp_index=0,
     if fft_window is None:
         if debug:  # pragma: no cover
             print("FFT without windowing")
+            print("fft_leng", fft_length)
         FT = fft(adc, n=fft_length)
     else:
         if debug:  # pragma: no cover
@@ -352,12 +488,15 @@ def range_fft(baseband, chirp_index=0,
         w = get_window(fft_window, len(adc))
         FT = fft(adc * w, n=fft_length)
 
-    delta_R = range_resolution(baseband["v"], baseband["bw"])
+    chirp_bandwidth = baseband["chirp_slope"] * baseband["chirp_end_time"]
+
+    # baseband = {"fs":adc_sampling_rate}
+    delta_R = range_resolution(baseband["medium_velocity"], chirp_bandwidth)
     # D_max = c*f_if_max/(2*S)
     # if complex FFT, f_if_max = fs
     # if real FFT, f_if_max = fs/2 (for non-ambiguous)
-    delta_R_FFT = baseband["fs"] * baseband["v"] \
-        / (2 * len(FT) * baseband["slope"])
+    delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
+        / (2 * len(FT) * baseband["chirp_slope"])
     Distances = [i * delta_R_FFT for i in range(len(FT))]
 
     if debug:  # pragma: no cover
@@ -507,6 +646,9 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
     -------
     ranges: numpy array
         the ranges corresponding to each ADC sample
+    Example
+    -------
+
     """
     c = 3e8  # speed of light in m/s
     adc_samples_per_chirp = adc_values.shape[0]
@@ -519,6 +661,29 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
         (2*chirp_slope*adc_samples_per_chirp)
     ranges = array([i2r(peak_idx) for peak_idx in peaks])
     return ranges
+
+
+def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
+          adc_sample_rate:float,fft_threshold:float) -> NDArray:
+    """ returns a NDArray of ranges using a simple fft threshold for target """
+    c = 3e8  # speed of light in m/s
+    adc_samples_per_chirp = adc_values.shape[0]
+    range_fft = fft(adc_values).squeeze()
+    range_mag = np_abs(range_fft)
+
+    cfar_th = cfar_ca_1d(range_mag, num_training_cells=10,
+                               num_guard_cells=1,
+                               debug=False)
+
+    peaks = range_mag > cfar_th
+    peak_idxs = where(range_mag > cfar_th)[0]
+
+    # d = i * fs*c/2/k/NA
+    i2r = lambda idx: idx*adc_sample_rate * c / \
+        (2*chirp_slope*adc_samples_per_chirp)
+    ranges = array([i2r(peak_idx) for peak_idx in peak_idxs])
+    return ranges
+
 
 def pcl(cube):
     """ returns array of 3D pcl

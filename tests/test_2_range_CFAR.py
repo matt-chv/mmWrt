@@ -15,6 +15,7 @@ from semver import VersionInfo
 import sys
 import pytest
 
+import numpy as np
 from numpy import where
 from numpy import complex128 as complex
 from numpy import float32  # alternatives: float16, float64
@@ -101,6 +102,43 @@ def nok_tdm_8adc_range0m():
     __range__wrapper2(targets, radars,
                      distances=[4],
                      cfar_peak_detect=False)
+
+
+def test_rsp_cfar_ex1():
+    from mmWrt.RadarSignalProcessing import cfar_new
+    # Example 1: Peak at first range bin
+    fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    threshold = cfar_new(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    magnitude = np.abs(fft)
+    peak_idx = np.argmax(magnitude)
+    assert peak_idx == np.where(magnitude > threshold)[0][0]
+
+
+def test_rsp_cfar_ex2():
+    from mmWrt.RadarSignalProcessing import cfar_new
+    # Example 2: Peak in the middle
+    fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    threshold = cfar_new(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    magnitude = np.abs(fft)
+    peak_idx = np.argmax(magnitude)
+    assert peak_idx == np.where(magnitude > threshold)[0][0]
+
+
+@pytest.mark.parametrize("peak_idx", [
+    (1), (2), (3), (4), (5)])
+def test_rsp_cfar_ex3(peak_idx: int):
+    from mmWrt.RadarSignalProcessing import cfar_ca
+    # Example 3: Peak in the middle
+    adc_count = 16
+    time_values = np.arange(0, 1, 1/adc_count)
+    adc_values = np.sin(2 * np.pi * peak_idx * time_values)
+    fft_values = np.fft.fft(adc_values)
+    threshold = cfar_ca(fft_values, guard_cell_count=1, train_cell_count=3,
+                         pfa=0.01)
+    magnitude = np.abs(fft_values)
+
+    assert peak_idx == np.where((magnitude > threshold + 1e-10))[0][0]
+
 
 
 def tbd_test_FMCW_1j():
