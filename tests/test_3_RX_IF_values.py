@@ -4,8 +4,9 @@
 from os.path import abspath, join, pardir
 import sys
 from numpy import arange
-from numpy.fft import fft
+from scipy.fft import fft
 from scipy.signal import find_peaks
+
 
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
