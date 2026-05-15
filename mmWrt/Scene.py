@@ -1,13 +1,44 @@
 """ This module defines the main classes used to define a radar """
 
-from numpy import all, array, log2, ndarray, pi, random, select, stack, sqrt, zeros
+from numpy import all, array, exp, log2, ndarray, pi, random, select, stack, \
+    sum, sqrt, where, zeros
+from numpy import abs as np_abs, any as np_any, max as np_max
 from numpy.typing import NDArray
-from numpy import float64
+from numpy import float32, float64, complex64, float16  
 
 ERR_TARGET_T0 = "xyz<>xyzt(0)"
 ERR_TFFT_lte_TC = "TFFT should be shorter than TC"
 ERR_TOO_MANY_CHIRPS = "Too many chirps, not yet considered"
 
+def scene_distance(targets_positions, antennas_pos):
+    """ computes the distance between targets and antennas for each time point, using broadcasting
+
+    Parameters
+    ----------
+    targets_positions: NDArray
+        shape (n_targets, n_time_points, 3)
+    antennas_pos: NDArray
+        shape (n_antennas, 3)
+
+    Returns
+    -------
+    distance_tx_target: NDArray
+        shape (n_targets, n_time_points, n_antennas)
+    """
+    # Compute the distance from tx to target for each time point
+    # targets_positions has shape (n_targets, n_time_points, 3)
+    # tx_antennas_pos has shape (n_antennas, 3)
+    # we want to compute the distance between each target and each antenna for each time point
+    # this can be done using broadcasting by reshaping the arrays appropriately
+    # we can reshape targets_positions to (n_targets, n_time_points, 1, 3) and tx_antennas_pos to (1, 1, n_antennas, 3)
+    # then we can compute the difference and the distance using broadcasting
+    # antennas_pos = antennas_pos.reshape(1, 1, antennas_pos.shape[0], 3)
+    # targets_positions = targets_positions.reshape(targets_positions.shape[0],
+    #                                              targets_positions.shape[1], 1,
+    #                                              targets_positions.shape[2])
+    diff = targets_positions - antennas_pos  # 2000 targets * 1024 samples  operations
+    distance = sqrt(sum(diff * diff, axis=-1))
+    return distance
 
 class Target():
     def __init__(self, x=0.0, y=0.0, z=0.0,
@@ -114,14 +145,23 @@ class Target():
         dist = sqrt((x0-x1)**2 + (y0-y1)**2 + (z0-z1)**2)
         return dist
 
+    def pos_t1(self, t: NDArray) -> NDArray:
+        # x0, y0, z0 = self.x, self.y, self.z
+        x_positions = self.xt(t)
+        y_positions = self.yt(t)
+        z_positions = self.zt(t)
+
+        position_t = stack((x_positions, y_positions, z_positions), axis=1)
+
+        return position_t
+
+
     def pos_t(self, t: NDArray) -> NDArray:
         # x0, y0, z0 = self.x, self.y, self.z
         x_positions = array(self.xt(t))
         y_positions = array(self.yt(t))
         z_positions = array(self.zt(t))
-
         position_t = stack((x_positions, y_positions, z_positions), axis=0)
-
         return position_t
 
     def __str__(self):
@@ -157,6 +197,9 @@ class Antenna:
         self.x = x
         self.y = y
         self.z = z
+        self.xt = lambda t: 0*t + x
+        self.yt = lambda t: 0*t + y
+        self.zt = lambda t: 0*t + z
         self.xyz = (x, y, z)
         self.angle_gains_db10 = angle_gains_db10
         self.f_min_GHz = f_min_GHz
@@ -218,28 +261,44 @@ class Antenna:
         overall_gain = 10**gain_angle_db * 10**gain_freq
         return overall_gain
 
+    def position_in_time(self, t: NDArray) -> NDArray:
+
+        x_positions = array(self.xt(t))
+        y_positions = array(self.yt(t))
+        z_positions = array(self.zt(t))
+
+        position_t = stack((x_positions, y_positions, z_positions), axis=1)
+
+        return position_t
+    
     def __str__(self):
         return f"x,y,z: ({self.x}, {self.y}, {self.z})"
 
 
 class Receiver():
+    """ Need to split this into RX RF (antennas locations)
+    MIXER for RX, TX to IF
+    IF filter (HPF for DC and LPF for aliasing + removal of the MIXER high freq components)"""
     def __init__(self,
-                 fs=4e2,
+                 adc_sample_rate=4e2,
                  antennas=(Antenna(),),
                  max_adc_buffer_size=1024,
                  max_fs=25e6,
-                 n_adc=0,
+                 adc_samples_per_chirp=0,
                  config=None,
                  debug=False):
+        fs = adc_sample_rate
         self.fs = fs
         self.adc_sampling_frequency = fs
-        self.adc_sample_rate = fs
+        self.adc_sample_rate = adc_sample_rate
         self.antennas = antennas
         self.max_adc_buffer_size = max_adc_buffer_size
-        self.n_adc = n_adc
+        self.adc_samples_per_chirp = adc_samples_per_chirp
+        self.n_adc = adc_samples_per_chirp
+        n_adc = adc_samples_per_chirp
         self.number_adc_samples = n_adc
         self.adc_samples_per_chirp = n_adc
-        self.rx_high_pass_freq = 1e3
+        self.rx_high_pass_freq = 1e2
         self.rx_low_pass_freq = 1e8
 
         try:
@@ -267,11 +326,9 @@ class Transmitter():
     tx_start_time = 0.0
     tx_on_times = []
     def __init__(self,
-                 f0_min=60e9,
-                 slope=None,
-                 slope_MHz_us=None,
-                 ramp_end_time: float = 1e-6,
-                 bw=4e9,
+                 chirp_start_freq: float = 60e9,
+                 chirp_slope: float = 1e12,
+                 chirp_end_time: float = 1e-6,
                  antennas=[Antenna()],
                  t_inter_chirp=0.0,
                  chirps_count=1,
@@ -282,17 +339,12 @@ class Transmitter():
 
         Parameters
         ----------
-        f0_min: float
+        chirp_start_freq: float
             start frequency of the chirp
-        slope: Optional[float]
-            the slope of the linearly growing chirp frequency
-        slope_MHz_us: Optional[float]
-            mutually exclusive with slope being slope parameter
-            slope in MHz/us: a 4 GHz in 16 us is 250 MHz/us.
-        ramp_end_time: float
-            time when the ramp ends (i.e. when f=f0_min + bw)
-        bw: float
-            bandwidth of the chirp (i.e. fmax-fmin)
+        slope: float
+            the slope of the linearly growing chirp frequency in Hz/s
+        chirp_end_time: float
+            time when the ramp ends (i.e. when f=f0_min + bw) in s
         antennas: List[Antenna]
             transmitter Antennas instances
         t_inter_chirp: float
@@ -310,16 +362,17 @@ class Transmitter():
             additional optional parameters (reserved for future usage)
             includes mimo_mode = [TDM, DDM]
         """
-        if slope is None and slope_MHz_us is None:
-            slope_MHz_us = 250
-        if slope is not None and slope_MHz_us is not None:  # pragma: no cover
-            assert ValueError("only slope or slope_MHz_us can be specified")
-        if slope is None:
-            slope = slope_MHz_us * 1e12  # type: ignore
-        assert slope > 1e8
-        self.f0_min = f0_min
-        self.slope = slope
-        self.chirp_slope = slope
+        self.chirp_slope = chirp_slope
+        self.slope = chirp_slope
+        slope = chirp_slope
+
+        if chirp_slope < 1e8:
+            print("chirp_slope is low", chirp_slope)
+        bw = chirp_slope * chirp_end_time
+        self.f0_min = chirp_start_freq
+        self.chirp_start_freq = chirp_start_freq
+        # self.slope = slope
+        
         self.t_inter_chirp = t_inter_chirp
         self.chirps_count = chirps_count
         self.antennas = antennas
@@ -330,13 +383,14 @@ class Transmitter():
             self.t_inter_frame = t_inter_frame
         self.frames_count = frames_count
         self.bw = bw
-        if bw is not None and ramp_end_time is None:
+        if bw is not None and chirp_end_time is None:
             log_msg = "DeprecationWarning: chirp defined with bw instead of ramp_end_time about to be removed !!!!"
             print(log_msg)
             ramp_end_time = bw/slope
             self.ramp_end_time = ramp_end_time
         else:
-            self.ramp_end_time = ramp_end_time
+            self.ramp_end_time = chirp_end_time
+            self.chirp_end_time  =chirp_end_time
         self.conf = conf
         self.mimo_mode = "TDM"
         if conf is None:
@@ -505,8 +559,8 @@ class Transmitter():
         start_time = self.t_inter_frame*frame_idx + \
                         self.t_inter_chirp*chirp_idx + self.tx_start_time
         end_time = start_time + self.ramp_end_time
-        freqs = [lambda t_adc, t_start_chirp=t_start_chirp: \
-                        self.f0_min + (t_adc-t_start_chirp)*self.slope for t_start_chirp in start_time]
+        freqs = [lambda t_adc, t_start_chirp=t_start_chirp:
+                 self.f0_min + (t_adc-t_start_chirp)*self.slope for t_start_chirp in start_time]
         def __temp2(t_adc):
             conditions = [(t_adc>=start_t) & (t_adc<=end_t) for start_t, end_t in zip(start_time, end_time)]
             return piecewise(t_adc, conditions, freqs)
@@ -516,10 +570,10 @@ class Transmitter():
 
 class TransmitterDDM(Transmitter):
     def __init__(self,
-                 f0_min=60e9,
-                 slope=None,
+                 chirp_start_freq=60e9,
+                 chirp_slope=None,
+                 chirp_end_time=None,
                  slope_MHz_us=None,
-                 ramp_end_time=None,
                  bw=4e9,
                  antennas=[Antenna()],
                  t_inter_chirp=0.0,
@@ -527,17 +581,15 @@ class TransmitterDDM(Transmitter):
                  t_inter_frame=0.0,
                  frames_count=1,
                  conf=None):
-        super().__init__(f0_min,
-                         slope,
-                        slope_MHz_us,
-                        ramp_end_time,
-                        bw,
-                        antennas,
-                        t_inter_chirp,
-                        chirps_count,
-                        t_inter_frame,
-                        frames_count,
-                        conf)
+        super().__init__(chirp_start_freq,
+                         chirp_slope,
+                         chirp_end_time,
+                         antennas,
+                         t_inter_chirp,
+                         chirps_count,
+                         t_inter_frame,
+                         frames_count,
+                         conf)
         if "TX_phase_offset" in conf:
             raise ValueError("TX_phase_offset deprecated replaced by TX_phaser_slopes")
         assert "TX_phaser_slopes" in conf
@@ -721,11 +773,12 @@ class Radar:
         try:
             assert t_fft <= t_chirp
         except AssertionError:
-            if debug:  # pragma: no cover
-                pass
             print(f"T_FFT: {t_fft:.2g}")
             print(f"T_C: {t_chirp:.2g}")
-            raise ValueError(ERR_TFFT_lte_TC)
+            if debug:  # pragma: no cover
+                pass
+            else:
+                raise ValueError(ERR_TFFT_lte_TC)
 
         try:
             assert self.n_adc < receiver.max_adc_buffer_size
@@ -736,3 +789,148 @@ class Radar:
                       f"ratio: {self.n_adc/receiver.max_adc_buffer_size}")
             raise ValueError("ADC buffer overflow")
         return
+
+    def BB_IF(self, adc_times, f_rx,
+              debug=False) -> NDArray:
+        """ Simplified mixer and IF filtering to model 
+        intermediate frequency function ADC sampling.
+        provisions to account for interferer radars.
+
+        Parameters
+        ----------
+        Tc: NDArray[float32]
+            the relative time to start of chirp in (s)
+        f_rx: NDArray[float32]
+            the local TX chirp transmit frequency in (Hz)
+        f_tx: NDArray[float32]
+            the frequency at which chirp was trasmitted in (Hz)
+        rx_hpf: float
+            high-pass filter - cutting off DC component. brikwall so far. (Hz)
+        rx_lpf: float
+            low-pass filter - cutting off beyond Nyquist. (Hz)
+        tx_phase_offset: float
+            used especially for DDMA modulation in radian
+        debug: bool
+            if True displays debug information
+        Returns
+        -------
+        YIF:
+            the ADC values in complex, shape is (1,adc_times.shape)
+        Example
+        -------
+        >> BB_IF(array([0,3e-7,6.6e-7,1.e-6]),
+                array([6e10,6.0003e10,6.0006e+10,6.001e10]),
+                array([6.1e10,6.1003e10,6.1006e10,6.101e10]),
+                rx_hpf=1e3, rx_lpf=1e8)
+        << [0.+0.j 0.+0.j 0.+0.j 0.+0.j]
+        >> BB_IF(array([0, 1.3e-7, 2.6e-7, 4e-7,
+                        5.3e-7, 6.6e-7, 8e-7, 9.3e-7,
+                        1e-6, 1.2e-6, 1.3e-6, 1.46e-6,
+                        1.6e-6, 1.73e-6, 1.86e-6, 2e-6]),
+                    array([6.001e9, 6.007e9,6.014e9,6.021e9,
+                        6.027e9,6.034e9,6.041e9,6.047e9,
+                        6.054e9,6.061e9,6.067e9,6.074e9,
+                        6.081e9,6.087e9,6.094e9,6.101e9]),
+                    array([6e9,6.006e9,6.013e9,6.02e9,
+                        6.026e9,6.033e9,6.04e9,6.046e9,
+                        6.053e9,6.06e9,6.066e9,6.073e9,
+                        6.08e9,6.086e9,6.093e9,6.1e9]),
+                    rx_hpf=1e3, rx_lpf=1e8)
+        << [ 1. +0.00000000e+00j,  0.68454711+7.28968627e-01j,
+            -0.06279052+9.98026728e-01j, -0.80901699+5.87785252e-01j,
+            -0.98228725-1.87381315e-01j, -0.53582679-8.44327926e-01j,
+            0.30901699-9.51056516e-01j,  0.90482705-4.25779292e-01j,
+            1.        -1.13310778e-15j,  0.30901699+9.51056516e-01j,
+            -0.30901699+9.51056516e-01j, -0.96858316+2.48689887e-01j,
+            -0.80901699-5.87785252e-01j, -0.12533323-9.92114701e-01j,
+            0.63742399-7.70513243e-01j,  1.        -2.26621556e-15j]
+        """
+
+        f_tx = self.TX_freqs(adc_times)
+
+        f_if = f_rx-f_tx
+        return f_if
+
+    def adc_sampling(self, f_if,
+                     adc_times,
+                     ph_rx,
+                     radar_equation=False,
+                     datatype=complex64,
+                     debug=False):
+        ph_tx = self.TX_phases(adc_times)
+        rx_high_pass_freq = self.receiver.rx_high_pass_freq
+        rx_low_pass_freq = self.receiver.rx_low_pass_freq
+
+        if_filter = (rx_high_pass_freq < abs(f_if)) & (abs(f_if) < rx_low_pass_freq)
+        print("865", f_if)
+        print(rx_high_pass_freq)
+        print(rx_high_pass_freq < f_if)
+        print(rx_low_pass_freq)
+        print(f_if < rx_low_pass_freq)
+
+        f_if[~(if_filter)] = 0
+        YIF = zeros(f_if.shape)
+        print("if_filter !!!!!", if_filter)
+        print("f_if", f_if)
+
+        if np_any(if_filter):
+            # skip computing the IF if all the frequencies are too low or too high
+            # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+
+            # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
+            #                       ph_tx, debug=debug)
+            Tc = adc_times - adc_times[0]
+            print(879, Tc)
+            IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
+                        (np_abs(f_if) <= rx_low_pass_freq))
+            YIF = where(IF_filter,
+                        exp(2 * pi * 1j * (f_if) * Tc + 1j*(ph_tx-ph_rx)),
+                        YIF)
+            print(885, YIF)
+            if radar_equation:
+                # FIXME: add here that with physic samples should be `0`
+                # for T<distance/v
+                # because of ToF no mixing possible...
+                azimuth_rx = arctan2(rx_x-t_x, rx_y-t_y)
+                azimuth_tx = arctan2(tx_x-t_x, tx_y-t_y)
+                elevation_rx = arctan2(rx_y-t_y, rx_z-t_z)
+                elevation_tx = arctan2(tx_y-t_y, tx_z-t_z)
+
+                f0 = f0_min + slope*(T[-1]-T[0])/2
+                YIF = YIF * antenna_tx.gain(azimuth_tx, elevation_tx, f0) \
+                    * antenna_rx.gain(azimuth_rx, elevation_rx, f0)
+
+                YIF = YIF * target.rcs(f0)
+                if target.target_type == "corner_reflector":
+                    YIF = YIF / distance**2
+                else:
+                    YIF = YIF / distance**4
+                YIF = YIF * 10**(L*distance)
+
+            YIF = sum(YIF, axis=1)
+            print(907, YIF)
+
+            if datatype in [float64, float32, float16]:
+                YIF = real(YIF)
+            elif datatype in [complex64, complex]:
+                pass
+            elif datatype in [int64, int32, int16]:
+                YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
+
+            fif_max = np_max(f_if)
+            try:
+                assert fif_max * 2 <= self.fs
+            except AssertionError:
+                log_msg = "Nyquist will always prevail: " +\
+                    f"fs:{self.fs:.2g} vs f_if:{fif_max:.2g}"
+                if debug:
+                    raise ValueError(log_msg)
+
+            """YIF = zeros(Tc.shape)
+            IF_filter = ((rx_hpf <= abs(f_rx-f_tx)) &
+                        (abs(f_rx-f_tx) <= rx_lpf))
+            YIF = where(IF_filter,
+                        exp(2 * pi * 1j * (f_rx-f_tx) * Tc + 1j*tx_phase_offset),
+                        YIF)
+            return YIF"""
+        return YIF
