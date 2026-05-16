@@ -1,6 +1,6 @@
 """ This module defines the main classes used to define a radar """
 
-from numpy import all, array, exp, log2, ndarray, pi, random, select, stack, \
+from numpy import all, array, exp, log2, ndarray, pi, random, real, select, stack, \
     sum, sqrt, where, zeros
 from numpy import abs as np_abs, any as np_any, max as np_max
 from numpy.typing import NDArray
@@ -848,7 +848,7 @@ class Radar:
 
         f_tx = self.TX_freqs(adc_times)
 
-        f_if = f_rx-f_tx
+        f_if = f_tx-f_rx
         return f_if
 
     def adc_sampling(self, f_if,
@@ -862,13 +862,14 @@ class Radar:
         rx_low_pass_freq = self.receiver.rx_low_pass_freq
 
         if_filter = (rx_high_pass_freq < abs(f_if)) & (abs(f_if) < rx_low_pass_freq)
-        print("865", f_if)
+        print("f_mix before if_filter", f_if)
         print(rx_high_pass_freq)
         print(rx_high_pass_freq < f_if)
         print(rx_low_pass_freq)
         print(f_if < rx_low_pass_freq)
 
         f_if[~(if_filter)] = 0
+        print("f_if after if_filter", f_if)
         YIF = zeros(f_if.shape)
         print("if_filter !!!!!", if_filter)
         print("f_if", f_if)
@@ -880,13 +881,14 @@ class Radar:
             # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
             #                       ph_tx, debug=debug)
             Tc = adc_times - adc_times[0]
-            print(879, Tc)
-            IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
-                        (np_abs(f_if) <= rx_low_pass_freq))
-            YIF = where(IF_filter,
+            print("Tc = adc_times-adc_times[0]", Tc)
+            #IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
+            #            (np_abs(f_if) <= rx_low_pass_freq))
+            YIF = where(if_filter,
                         exp(2 * pi * 1j * (f_if) * Tc + 1j*(ph_tx-ph_rx)),
                         YIF)
-            print(885, YIF)
+            print("YIF B4 summing", YIF)
+            print("radar equation", radar_equation)
             if radar_equation:
                 # FIXME: add here that with physic samples should be `0`
                 # for T<distance/v
@@ -908,7 +910,6 @@ class Radar:
                 YIF = YIF * 10**(L*distance)
 
             YIF = sum(YIF, axis=1)
-            print(907, YIF)
 
             if datatype in [float64, float32, float16]:
                 YIF = real(YIF)
@@ -917,6 +918,7 @@ class Radar:
             elif datatype in [int64, int32, int16]:
                 YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
 
+            print("YIF A8 summing and datatype", YIF)
             fif_max = np_max(f_if)
             try:
                 assert fif_max * 2 <= self.fs

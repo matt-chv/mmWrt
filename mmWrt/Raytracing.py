@@ -18,7 +18,7 @@ from time import perf_counter
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-from .mmWrt.Scene import scene_distance
+from .Scene import scene_distance
 
 
 
@@ -186,7 +186,11 @@ def adc_samples(adc_times, receiver_radar,
     f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
     ph_rx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
     f_if = receiver_radar.BB_IF(adc_times, f_rx, ph_rx)
-    YIF = receiver_radar.adc_sampling(f_if, total_distance, ph_rx, adc_times)
+    print(189, "f_if", f_if)
+    YIF = receiver_radar.adc_sampling(f_if=f_if,
+                                      ph_rx=ph_rx,
+                                      adc_times=adc_times,
+                                      datatype=datatype)
     """
     fif = np_abs(f_tx-f_rx)
 
