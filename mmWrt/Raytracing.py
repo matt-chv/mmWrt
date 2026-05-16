@@ -180,16 +180,20 @@ def adc_samples(adc_times, receiver_radar,
 
     # Total distance is the sum of both distances for each time point
     total_distance = distance_tx_target + distance_target_rx
+    if debug:
+        print("TOTAL DISTANCE", total_distance)
     time_of_flight = total_distance/receiver_radar.v
 
     # for radar in radars:
     f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
     ph_rx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
     f_if = receiver_radar.BB_IF(adc_times, f_rx, ph_rx)
-    print(189, "f_if", f_if)
+    if debug or True:
+        print(189, "f_if", f_if[0,0, 5:7])
     YIF = receiver_radar.adc_sampling(f_if=f_if,
                                       ph_rx=ph_rx,
                                       adc_times=adc_times,
+                                      time_of_flight=time_of_flight,
                                       datatype=datatype)
     """
     fif = np_abs(f_tx-f_rx)

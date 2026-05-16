@@ -760,8 +760,8 @@ class Radar:
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
             if debug:  # pragma: no cover
-                print("rx fmin", self.rx_antennas[idx].f_min_GHz)
-                print("rx fmax", self.rx_antennas[idx].f_max_GHz)
+                print("rx fmin (GHz)", self.rx_antennas[idx].f_min_GHz)
+                print("rx fmax (GHz)", self.rx_antennas[idx].f_max_GHz)
 
         if all(self.tx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.tx_antennas):
@@ -854,6 +854,7 @@ class Radar:
     def adc_sampling(self, f_if,
                      adc_times,
                      ph_rx,
+                     time_of_flight,
                      radar_equation=False,
                      datatype=complex64,
                      debug=False):
@@ -861,18 +862,22 @@ class Radar:
         rx_high_pass_freq = self.receiver.rx_high_pass_freq
         rx_low_pass_freq = self.receiver.rx_low_pass_freq
 
-        if_filter = (rx_high_pass_freq < abs(f_if)) & (abs(f_if) < rx_low_pass_freq)
-        print("f_mix before if_filter", f_if)
-        print(rx_high_pass_freq)
-        print(rx_high_pass_freq < f_if)
-        print(rx_low_pass_freq)
-        print(f_if < rx_low_pass_freq)
+        if_filter = (rx_high_pass_freq < abs(f_if)) & \
+            (abs(f_if) < rx_low_pass_freq)
+        if debug:
+            print("f_mix before if_filter", f_if)
+            print(rx_high_pass_freq)
+            print(rx_high_pass_freq < f_if)
+            print(rx_low_pass_freq)
+            print(f_if < rx_low_pass_freq)
 
         f_if[~(if_filter)] = 0
-        print("f_if after if_filter", f_if)
+        if debug:
+            print("f_if after if_filter", f_if)
         YIF = zeros(f_if.shape)
-        print("if_filter !!!!!", if_filter)
-        print("f_if", f_if)
+        if debug:
+            print("if_filter !!!!!", if_filter)
+            print("f_if", f_if)
 
         if np_any(if_filter):
             # skip computing the IF if all the frequencies are too low or too high
@@ -881,13 +886,16 @@ class Radar:
             # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
             #                       ph_tx, debug=debug)
             Tc = adc_times - adc_times[0]
-            print("Tc = adc_times-adc_times[0]", Tc)
+            # print("Tc = adc_times-adc_times[0]", Tc)
             #IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
             #            (np_abs(f_if) <= rx_low_pass_freq))
+
             YIF = where(if_filter,
-                        exp(2 * pi * 1j * (f_if) * Tc + 1j*(ph_tx-ph_rx)),
+                        exp(2 * pi * 1j * (f_if) * Tc + 1j*(ph_tx-ph_rx) +
+                            2 * pi * 1j * time_of_flight*self.transmitter.chirp_start_freq -  # this is the important term for speed measure
+                            2 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
                         YIF)
-            print("YIF B4 summing", YIF)
+            # print("YIF B4 summing", YIF)
             print("radar equation", radar_equation)
             if radar_equation:
                 # FIXME: add here that with physic samples should be `0`
@@ -918,7 +926,7 @@ class Radar:
             elif datatype in [int64, int32, int16]:
                 YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
 
-            print("YIF A8 summing and datatype", YIF)
+            # print("YIF A8 summing and datatype", YIF)
             fif_max = np_max(f_if)
             try:
                 assert fif_max * 2 <= self.fs

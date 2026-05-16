@@ -3,7 +3,9 @@
 
 from os.path import abspath, join, pardir
 import sys
-from test_assets import radar_tdm_1_chirp_8_adc, target_static_10p1m, target_static_5p1m, fif00, fif01, chirp_slope_tdm0  # noqa E402
+from test_assets import radar_tdm_1_chirp_8_adc, d_5p1m, \
+    target_static_10p1m, target_static_5p1m, fif00, fif01, \
+    chirp_slope_tdm0, adc_8_values_complex_fif00
 import numpy as np
 import pytest
 from numpy import allclose, array, arange
@@ -35,13 +37,14 @@ def test_RX_TX_DC_mix():
                        f_rx=f_rx)
     yif = radar.adc_sampling(f_if,
                              ph_rx=ph_rx,
-                             adc_times=adc_times)
+                             adc_times=adc_times,
+                             time_of_flight=np.array([0]*8).reshape(1,8))
 
     assert allclose(yif, np.zeros(number_adc_samples), atol=1e-2)
 
 def test_RX_freq_2():
     """ test that ADC values match expected value from the receiving
-    radar having transmitted with TX which off by offset equivalent to 
+    radar having transmitted with TX which off by offset equivalent to
     TOF for 5.1 given slope"""
     # boiler plate
     radar = radar_tdm_1_chirp_8_adc
@@ -58,12 +61,13 @@ def test_RX_freq_2():
                                          f_rx=f_rx)
     yif = radar.adc_sampling(f_if,
                              ph_rx=np.zeros(8),
-                             adc_times=adc_times)
+                             adc_times=adc_times,
+                             time_of_flight=np.array([d_5p1m*2/3e8]*8).reshape(1,8))
 
-    # yif_expected = np.exp(2*1j*np.pi*f_if*adc_times
-    yif_expected = np.array([ 1.+0.j, 0.49096725+0.87117803j, -0.517955  +0.85540786j,
-                            -0.99950762-0.0313769j,  -0.46322689-0.88623972j,  0.54484995-0.83853356j,
-                            0.99799606+0.06327614j,  0.43452578+0.9006594j ])
+    yif_expected = np.array(array([[ 0.99934062-0.03630883j,  0.45901207-0.88843003j,
+                                    -0.54867232-0.83603749j, -0.99770931+0.06764713j,
+                                    -0.43074317+0.90247456j,  0.57493679+0.81819783j,
+                                     0.99504052-0.09947038j,  0.40153751-0.91584258j]]))
     assert allclose(yif, yif_expected, atol=1e-8)
 
 @pytest.mark.parametrize("target, radar, frequency_if", [

@@ -13,6 +13,7 @@ from scipy.signal import find_peaks
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
+
 def test_no_mixing():
     """ to simulate no mixing, we define a radar without transmission
     receiving a frequency and without filters, we get the same frequency
@@ -26,7 +27,9 @@ def test_no_mixing():
 
     if_frequencies = radar_tx_off.BB_IF(adc_times,
                                         f_rx=f_rx)
-    assert np.allclose(if_frequencies, f_rx, atol=1e-3)
+
+    assert np.allclose(if_frequencies, -f_rx, atol=1e-3)
+
 
 def test_interferer_no_mixing():
     """ to simulate no mixing, we define a radar without transmission
@@ -44,7 +47,8 @@ def test_interferer_no_mixing():
 
     if_frequencies = radar_tx_off.BB_IF(adc_times,
                                         f_rx=f_rx)
-    assert np.allclose(if_frequencies, f_rx, atol=1e-3)
+    assert np.allclose(if_frequencies, -f_rx, atol=1e-3)
+
 
 def test_interferer_mixing():
     """ to simulate mixing, we define a radar with CW transmission
@@ -59,4 +63,4 @@ def test_interferer_mixing():
 
     if_frequencies = radar_tx_cw.BB_IF(adc_times,
                                         f_rx=f_rx)
-    assert np.allclose(if_frequencies, f_rx-60e9, atol=1e-3)
+    assert np.allclose(if_frequencies, -(f_rx-60e9), atol=1e-3)
