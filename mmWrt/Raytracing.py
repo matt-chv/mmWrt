@@ -18,7 +18,7 @@ from time import perf_counter
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-from .Scene import scene_distance
+from .Scene import two_way_range
 
 
 
@@ -160,18 +160,29 @@ def adc_samples(adc_times, receiver_radar,
     # tx_antennas_pos = zeros((n_rx, number_adc_samples))
     # targets_pos = zeros((len(targets), 3, numer_adc_samples))
 
-
-    rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
+    # rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
+    rx_antennas_positions = receiver_radar.position_rx_antennas(adc_times)
+    print("rx ant", rx_antennas_positions.shape)
     # rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
 
-    tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
+    # tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
+    # FIXME: from
+    # tx_antennas_positions = receiver_radar.position_tx_antennas(adc_times)
+    # FIXME: to
+    # tx_antennas_positions = (any transmitter radar) .position_tx_antennas(adc_times)
+    tx_antennas_positions = receiver_radar.position_tx_antennas(adc_times)
+    print("tx ant", tx_antennas_positions.shape)
 
-    targets_positions = empty((len(targets), adc_times.shape[0], 3))
+    targets_positions = empty((adc_times.shape[0], len(targets),  3))
     for i, target in enumerate(targets):
-        targets_positions[i,:,:] = target.pos_t1(adc_times)
+        print("target.pos_t1(adc_times)",target.pos_t1(adc_times).shape)
+        targets_positions[:,i,:] = target.pos_t1(adc_times)
     # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
     # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
-    distance_tx_target = scene_distance(targets_positions, tx_antennas_pos)
+    print("targets_positions", targets_positions.shape)
+
+    """distance_tx_target = scene_distance(targets_positions, tx_antennas_pos)
+    print("distance_tx", distance_tx_target.shape)
     # Compute the distance from target to rx for each time point
     # distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
     # diff = targets_positions - rx_antennas_pos
@@ -181,15 +192,27 @@ def adc_samples(adc_times, receiver_radar,
     # Total distance is the sum of both distances for each time point
     total_distance = distance_tx_target + distance_target_rx
     if debug:
-        print("TOTAL DISTANCE", total_distance)
+        print("TOTAL DISTANCE", total_distance)"""
+    # total_distance: [T, RX*S*TX]
+    total_distance = two_way_range(tx_antennas_positions, targets_positions, rx_antennas_positions)
     time_of_flight = total_distance/receiver_radar.v
+    print("193, distance.shape", total_distance.shape)
+    print("193, distance total", total_distance)
+
+    print("186, ToF", time_of_flight.shape)
+    print("193, distance total", total_distance)
 
     # for radar in radars:
-    f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
+    # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
+    # f_rx = array([receiver_radar.TX_freqs(adc_times-time_of_flight) for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
+    f_rx = receiver_radar.TX_freqs(adc_times-time_of_flight)  # for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
+
+    print("adc_times.shape", adc_times.shape)
+    print("f_rx.shape", f_rx.shape)
     ph_rx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
     f_if = receiver_radar.BB_IF(adc_times, f_rx, ph_rx)
-    if debug or True:
-        print(189, "f_if", f_if[0,0, 5:7])
+    print("191 f_if.shape", f_if.shape)
+
     YIF = receiver_radar.adc_sampling(f_if=f_if,
                                       ph_rx=ph_rx,
                                       adc_times=adc_times,
@@ -259,7 +282,7 @@ def adc_samples(adc_times, receiver_radar,
     return YIF
 
 
-def rt_points(receiver_radar, targets, radar_equation=False,
+def rt_points__old(receiver_radar, targets, radar_equation=False,
               datatype=float32, debug=False,
               raytracing_opt={"compute": True}):
     """ raytracing with points
@@ -688,4 +711,91 @@ def rt_points(receiver_radar, targets, radar_equation=False,
                           f"unambiguous speed: {vmax_ddm}")
 
             print(f"End of simulation time: {T[-1]}")
+    return baseband
+
+
+def rt_points(receiver_radar, targets, radars=None,
+              radar_equation=False,
+              datatype=float32, debug=False,
+              **raytracing_opt):
+    """ raytracing with points
+
+    Parameters
+    ----------
+    receiver_radar: Radar
+        instance of Radar for which the BB cube is computed. One of the radars in the scene.
+        (renamed in 0.0.10 from radar)
+    targets: List[Target]
+        list of targets in the Scene
+    radar_equation: bool
+        if True includes the radar equation when computing the IF signal
+        else ignores radar equation
+    datatype: Type
+        type of data to be generate by rt: float16, float32, ... or complex
+    debug: bool
+        if True prints log messages
+    raytracing_opt: dict
+        compute: bool
+            if True computes raytracing (use False for radar statistics tuning)
+        T_start: float
+            time offset to start simulation
+        radars: List[radar]
+            list of interferer radars to include in the simulation, including own radar TX
+    Returns
+    -------
+    baseband: dict
+        dictonnary with adc values and other parameters used later in analysis
+
+    Raises
+    ------
+    ValueError
+        if Nyquist rule is not upheld
+    """
+    n_frames = receiver_radar.frames_count
+    # n_chirps is the # chirps each TX antenna sends per frame
+    n_chirps = receiver_radar.chirps_count
+    n_tx = len(receiver_radar.tx_antennas)
+    n_rx = len(receiver_radar.rx_antennas)
+    n_adc = receiver_radar.n_adc
+    ts = 1/receiver_radar.fs
+    bw = receiver_radar.bw
+    adc_cube = zeros((n_frames, n_chirps, n_rx, n_adc)).astype(datatype)
+    f0_min, slope, Tc, T = 0, 0, 0, 0
+
+    if radars is None:
+        radars = [receiver_radar]
+
+
+    baseband = {"adc_cube": adc_cube,
+                "frames_count": n_frames,
+                "chirps_count": receiver_radar.chirps_count,
+                "t_inter_chirp": receiver_radar.t_inter_chirp,
+                "n_tx": n_tx,
+                "n_rx": n_rx,
+                "n_adc": n_adc,
+                "datatype": datatype,
+                "f0_min": f0_min,
+                "slope": slope,
+                "bw": bw,
+                "Tc": Tc,
+                "TFFT": n_adc*ts,
+                "T": T,
+                "fs": receiver_radar.fs, "v": receiver_radar.v}
+    if "compute" not in raytracing_opt:
+        raytracing_opt["compute"] = False
+
+    for frame_idx in range(n_frames):
+        for chirp_idx in range(n_chirps):
+            n_samples = adc_samples_count
+            ts = 1/adc_sampling_frequency
+            T = arange(0, n_samples*ts+ts, ts)
+            adc_times = arange(0, adc_samples_count/adc_sampling_frequency,
+                            1/adc_sampling_frequency)
+            adc_values = adc_samples(adc_times,
+                                    radar,
+                                    [target0],
+                                    radars=[radar],
+                                    datatype=float32)
+            adc_cube[frame_idx, chirp_idx, :, :, :] = adc_values
+
     return baseband

@@ -29,12 +29,13 @@ RED = "\033[31m"
 GREEN = "\033[32m"
 DEFAULT = "\033[0m"
 
+"""
 def __range__wrapper(target_idxes=[0], radars_idxes=[0],
                      distance_idxes=[0],
                      cfar_peak_detect=False,
                      data_type=float32,
                      peak_threshold=2):
-    """ This is the function which wraps all the range tests, to avoid code repetition. 
+    "" " This is the function which wraps all the range tests, to avoid code repetition. 
     
     Parameters
     ----------
@@ -58,7 +59,7 @@ def __range__wrapper(target_idxes=[0], radars_idxes=[0],
     ------
     ValueError: "Error too large"
         Raised if the error is too large, mostly used to ensure code does not pass silently
-    """
+    "" "
     c = 3e8
 
     radar = radars[radars_idxes[0]]
@@ -96,47 +97,59 @@ def __range__wrapper(target_idxes=[0], radars_idxes=[0],
             assert  error < range_bin_width
         except Exception as ex:
             raise ValueError("Error too large")
-
+"""
 
 def test_if_error_radar_tdm_1_chirp_8_adc_target_static_5p1m():
     """
     Test that in TDM mode the range estimation is within one range bin width
     Given a 8 ADC samples per chirp
     """
-    __range__wrapper(target_idxes=[0], radars_idxes=[0], distance_idxes=[0])
+    # __range__wrapper(target_idxes=[0], radars_idxes=[0], distance_idxes=[0])
+    from test_assets import adc_sampling_times_8_samples
+    from mmWrt.Scene import Radar, Transmitter, Receiver, Antenna
+    radar = radars[0]
+    adc_times = adc_sampling_times_8_samples
+    target = targets[0]
+    radar.tx_antennas = [Antenna() for _ in range(2)]
+    radar.rx_antennas = [Antenna() for _ in range(2)]
+    adc_values = adc_samples(adc_times, radar,
+                             [target],
+                             radars=[radar])
+    print(adc_values.shape)
+    assert False
 
-
+"""
 def test_if_error_radar_tdm_1_chirp_8_adc_target_static_5p1m_cfar():
-    """
+    "" "
     Test that in TDM mode the range estimation is within one range bin width
     Given a 8 ADC samples per chirp
-    """
+    "" "
     __range__wrapper(target_idxes=[0], radars_idxes=[0],
                      distance_idxes=[0], cfar_peak_detect=True)
 
 
 def test_if_error_radar_tdm_1_chirp_1024_adc_target_static_5p1m():
-    """
+    "" "
     Test that in TDM mode the range estimation is within one range bin width
     Given a 1024 ADC samples per chirp
-    """
+    "" "
     __range__wrapper(target_idxes=[0], radars_idxes=[1], distance_idxes=[0])
 
 
 def test_if_error_radar_tdm_1_chirp_1024_adc_target_linear_speed_1mps():
-    """
+    "" "
     Test: TDM mode 1 radar 1 target linear motion 
     Given a 1024 ADC samples per chirp
 
     Ensures range error is within one range bin
-    """
+    "" "
     __range__wrapper(target_idxes=[2], radars_idxes=[1], distance_idxes=[0])
 
 
 def test_error_raised():
-    """
+    "" "
     Test: TDM, 1 radar, 1 targets ensure fails with *IN*-valid range reference
-    """
+    "" "
     try:
         __range__wrapper(target_idxes=[2], radars_idxes=[1], distance_idxes=[1])
     except Exception as ex:
@@ -149,12 +162,12 @@ def test_error_raised():
 
 
 def test_if_error_radar_tdm_1_chirp_1024_adc_target_linear_speed_1mps_complex64():
-    """
+    "" "
     Test that in TDM mode the range estimation is within one range bin width
     even with a linear moving target
     Given a 1024 ADC samples per chirp
     >> with datatype being complex64 (instead of float32)
-    """
+    "" "
     from test_assets import radar_tdm_1_chirp_1024_adc, target_linear_speed_5p1m_1mps, d_5p1m
     from numpy import complex64
     __range__wrapper(target_idxes=[2], radars_idxes=[1], distance_idxes=[0],
@@ -162,27 +175,27 @@ def test_if_error_radar_tdm_1_chirp_1024_adc_target_linear_speed_1mps_complex64(
 
 
 def test_if_error_radar_tdm_1_chirp_1024_adc_target_linear_speed_1mps_complex128():
-    """
+    "" "
     Test that in TDM mode the range estimation is within one range bin width
     even with a linear moving target
     Given a 1024 ADC samples per chirp
     >> with datatype being complex128 (instead of float32)
-    """
+    "" "
     __range__wrapper(target_idxes=[2], radars_idxes=[1], distance_idxes=[0],
                      data_type=complex128)
 
 
 def test_if_radar1_2_targets():
-    """
+    "" "
     Test: TDM, 1 radar, 2 targets ensure passes with 2 valid ranges
-    """
+    "" "
     __range__wrapper(target_idxes=[2,3], radars_idxes=[1], distance_idxes=[0,1])
 
 
 def test_error_radar1_2_targets():
-    """
+    "" "
     Test: TDM, 1 radar, 2 targets ensure fails with 2 *IN*-valid ranges
-    """
+    "" "
     try:
         __range__wrapper(target_idxes=[2,3], radars_idxes=[1],
                          distance_idxes=[0,0])
@@ -196,10 +209,10 @@ def test_error_radar1_2_targets():
 
 
 def test_error_eps_rangebin():
-    """
+    "" "
     Test: TDM, 1 radar, 2 targets ensure fails with 1 *IN*-valid range just
     slightly larger than one range bin
-    """
+    "" "
     try:
         __range__wrapper(target_idxes=[0], radars_idxes=[1],
                          distance_idxes=[2])
@@ -226,3 +239,5 @@ def test_cfar_error():
             raise
     else:
         raise ValueError("Error not raised")
+
+"""

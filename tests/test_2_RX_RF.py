@@ -15,10 +15,9 @@ sys.path.insert(0, dp)
 
 
 def test_no_mixing():
-    """ to simulate no mixing, we define a radar without transmission
-    receiving a frequency and without filters, we get the same frequency
-    at the output of the mixer as at the input
-    """
+    # to simulate no mixing, we define a radar without transmission
+    # receiving a frequency and without filters, we get the same frequency
+    # at the output of the mixer as at the input
     from tests.test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc
     from numpy import abs as np_abs
 
@@ -30,11 +29,10 @@ def test_no_mixing():
 
     assert np.allclose(if_frequencies, -f_rx, atol=1e-3)
 
-
+    
 def test_interferer_no_mixing():
-    """ to simulate no mixing, we define a radar without transmission
-    receiving a frequency and change LPF filter, to get IF = RF RX
-    """
+    # to simulate no mixing, we define a radar without transmission
+    # receiving a frequency and change LPF filter, to get IF = RF RX
     from tests.test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc
     from numpy import abs as np_abs
 
@@ -51,10 +49,9 @@ def test_interferer_no_mixing():
 
 
 def test_interferer_mixing():
-    """ to simulate mixing, we define a radar with CW transmission
-    receiving a frequency and change LPF filter,
-    to get IF = RF RX - CW
-    """
+    # to simulate mixing, we define a radar with CW transmission
+    # receiving a frequency and change LPF filter,
+    # to get IF = RF RX - CW
     from tests.test_assets import radar_tx_cw
     from numpy import abs as np_abs
 

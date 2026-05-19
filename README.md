@@ -20,10 +20,21 @@ for install for developpers:
 
 ### Released
 
+v0.0.11:
+    * pre.1: WiP (adding interfer radars)
+        - TODO: run all unit test pass : 100% (except performances)
+        - renaming all variables to be explicit
+        - range TDM DDM
+        - 2D with URA
+        - 3D compute
+        - issues: DC estimate does not work.
+        - issues: need to add a ADC start delay
+
 *v0.0.10:
 
     * adding distance as a function of time in IF compute - allowing for simulation of target changing bin ranges through single chirp
     * 0.0.10-pre.6: fixes #3 (numpy deprecating complex_ replacing with complex128)
+    * -pre.7: 
 
 v0.0.9:
 
@@ -95,6 +106,10 @@ Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedo
 ## On dependencies
 
 * jupyterlab-myst: used for displaying admonition in jupyter notebook (and thus documentation on read the docs)
+
+## LOGS
+
+- [ ] 4, refactor for interfers
 
 ## Release process
 
