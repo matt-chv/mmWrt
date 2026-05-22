@@ -5,7 +5,8 @@ from numpy import all, array, exp, log2, ndarray, pi, random, real, select, stac
     sum, sqrt, where, zeros
 from numpy import abs as np_abs, any as np_any, max as np_max
 from numpy.typing import NDArray
-from numpy import float32, float64, complex64, float16
+from numpy import float32, float64, complex64, float16, int16, int32, int64
+import numpy as np
 from typing import Literal, Optional, TypeVar
 
 ERR_TARGET_T0 = "xyz<>xyzt(0)"
@@ -45,9 +46,9 @@ def __badcode__scene_distance(targets_positions, antennas_pos):
     return distance
 
 
-def two_way_range(rx_antennas_positions: NDArray,
+def two_way_range(tx_antennas_positions: NDArray,
                   scatterer_positions: NDArray,
-                  tx_antennas_positions: NDArray) -> NDArray:
+                  rx_antennas_positions: NDArray) -> NDArray:
     """ Computes the two way distance from TX antenna to scatterer back to RX antenna
 
     Parameters:
@@ -62,26 +63,26 @@ def two_way_range(rx_antennas_positions: NDArray,
     Returns:
     --------
     two_way_distance:
-        [T, RX x S x TX]
+        [T, TX, S, RX]
     """
     from numpy.linalg import norm
 
-    # Broadcast to [T, I, J, K, 3]
+    # Broadcast to [T, TX, S, RX, 3]
     rx = rx_antennas_positions.shape[1]
     s = scatterer_positions.shape[1]
     tx = tx_antennas_positions.shape[1]
     t = rx_antennas_positions.shape[0]
     print("rx s tx", rx, s, tx)
-    rx_broadcast = rx_antennas_positions[:, None, None, :, :]   # [T, 1, 1, K, 3]
-    scatterer_broadcast = scatterer_positions[:, None, :, None, :]   # [T, 1, J, 1, 3]
-    tx_broadcast = tx_antennas_positions[:, :, None, None, :]   # [T, I, 1, 1, 3]
+    rx_broadcast = rx_antennas_positions[:, None, None, :, :]   # [T, 1, 1, RX, 3]
+    scatterer_broadcast = scatterer_positions[:, None, :, None, :]   # [T, 1, S, 1, 3]
+    tx_broadcast = tx_antennas_positions[:, :, None, None, :]   # [T, TX, 1, 1, 3]
 
-    # Leg distances — each [T, I, J, K]
+    # Leg distances — each [T, TX, S, RX]
     r_tx = norm(scatterer_broadcast - tx_broadcast, axis=-1)
     r_rx = norm(scatterer_broadcast - rx_broadcast, axis=-1)
 
     # Two-way range, then flatten → [T, I*J*K]
-    two_way_distance = (r_tx + r_rx).reshape(t, rx*s*tx)
+    two_way_distance = (r_tx + r_rx)  # .reshape(t, rx*s*tx)
     return two_way_distance
 
 
@@ -125,6 +126,7 @@ class Target():
         define a target with a position in time x(t) = 10 + 10*t
         > target = Target(xt= lambda t: 10 + 10*t)
         """
+        self._log = logging.getLogger(self.__class__.__qualname__)
         self.x = x
         self.y = y
         self.z = z
@@ -244,6 +246,7 @@ class Antenna:
         freq_gains_db10: numpy array
             linearly spaced antenna gains between f_min and f_max
         """
+        self._log = logging.getLogger(self.__class__.__qualname__)
         self.x = x
         self.y = y
         self.z = z
@@ -347,6 +350,7 @@ class Receiver():
                  adc_samples_per_chirp=0,
                  config=None,
                  debug=False):
+        self._log = logging.getLogger(self.__class__.__qualname__)
         fs = adc_sample_rate
         self.fs = fs
         self.adc_sampling_frequency = fs
@@ -452,7 +456,7 @@ class Transmitter():
             self.ramp_end_time = ramp_end_time
         else:
             self.ramp_end_time = chirp_end_time
-            self.chirp_end_time  =chirp_end_time
+            self.chirp_end_time = chirp_end_time
 
         self.multiplexing = kwargs.get("multiplexing", "TDM")
         self.TX_phaser_slopes = kwargs.get("TX_phaser_slopes", array([0]*len(antennas)))
@@ -471,7 +475,7 @@ class Transmitter():
                     self.tx_on_times.append((chirp_start, chirp_end))
                 return"""
 
-    def frame_t_start(self, frame_idx,
+    def __frame_t_start__old(self, frame_idx,
                       dither_std=0.0, dither_seed=42,
                       dithering=False):
         """ returns the time offset at which frame frame_idx starts
@@ -495,7 +499,7 @@ class Transmitter():
         t_start_frame = self.tx_start_time + frame_idx * self.t_inter_frame + t_start_dithered
         return t_start_frame
 
-    def chirp_t_start(self, frame_idx, chirp_idx, dither_std=0.0,
+    def __chirp_t_start__old(self, frame_idx, chirp_idx, dither_std=0.0,
                       dither_seed=42.0, dithering=False) -> float:
         """ returns the time offset at which frame frame_idx starts
         Default function for TDM mode with some dithering,
@@ -608,11 +612,24 @@ class Transmitter():
         return frequency_tx_over_timestamps
 
     def TX_freqs(self, timestamps: NDArray) -> NDArray:
-        """NOTE: docstring to be added
-        Returns:
+        """ FIXME: this functions' description only describes the ToF use case, not LO use case
+        
+        Returns for each TX->Scatterer->RX path the TX frequency
+        at which the chirps was sent when it is received by the mixer
+
+        Parameters
+        ----------
+        timestamps
+            (timestamps, TX antenna count, Scatterer count, RX antenna count)
+            the timestamp at which ADC are sampling, the TX freq is then
+            computed as timestamp-time_of_flight
+        Returns
         --------
         tx_frequencies
-            (timestamp_count, antenna_count) values at each timestampe of the tx freq for antenna
+            (timestamps, TX antenna count, Scatterer count, RX antenna count)
+            values at each timestampe of the TX freq for antenna
+            which can then be used to compute the tones on each RX antenna
+            before mixing with LO to generate all the IF tones
         """
         import numpy as np
         chirp_start_freq = self.chirp_start_freq
@@ -621,14 +638,14 @@ class Transmitter():
         t_inter_chirp = self.t_inter_chirp
         chirp_count = self.chirps_count  # number chirps per antenna
         antenna_count = len(self.antennas)  # number antennas
-        if chirp_count < antenna_count:
-            self._log.warning("chirp_count<antenna_count")
-        if chirp_count > 1 and self.t_inter_chirp == 0:
+        if ((chirp_count > 1) or (antenna_count > 1)) and self.t_inter_chirp == 0:
             self._log.error("self.t_inter_chirp = 0")
         chirp_indexes = np.arange(chirp_count)
         antenna_indexes = np.arange(antenna_count)
         self._log.debug(f"antenna_count: {antenna_count}")
         self._log.debug(f"chirps_count: {chirp_count}")
+        assert antenna_count == timestamps.shape[1]
+
 
         # Absolute chirp index for transmitter k on its nth chirp
         # is a function of the multiplexing
@@ -651,24 +668,30 @@ class Transmitter():
             """
             # [antenna_count, chirp_count]
             chirp_index = antenna_indexes[:, None]*0 + chirp_indexes[None, :]
+        self._log.debug(f"chirp_index: {chirp_index}")
 
-        # [1, antenna_count, chirp_count]
-        chirp_start = chirp_index[None, :, :] * t_inter_chirp
+        # [1, antenna_count, 1, 1, chirp_count]
+        chirp_start = chirp_index[None, :, None, None, :] * t_inter_chirp
         chirp_end = chirp_start + chirp_end_time
-        times = timestamps[:, None, None]  # [timestamp_count, 1, 1]
-        # Broadcasting: NumPy aligns axes from the right and expands size-1 axes to match.
+        self._log.debug(f"chirp_start: {chirp_start}")
+        self._log.debug(f"chirp_start TX0: {chirp_start[:, 0, ...]}")
+        self._log.debug(f"chirp_index: {chirp_end}")
+
+        timestamps = timestamps[..., None]  #[:, None, None, None]  # [timestamp_count, 1, 1] T/TX/S/RX
+        # Broadcasting: NumPy aligns axes from the right and expands size-1 axes too match.
         #
-        # times       : (timestamp_count, 1,             1          )  < 1s expand rightward
-        # chirp_start : (1,               antenna_count, chirp_count)  < 1 expands leftward
-        # result      : (timestamp_count, antenna_count, chirp_count)
+        # times       : (timestamp_count, TX, S, RX,     1          )  < 1s expand rightward
+        # chirp_start : (1, antenna_count, 1, 1, chirp_count        )  < 1 expands leftward
+        # result      : (timestamp_count, TX, S, RX,     chirp_count)
         #
         # Each timestamp is compared against every (antenna, chirp) pair — no loops needed.
         # [timestamp_count, antenna_count, chirp_count]
-        active = (times >= chirp_start) & (times <= chirp_end)
+        active = (timestamps >= chirp_start) & (timestamps <= chirp_end)
 
         # now compute the frequency as a function of chirp_index
         # [timestamp_count, antenna_count, chirp_count]
-        freq = chirp_start_freq + chirp_slope * (times - chirp_start)
+
+        freq = chirp_start_freq + chirp_slope * (timestamps - chirp_start)
 
         """NOTE: Boolean-float multiplication as a zero-mask
         # ──────────────────────────────────────────────────
@@ -683,10 +706,10 @@ class Transmitter():
         # Safe to sum over the chirp axis because TDM guarantees at most one
         # True entry per timestamp for all chirps per antenna."""
         # [timestamp_count, antenna_count]
-        tx_frequencies = (active * freq).sum(axis=2)
+        tx_frequencies = (active * freq).sum(axis=4)
         return tx_frequencies
 
-    def TX_phases(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
+    def __TX_phases__old(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
         """ computes the TX phase at given times, default TDM: 0
 
         Parameters
@@ -720,7 +743,71 @@ class Transmitter():
             return piecewise(t_adc, conditions, freqs)
 
         self.chirp_frequencies = __temp2
+    def TX_phases(self, timestamps: NDArray) -> NDArray:
+        """Returns for each TX->Scatterer->RX path the TX phase
+        at which the chirps was sent when it is received by the mixer.
+        For code logic and documentation refer to TX_freqs
 
+        Parameters
+        ----------
+        timestamps
+            (T, TX, Scatterer, RX)
+        Returns
+        --------
+        tx_phases
+            (T, TX, Scatterer, RX)
+        """
+
+        chirp_start_freq = self.chirp_start_freq
+        chirp_slope = self.chirp_slope
+        chirp_end_time = self.chirp_end_time
+        t_inter_chirp = self.t_inter_chirp
+        chirp_count = self.chirps_count  # number chirps per antenna
+        antenna_count = len(self.antennas)  # number antennas
+        if ((chirp_count > 1) or (antenna_count > 1)) and self.t_inter_chirp == 0:
+            self._log.error("self.t_inter_chirp = 0")
+        chirp_indexes = np.arange(chirp_count)
+        antenna_indexes = np.arange(antenna_count)
+        print("TX, TX_phase antenna_count",antenna_count )
+        print("TX, TX_phase timestamps.shape",timestamps.shape )
+        assert antenna_count == timestamps.shape[1]
+
+        # Absolute chirp index for transmitter k on its nth chirp
+        # is a function of the multiplexing
+        multiplexing = self.multiplexing
+        if multiplexing == "TDM":
+            """
+            [[ 0  3  6  9 12 15 18 21 24 27]
+            [ 1  4  7 10 13 16 19 22 25 28]
+            ...
+            """
+            # [antenna_count, chirp_count]
+            chirp_index = antenna_indexes[:, None] + chirp_indexes[None, :] * antenna_count
+            phase_slope = zeros(antenna_count)
+        elif multiplexing == "DDM":
+            """ DDM allows 10 chirps per antenna to be sent over only 10 chirps 
+            in total being in effect antenna_count faster than TDM
+            (at some compromises)
+            [[0 1 2 3 4 5 6 7 8 9]
+            [0 1 2 3 4 5 6 7 8 9]
+            ...
+            """
+            # [antenna_count, chirp_count]
+            chirp_index = antenna_indexes[:, None]*0 + chirp_indexes[None, :]
+            phase_slope = self.conf["TX_phaser_slopes"]
+
+        # [1, antenna_count, 1, 1, chirp_count]
+        chirp_start = chirp_index[None, :, None, None, :] * t_inter_chirp
+        chirp_end = chirp_start + chirp_end_time
+
+        timestamps = timestamps[..., None]  #[:, None, None, None]  # [timestamp_count, 1, 1] T/TX/S/RX
+        active = (timestamps >= chirp_start) & (timestamps <= chirp_end)
+
+        # tx_phase = lambda t_adc, chirp_idx=chirp_idx: pi*self.TX_phaser_slopes[tx_idx]*chirp_idx
+        phase = chirp_index[None, :, None, None, :] * phase_slope[None, :, None, None, None]
+
+        tx_phases = (active * phase).sum(axis=4)
+        return tx_phases
 
 class TransmitterDDM(Transmitter):
     def __init__(self,
@@ -864,7 +951,8 @@ class Radar:
         # self.mimo_mode = transmitter.conf["mimo_mode"]
         self.TX_freqs = transmitter.TX_freqs
         self.TX_phases = transmitter.TX_phases
-        self.chirp_t_start = transmitter.chirp_t_start
+        # FIXME: MCV 2026-05-22 removed this as did not seem needed anymore ?!?
+        # self.chirp_t_start = transmitter.chirp_t_start
         if self.n_adc == 0:
             # self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
             if self.n_adc == 0:  # pragma: no cover
@@ -948,9 +1036,36 @@ class Radar:
             raise ValueError("ADC buffer overflow")
         return
 
-    def BB_IF(self, adc_times, f_rx,
+    def mixer(self, timestamps: NDArray,
+              f_rx: NDArray) -> NDArray:
+        """ RF to baseband conversion, emulates the mixing of RX and TX
+        which is multiplication and low pass filter, the result is
+        that the `itermediate frequency` the if is the substraction of the
+        two rf frequencies. This function is a stub for other possible down
+        conversion in future versions.
+
+        Parameters
+        ----------
+        timestamps
+            (T)
+        f_rx
+            (T, TX, S, RX)
+        Return
+        ------
+        f_if
+            (T, TX, S, RX)
+        """        
+        receiver_antenna_count = len(self.receiver.antennas)
+        timestamps_rx = np.repeat(timestamps[:, None, None, None],
+                                  receiver_antenna_count,
+                                  axis=3)
+        f_tx = self.TX_freqs(timestamps_rx)
+        f_if = f_tx - f_rx
+        return f_if
+
+    def __BB_IF__old(self, adc_times, f_rx,
               debug=False) -> NDArray:
-        """ Simplified mixer and IF filtering to model 
+        """ Simplified mixer and IF filtering to model
         intermediate frequency function ADC sampling.
         provisions to account for interferer radars.
 
@@ -1008,7 +1123,7 @@ class Radar:
         print(1002,"f_tx", f_tx)
 
         f_if = f_tx-f_rx
-        # FIXME: 
+        # FIXME:
         # how do we change here as f_if needs to be (timestamps, tx, scatterer)
         # so 1TX 1 Scatterer 1RX => f_if is (8, 1, 1) - (8,1)
         # with 1 TX 2 scatterers 1 RX => f_if is (8, 2) - (8,1) (twice on axis 1)
@@ -1027,26 +1142,26 @@ class Radar:
         Parameters
         ----------
         f_if
-            (timestamps,ntx?,nrx?)
+            (timestamps,tx, scatterers, rx)
+        adc_times
+            (timestamp, tx, scatters, rx)
         time_of_flight
+            (timestamps,tx, scatterers, rx)
         Returns
         -------
         YIF
-            (adc_times, rx_antenna_count)
+            (timestamps, rx_antenna_count)
         """
         ph_tx = self.TX_phases(adc_times)
         rx_high_pass_freq = self.receiver.rx_high_pass_freq
         rx_low_pass_freq = self.receiver.rx_low_pass_freq
+        fif_max = np_max(f_if)
+        if (fif_max * 2 > self.fs) and (fif_max <1e9):
+            self._log.critical("some targets seem to be above Nyquist, they'll be filtered out")
 
         if_filter = (rx_high_pass_freq < abs(f_if)) & \
             (abs(f_if) < rx_low_pass_freq)
-        if debug:
-            print("f_mix before if_filter", f_if)
-            print(rx_high_pass_freq)
-            print(rx_high_pass_freq < f_if)
-            print(rx_low_pass_freq)
-            print(f_if < rx_low_pass_freq)
-
+        self._log.debug(f"f_if before ADC filters: {f_if}")
         self._log.debug(f"if_filter: {if_filter[:8]}")
         self._log.debug(f"if_filter: {if_filter[:8]}")
 
@@ -1097,7 +1212,9 @@ class Radar:
                     YIF = YIF / distance**4
                 YIF = YIF * 10**(L*distance)
 
-            YIF = sum(YIF, axis=1)
+            # adc values are the sum of signals arriving on the same RX antenna
+            # so summing over axis=1 (TX) and axis=2 (scatterers)
+            YIF = sum(YIF, axis=(1, 2))
 
             if datatype in [float64, float32, float16]:
                 YIF = real(YIF)
@@ -1106,23 +1223,6 @@ class Radar:
             elif datatype in [int64, int32, int16]:
                 YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
 
-            # print("YIF A8 summing and datatype", YIF)
-            fif_max = np_max(f_if)
-            try:
-                assert fif_max * 2 <= self.fs
-            except AssertionError:
-                log_msg = "Nyquist will always prevail: " +\
-                    f"fs:{self.fs:.2g} vs f_if:{fif_max:.2g}"
-                if debug:
-                    raise ValueError(log_msg)
-
-            """YIF = zeros(Tc.shape)
-            IF_filter = ((rx_hpf <= abs(f_rx-f_tx)) &
-                        (abs(f_rx-f_tx) <= rx_lpf))
-            YIF = where(IF_filter,
-                        exp(2 * pi * 1j * (f_rx-f_tx) * Tc + 1j*tx_phase_offset),
-                        YIF)
-            return YIF"""
         return YIF
     def position_tx_antennas(self, timestamps) -> NDArray:
         """

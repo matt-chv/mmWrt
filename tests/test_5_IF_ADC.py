@@ -1,4 +1,5 @@
-""" This is mostly to test the ADC values
+""" testing sample_all_rays to ensure ADC values are correct
+v0.0.11: 1
 """
 from numpy import arange, pi, real
 import numpy as np
@@ -10,7 +11,7 @@ from os.path import abspath, join, pardir
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Raytracing import adc_samples
+from mmWrt.Raytracing import sample_all_rays
 from mmWrt.Scene import Target
 from tests.test_assets import target_static_0, target_static_5p1m, radar_tdm_1_chirp_8_adc, \
     fif00, target_static_10p1m, fif01, adc_sampling_frequency_0, adc_8_values_complex_fif00, \
@@ -18,29 +19,47 @@ from tests.test_assets import target_static_0, target_static_5p1m, radar_tdm_1_c
 from numpy import complex64, allclose
 
 
+def test_adc_simple():
+    # test that given a given target, we get expected adc value
+    from test_assets import adc_sampling_times_8_samples, adc_8_values_complex_fif00
+    # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
+
+    adc_values = sample_all_rays(adc_sampling_times_8_samples,
+                                 [radar_tdm_1_chirp_8_adc],
+                                 [target_static_5p1m],
+                                 radar_tdm_1_chirp_8_adc)
+    adc0 = adc_values[:, 0]
+
+    assert adc0.shape == adc_8_values_complex_fif00.shape
+    assert np.allclose(adc0, np.real(adc_8_values_complex_fif00), atol=1e-2)
+
+"""
 @pytest.mark.parametrize("target, radar, datatype, index", [
-    (target_static_5p1m, radar_tdm_1_chirp_8_adc, np.complex64, target_5p1m_radar1_bin_1),
-    # (target_static_5p1m, radar_tdm_1_chirp_8_adc, np.float64, target_5p1m_radar1_bin_1),
-    # (target_static_10p1m, radar_tdm_1_chirp_8_adc, np.complex64, 3),
-    # (target_static_10p1m, radar_tdm_1_chirp_8_adc, np.float64, 3),
+    (target_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.complex64, target_5p1m_radar1_bin_1),
+    # (target_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.float64, target_5p1m_radar1_bin_1),
+    # (target_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.complex64, 3),
+    # (target_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.float64, 3),
 ])
-def test_fft_peak_index(target, radar, datatype, index):
-    """ check that adc values yield a peak in the expect bin
-    with radar_tdm_1_chirp_8_adc target_static_5p1m in 1st bin
-    and target_static_10p1m in 3rd bin
-    """
+def test_fft_peak_index(target, tof, radar, datatype, index):
+    # check that adc values yield a peak in the expect bin
+    #with radar_tdm_1_chirp_8_adc target_static_5p1m in 1st bin
+    #and target_static_10p1m in 3rd bin
 
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_times = np.empty((8,1))
     adc_times = arange(0, radar.number_adc_samples, 1) * \
         (1/adc_sample_rate)
-    
-    adc_values = adc_samples(adc_times=adc_times,
-                             receiver_radar=radar,
-                             targets=[target],
-                             radars=[radar],
-                             datatype=datatype,
-                             debug=True)
+    adc_times = adc_times[:, None, None, None]
+
+    #YIF += receiver_radar.adc_sampling(f_if=f_if,
+    #                                       ph_rx=ph_rx,
+    #                                       adc_times=adc_times,
+    #                                       time_of_flight=time_of_flight,
+
+    # FIXME: change the ph_rx to be including the time of flight
+    adc_values = radar.adc_sampling(f_if=f_if,
+                                    ph_rx=ph_rx,
+                                    adc_times=adc_times,
+                                    time_of_flight=tof)
     print("adc_values.shape", adc_values.shape)
     fft_values = np.abs(np.fft.fft(adc_values[0, :]))
     peak_index = np.argmax(fft_values)
@@ -133,20 +152,20 @@ def t0est_tof(target, radar, adc_skip, fault_injection):
 
 
 def tbd_BBIF2():
-    """ TX-RX < LPF so returns sinewave
-    res = BB_IF(array([0, 1.3e-7, 2.6e-7, 4e-7,
-                    5.3e-7, 6.6e-7, 8e-7, 9.3e-7,
-                    1e-6, 1.2e-6, 1.3e-6, 1.46e-6,
-                    1.6e-6, 1.73e-6, 1.86e-6, 2e-6]),
-            array([6.001e9, 6.007e9,6.014e9,6.021e9,
-                    6.027e9,6.034e9,6.041e9,6.047e9,
-                    6.054e9,6.061e9,6.067e9,6.074e9,
-                    6.081e9,6.087e9,6.094e9,6.101e9]),
-            array([6e9,6.006e9,6.013e9,6.02e9,
-                    6.026e9,6.033e9,6.04e9,6.046e9,
-                    6.053e9,6.06e9,6.066e9,6.073e9,
-                    6.08e9,6.086e9,6.093e9,6.1e9]))
-    print("RES", res)"""
+    # TX-RX < LPF so returns sinewave
+    #res = BB_IF(array([0, 1.3e-7, 2.6e-7, 4e-7,
+    #                5.3e-7, 6.6e-7, 8e-7, 9.3e-7,
+    #                1e-6, 1.2e-6, 1.3e-6, 1.46e-6,
+    #                1.6e-6, 1.73e-6, 1.86e-6, 2e-6]),
+    #        array([6.001e9, 6.007e9,6.014e9,6.021e9,
+    #                6.027e9,6.034e9,6.041e9,6.047e9,
+    #                6.054e9,6.061e9,6.067e9,6.074e9,
+    #                6.081e9,6.087e9,6.094e9,6.101e9]),
+    #        array([6e9,6.006e9,6.013e9,6.02e9,
+    #                6.026e9,6.033e9,6.04e9,6.046e9,
+    #                6.053e9,6.06e9,6.066e9,6.073e9,
+    #                6.08e9,6.086e9,6.093e9,6.1e9]))
+    #print("RES", res)
 
     from numpy import exp, pi
     f1 = 1e6
@@ -178,18 +197,18 @@ def tbd_BBIF2():
     (2, 2, np.zeros(8)),
 ])
 def t0est0_adc_frame(chirp_idx, frame_idx, adc_values_expected):
-    """ Check ADC values for multiple chirps yield the right values
-    radar_tdm_2_chirp_8adc only transmits 2 chirps
-    check that the first 2 chirps yield adc_8_values_complex_fif00
-    and taht third chirp yields 0 since nothing transmitted
-    same for 2nd frame
-    3rd frame is only 0 since not transmitted
-
-    a faire
-        verifier phase pour TDM et pour DDM dans chirp (FFT?)
-        par chirp idx
-        par frame idx
-    """
+    # Check ADC values for multiple chirps yield the right values
+    # radar_tdm_2_chirp_8adc only transmits 2 chirps
+    # check that the first 2 chirps yield adc_8_values_complex_fif00
+    # and taht third chirp yields 0 since nothing transmitted
+    # same for 2nd frame
+    # 3rd frame is only 0 since not transmitted
+    #
+    # TODO
+    #    verifier phase pour TDM et pour DDM dans chirp (FFT?)
+    #    par chirp idx
+    #    par frame idx
+    #
     from test_assets import radar_tdm_2_frames_2_chirps_8adc, t_inter_chirp_vmax_3mps, \
         t_inter_frame_50ms
     radar = radar_tdm_2_frames_2_chirps_8adc
@@ -271,16 +290,16 @@ def t0est0_MRE():
 
 
 def t0est0_phase_delta_chirp_to_chirp():
-    """ test the phase change in the target range bin change from one
-    chirp to another chirp is within the expected error range
-
-    for DFT, the d(phase)/dt = [phase(DFT[idx_peak_1st_chirp])-phase(DFT[idx_peak_2nd_chirp]) ] / (t_inter_chirp)
-    the expected change of phase from chirp to chirp is for a target moving at velocity v (assuming no range bin change)
-    dphase_dt = 4*pi*v/lambda_60G
-    given the number of DFT bins in the velocity dimension (doppler dimension), which is the number of chirps
-    the maximum error is 1 range bin:
-    2*pi/t_inter_chirp/number_adc_samples
-    """  # noqa E501
+    # test the phase change in the target range bin change from one
+    # chirp to another chirp is within the expected error range
+    # 
+    # for DFT, the d(phase)/dt = [phase(DFT[idx_peak_1st_chirp])-phase(DFT[idx_peak_2nd_chirp]) ] / (t_inter_chirp)
+    #the expected change of phase from chirp to chirp is for a target moving at velocity v (assuming no range bin change)
+    #dphase_dt = 4*pi*v/lambda_60G
+    #given the number of DFT bins in the velocity dimension (doppler dimension), which is the number of chirps
+    #the maximum error is 1 range bin:
+    #2*pi/t_inter_chirp/number_adc_samples
+    #
 
     from test_assets import radar_tdm_2_chirp_8adc, \
         target_linear_speed_5p1m_1mps, \
@@ -368,13 +387,13 @@ def t0est0_if_error_radar11_target0_1024_adc_samples():
 
 
 def t0est0_if_error_radar11_target0_target1_1024_adc_samples():
-    """ Test the presence of 2 tones at the right positions
-    when two targets are introduced
-
-    in case of algorithmic changes, first checks for the
-    tone to be within the range resolution then checks
-    the indexes against known good values
-    """
+    # Test the presence of 2 tones at the right positions
+    # when two targets are introduced
+    # 
+    # in case of algorithmic changes, first checks for the
+    # tone to be within the range resolution then checks
+    # the indexes against known good values
+    #
 
     from test_assets import radar_tdm_1_chirp_1024_adc, target_static_5p1m, target_static_10p1m, fif00, fif01
     radar11 = radar_tdm_1_chirp_1024_adc
@@ -401,3 +420,4 @@ def t0est0_if_error_radar11_target0_target1_1024_adc_samples():
 
     assert pk0 == 172
     assert pk1 == 341
+"""

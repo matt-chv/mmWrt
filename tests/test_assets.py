@@ -33,6 +33,8 @@ t_inter_chirp_vmax_2mps = lambda_60G/4/vmax_2mps
 # t_inter_chirp_vmax_3mps = \
 # 0.0004166666666666667 ~ 4.16e-4 = 461us
 t_inter_chirp_vmax_3mps = lambda_60G/4/vmax_3mps  # 461us
+tof_5p1m = d_5p1m/3e8
+tof_10p1m = d_10p1m/3e8
 fif00 = 2*chirp_slope_tdm0*d_5p1m/3e8  # 170 kHz
 fif01 = 2*chirp_slope_tdm0*d_10p1m/3e8
 t_inter_frame_50ms = 50e-3
@@ -46,10 +48,10 @@ chirp_end_time_8adc = number_adc_samples_8*1/adc_sampling_frequency_0*1.5
 chirp_end_time_1024adc = number_adc_samples_1024*1/adc_sampling_frequency_0*1.5
 
 adc_sampling_times_8_samples = arange(0, 8/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
-adc_8_values_complex_fif00 = array([[ 0.        +0.j,0.52230123+0.85276106j,
+adc_8_values_complex_fif00 = array([ 0.        +0.j,0.52230123+0.85276106j,
                                      -0.48644699+0.87371009j, -0.99998642+0.00521191j,
                                      -0.49552783-0.86859206j,  0.51338395-0.85815903j,
-                                      0.9996648 +0.02589005j,  0.46827505+0.88358275j]])
+                                      0.9996648 +0.02589005j,  0.46827505+0.88358275j])
 # adc_8_values_complex_fif00[0] = 0
 adc_8_values_complex_fif01 = exp(2*1j*pi*fif01*adc_sampling_times_8_samples)
 adc_8_values_complex_fif01[0] = 0
@@ -59,7 +61,7 @@ antenna_origin_static = Antenna()
 transmitter_off = Transmitter(chirp_start_freq=0,
                               chirp_slope=0,
                               chirp_end_time=0)
-transmitter_cw_60G = Transmitter(chirp_start_freq=60e9,
+transmitter_cw_60G = Transmitter(chirp_start_freq=f0_60G,
                               chirp_slope=0,
                               chirp_end_time=10)
 tdm_1chirp_8adc = Transmitter(chirp_end_time=chirp_end_time_8adc,

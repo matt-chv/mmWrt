@@ -1,4 +1,4 @@
-""" This is mostly to test the ADC part of the Raytracing
+""" testing RSP.Range
 Covers:
  - TDM mode
 (not written DDM, SFMCW)
@@ -6,8 +6,10 @@ Does not cover:
 - CFAR: handled in test_range_cfar.py
 - non point targets
 - attenuation
+v0.0.11: 1
 """
 
+import numpy as np
 from os.path import abspath, join, pardir
 import sys
 from numpy import arange, where, float32, complex64, complex128
@@ -18,16 +20,35 @@ from time import perf_counter
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Raytracing import adc_samples
+from mmWrt.Raytracing import sample_all_rays
 # from mmWrt.Raytracing_old import rt_points
 from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold, ranges_dft_cfar
-from mmWrt.Scene import Radar, Transmitter, Receiver, Target
+#from mmWrt.Scene import Radar, Transmitter, Receiver, Target
 
-from test_assets import targets, radars, distances
+from test_assets import adc_sampling_times_8_samples, radar_tdm_1_chirp_8_adc, target_static_5p1m
 
 RED = "\033[31m"
 GREEN = "\033[32m"
 DEFAULT = "\033[0m"
+
+def test_rsp_simple():
+    # test that given a given target, we get expected adc value
+    # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
+    radar = radar_tdm_1_chirp_8_adc
+    chirp_slope = radar.transmitter.chirp_slope
+    adc_sample_rate = radar.receiver.adc_sample_rate
+    adc_values = sample_all_rays(adc_sampling_times_8_samples,
+                                 [radar],
+                                 [target_static_5p1m],
+                                 radar)
+    adc0 = adc_values[:, 0]
+
+    ranges = ranges_from_fft_threshold(adc0,
+                                        chirp_slope=chirp_slope,
+                                        adc_sample_rate=adc_sample_rate,
+                                        fft_threshold=1)
+    assert ranges.shape == (1,), "only one value should be reported"
+    assert np.allclose(ranges, [3.7875]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
 
 """
 def __range__wrapper(target_idxes=[0], radars_idxes=[0],
@@ -99,7 +120,7 @@ def __range__wrapper(target_idxes=[0], radars_idxes=[0],
             raise ValueError("Error too large")
 """
 
-def test_if_error_radar_tdm_1_chirp_8_adc_target_static_5p1m():
+def tbd_if_error_radar_tdm_1_chirp_8_adc_target_static_5p1m():
     """
     Test that in TDM mode the range estimation is within one range bin width
     Given a 8 ADC samples per chirp

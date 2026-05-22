@@ -1,4 +1,5 @@
-""" Testing the Scene Engine for distance computation.
+""" Testing the two_way_range
+v0.0.11: 6 passed
 """
 import numpy as np
 from os.path import abspath, join, pardir
@@ -23,7 +24,6 @@ def test_distance_5p1m_t_100(time):
     d0 = target_static_5p1m.distance(t=time)
     assert abs(d0-d_5p1m) < 1e-3
 
-
 @pytest.mark.parametrize("time", [(0),(1000)])
 def test_distance_5p1m_t_1000(time):
     # Ensure that the distance between the target target_static_5p1m
@@ -39,6 +39,9 @@ def test_distance_5p1m_t_1000(time):
     print(d0)
     # d0 = scene_distance(apos, tpos)
     assert abs(d0-d_5p1m*2) < 1e-3
+    assert d0.shape == (1, 1, 1, 1), \
+        f"Expected shape (T={1}, TX={1}, S={1}, RX={1}), got {d0.shape}"
+
 
 def test_distance_5p1m_times():
     # Ensure that the target target_static_5p1m
@@ -47,14 +50,14 @@ def test_distance_5p1m_times():
 
     targets_positions = np.empty((10, 1, 3))
 
-    targets_positions[:,0,:] = target_static_5p1m.pos_t1(t=times)
+    targets_positions[:, 0, :] = target_static_5p1m.pos_t1(t=times)
 
     antenna_positions = np.empty((10, 1, 3))
-    antenna_positions[:,0,:] = antenna_origin_static.position_in_time(t=times)
+    antenna_positions[:, 0, :] = antenna_origin_static.position_in_time(t=times)
 
     d0 = two_way_range(antenna_positions, targets_positions, antenna_positions)
     # d0 = [[10.2], [10.2], [10.2] ... [10.2] [10.2] [10.2] [10.2] [10.2] [10.2] [10.2]]
     tmp = abs(d0-d_5p1m*2)
-    expected = np.zeros((10, 1))
+    expected = np.zeros((10, 1, 1, 1))
     assert np.allclose(tmp, expected, atol=1e-3)
     assert tmp.shape == expected.shape

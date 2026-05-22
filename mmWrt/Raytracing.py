@@ -5,7 +5,7 @@ BB_IF - function to compute the BaseBand Intermediate Frequency
 BB_IF is called by rt_points to compute each respective scatterer's IF contribution
 """
 
-from numpy import any, arctan2, arange, array, exp, mean, newaxis, pi, real, sum, sqrt, where, zeros, empty
+from numpy import any, arctan2, arange, array, concatenate, exp, mean, newaxis, pi, real, sum, sqrt, where, zeros, empty
 from numpy import abs as np_abs, max as np_max
 from numpy.typing import NDArray
 from numpy import float64, float32, float16, int64, int32, int16  # alternatives: float16, float64
@@ -13,6 +13,7 @@ from numpy import complex128 as complex
 from numpy import complex64
 from numpy.linalg import norm as euclidian_distance
 from numpy import tile, sum
+import numpy as np
 
 from time import perf_counter
 
@@ -137,22 +138,65 @@ def __BB_IF_single_radar__(f0_min, slope, T, antenna_tx, antenna_rx, target,
     return IF
 
 
-def adc_samples(adc_times, receiver_radar,
-                targets, radars, datatype=float32,
-                radar_equation=False,
-                debug=False) -> NDArray:
+def __retarded_TX_F__old(adc_times, radars, scatterers, receiver_radar):
+    """
+    Returns
+    -------
+    tx_freqs
+        (T, TX, S, RX)
+    """
+    tx_antenna_positions = concatenate([radar.position_tx_antennas(adc_times) for radar in radars],
+                                       axis=1)
+    rx_antenna_positions = receiver_radar.position_rx_antennas(adc_times)
+    # scatterer_positions = empty((adc_times.shape[0], len(scatterers),  3))
+    scatterer_positions = concatenate([scatterer.pos_t1(adc_times)[:, None, :] for scatterer in scatterers],
+                                      axis=1)
+    total_distance = two_way_range(tx_antenna_positions, scatterer_positions, rx_antenna_positions)
+    time_of_flight = total_distance/receiver_radar.v
+    retarded_time = adc_times[:, None, None, None] - time_of_flight
+    print(retarded_time.shape)
+    tx_freqs = receiver_radar.TX_freqs(retarded_time)
+    print(tx_freqs.shape)
+
+    return tx_freqs
+
+
+def __FIF__old(adc_times, radars, scatterers, receiver_radar):
+    # the RX frequency is the retarded TX frequency
+    rx_freqs = retarded_TX_F(adc_times, radars, scatterers, receiver_radar)
+    # the TX frequency is the TX frequency which is used at MIXER input
+    # at the timestamps of the ADC samples
+    tx_freqs = receiver_radar.TX_freqs(adc_times)
+    if_freqs = tx_freqs-rx_freqs
+    return if_freqs
+
+def sample_all_rays(adc_times,
+                    radars,
+                    targets,
+                    receiver_radar,
+                    datatype=float32,
+                    radar_equation=False,
+                    debug=False) -> NDArray:
     """ Computes the ADC samples at the given ADC times for the receiver radar
     v2 (now fully vectorised)
     reserved for future release to replace rt_points ?!?!?
 
+    Parameters
+    ----------
+    adc_times
+        (T)
     Returns
     -------
     adc_samples: NDArray
-        adc_times x receiver antenna count
+        (adc_times x receiver antenna count)
     """
+    # FIXME: change from targets to scatterers everywhere
+    scatterers = targets
     rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     number_adc_samples = adc_times.shape[0]
+    adc_samples = zeros((number_adc_samples,
+                         len(receiver_radar.rx_antennas)))
 
     # adc_samples = zeros((n_rx, number_adc_samples)).astype(datatype)
     # rx_antennas_pos = zeros((n_rx, number_adc_samples))
@@ -165,121 +209,75 @@ def adc_samples(adc_times, receiver_radar,
     print("rx ant", rx_antennas_positions.shape)
     # rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
 
+    scatterer_position = empty((adc_times.shape[0], len(scatterers),  3))
+    scatterer_count = len(scatterers)
+    for i, target in enumerate(scatterers):
+        print("target.pos_t1(adc_times)",target.pos_t1(adc_times).shape)
+        scatterer_position[:,i,:] = target.pos_t1(adc_times)
+    # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
+    # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
+    print("scatterer_position", scatterer_position.shape)
+
     # tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
     # FIXME: from
     # tx_antennas_positions = receiver_radar.position_tx_antennas(adc_times)
     # FIXME: to
     # tx_antennas_positions = (any transmitter radar) .position_tx_antennas(adc_times)
-    tx_antennas_positions = receiver_radar.position_tx_antennas(adc_times)
-    print("tx ant", tx_antennas_positions.shape)
+    for radar in radars:
+        tx_antennas_positions = radar.position_tx_antennas(adc_times)
+        print("tx ant", tx_antennas_positions.shape)
 
-    targets_positions = empty((adc_times.shape[0], len(targets),  3))
-    for i, target in enumerate(targets):
-        print("target.pos_t1(adc_times)",target.pos_t1(adc_times).shape)
-        targets_positions[:,i,:] = target.pos_t1(adc_times)
-    # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
-    # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
-    print("targets_positions", targets_positions.shape)
+        """distance_tx_target = scene_distance(targets_positions, tx_antennas_pos)
+        print("distance_tx", distance_tx_target.shape)
+        # Compute the distance from target to rx for each time point
+        # distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
+        # diff = targets_positions - rx_antennas_pos
+        # distance_target_rx = sqrt(sum(diff * diff, axis=-1))
+        distance_target_rx = scene_distance(targets_positions, rx_antennas_pos)
 
-    """distance_tx_target = scene_distance(targets_positions, tx_antennas_pos)
-    print("distance_tx", distance_tx_target.shape)
-    # Compute the distance from target to rx for each time point
-    # distance_target_rx = euclidian_distance(targets_positions - rx_antennas_pos, axis=1)
-    # diff = targets_positions - rx_antennas_pos
-    # distance_target_rx = sqrt(sum(diff * diff, axis=-1))
-    distance_target_rx = scene_distance(targets_positions, rx_antennas_pos)
+        # Total distance is the sum of both distances for each time point
+        total_distance = distance_tx_target + distance_target_rx
+        if debug:
+            print("TOTAL DISTANCE", total_distance)"""
+        # total_distance: [T, TX, S, RX]
+        total_distance = two_way_range(tx_antennas_positions,
+                                       scatterer_position,
+                                       rx_antennas_positions)
+        time_of_flight = total_distance/receiver_radar.v
+        print("193, distance.shape", total_distance.shape)
+        print("193, distance total", total_distance)
 
-    # Total distance is the sum of both distances for each time point
-    total_distance = distance_tx_target + distance_target_rx
-    if debug:
-        print("TOTAL DISTANCE", total_distance)"""
-    # total_distance: [T, RX*S*TX]
-    total_distance = two_way_range(tx_antennas_positions, targets_positions, rx_antennas_positions)
-    time_of_flight = total_distance/receiver_radar.v
-    print("193, distance.shape", total_distance.shape)
-    print("193, distance total", total_distance)
+        print("186, ToF", time_of_flight.shape)
+        print("193, distance total", total_distance)
 
-    print("186, ToF", time_of_flight.shape)
-    print("193, distance total", total_distance)
+        # for radar in radars:
+        # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
+        # f_rx = array([receiver_radar.TX_freqs(adc_times-time_of_flight) for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
+        # FIXME: before here ???? adc_times has to be (T,)
+        # now has to be (T, TX, S, RX)
+        timestamp_tensor = adc_times[:, None, None, None]
+        timestamp_tensor = np.repeat(timestamp_tensor, len(radar.tx_antennas), axis=1)
+        timestamp_tensor = np.repeat(timestamp_tensor, scatterer_count, axis=2)
+        timestamp_tensor = np.repeat(timestamp_tensor,
+                                     len(receiver_radar.rx_antennas), axis=3)
+        
+        radar_tx_times = timestamp_tensor - time_of_flight
 
-    # for radar in radars:
-    # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
-    # f_rx = array([receiver_radar.TX_freqs(adc_times-time_of_flight) for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
-    f_rx = receiver_radar.TX_freqs(adc_times-time_of_flight)  # for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
+        f_rx = radar.TX_freqs(radar_tx_times)  # for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
 
-    print("adc_times.shape", adc_times.shape)
-    print("f_rx.shape", f_rx.shape)
-    ph_rx = array([radar.TX_phases(adc_times-time_of_flight) for radar in radars])
-    f_if = receiver_radar.BB_IF(adc_times, f_rx, ph_rx)
-    print("191 f_if.shape", f_if.shape)
+        print("adc_times.shape @256", adc_times.shape)
+        print("f_rx.shape", f_rx.shape)
+        ph_rx = radar.TX_phases(radar_tx_times)  #adc_times-time_of_flight)
 
-    YIF = receiver_radar.adc_sampling(f_if=f_if,
-                                      ph_rx=ph_rx,
-                                      adc_times=adc_times,
-                                      time_of_flight=time_of_flight,
-                                      datatype=datatype)
-    """
-    fif = np_abs(f_tx-f_rx)
+        f_if = receiver_radar.mixer(adc_times, f_rx)
 
-    if_filter = (rx_high_pass_freq < fif) & (fif < rx_low_pass_freq)
-    if debug:
-        print("rx hpf, rx lpf", rx_high_pass_freq, rx_low_pass_freq)
-        print("fif:")
-        print(fif)
-        print("if filter:")
-        print(if_filter)
-    fif[~(if_filter)] = 0
-    YIF = zeros(fif.shape)
-    if any(if_filter):
-        # skip computing the IF if all the frequencies are too low or too high
-        # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, target, medium)
+        adc_samples += receiver_radar.adc_sampling(f_if=f_if,
+                                                   ph_rx=ph_rx,
+                                                   adc_times=timestamp_tensor,
+                                                   time_of_flight=time_of_flight,
+                                                   datatype=datatype)
 
-        # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
-        #                       ph_tx, debug=debug)
-        Tc = adc_times - adc_times[0]
-        IF_filter = ((rx_high_pass_freq <= abs(fif)) &
-                     (abs(fif) <= rx_low_pass_freq))
-        YIF = where(IF_filter,
-                    exp(2 * pi * 1j * (fif) * Tc + 1j*ph_tx),
-                    YIF)
-        if radar_equation:
-            # FIXME: add here that with physic samples should be `0`
-            # for T<distance/v
-            # because of ToF no mixing possible...
-            azimuth_rx = arctan2(rx_x-t_x, rx_y-t_y)
-            azimuth_tx = arctan2(tx_x-t_x, tx_y-t_y)
-            elevation_rx = arctan2(rx_y-t_y, rx_z-t_z)
-            elevation_tx = arctan2(tx_y-t_y, tx_z-t_z)
-
-            f0 = f0_min + slope*(T[-1]-T[0])/2
-            YIF = YIF * antenna_tx.gain(azimuth_tx, elevation_tx, f0) \
-                * antenna_rx.gain(azimuth_rx, elevation_rx, f0)
-
-            YIF = YIF * target.rcs(f0)
-            if target.target_type == "corner_reflector":
-                YIF = YIF / distance**2
-            else:
-                YIF = YIF / distance**4
-            YIF = YIF * 10**(L*distance)
-
-        YIF = sum(YIF, axis=1)
-        if datatype in [float64, float32, float16]:
-            YIF = real(YIF)
-        elif datatype in [complex64, complex]:
-            pass
-        elif datatype in [int64, int32, int16]:
-            YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
-
-        fif_max = np_max(fif)
-        try:
-            assert fif_max * 2 <= receiver_radar.fs
-        except AssertionError:
-            log_msg = "Nyquist will always prevail: " +\
-                f"fs:{receiver_radar.fs:.2g} vs f_if:{fif_max:.2g}"
-            if debug:
-                raise ValueError(log_msg)
-        """
-    return YIF
+    return adc_samples
 
 
 def rt_points__old(receiver_radar, targets, radar_equation=False,
@@ -790,12 +788,13 @@ def rt_points(receiver_radar, targets, radars=None,
             ts = 1/adc_sampling_frequency
             T = arange(0, n_samples*ts+ts, ts)
             adc_times = arange(0, adc_samples_count/adc_sampling_frequency,
-                            1/adc_sampling_frequency)
-            adc_values = adc_samples(adc_times,
-                                    radar,
-                                    [target0],
-                                    radars=[radar],
-                                    datatype=float32)
+                               1/adc_sampling_frequency)
+            adc_values = sample_all_rays(adc_times,
+                                         receiver_radar,
+                                         targets,
+                                         radars,
+                                         datatype=datatype)
+            raise ValueError("Fix teh ADC cube generation to keep the same concept as before")
             adc_cube[frame_idx, chirp_idx, :, :, :] = adc_values
 
     return baseband
