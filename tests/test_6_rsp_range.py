@@ -25,13 +25,15 @@ from mmWrt.Raytracing import sample_all_rays
 from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold, ranges_dft_cfar
 #from mmWrt.Scene import Radar, Transmitter, Receiver, Target
 
-from test_assets import adc_sampling_times_8_samples, radar_tdm_1_chirp_8_adc, target_static_5p1m
+from test_assets import adc_sampling_times_8_samples, radar_tdm_1_chirp_8_adc, \
+    target_static_5p1m, radar_tdm_1_chirp_1024_adc, adc_sampling_times_1024_samples
 
 RED = "\033[31m"
 GREEN = "\033[32m"
 DEFAULT = "\033[0m"
 
-def test_rsp_simple():
+
+def test_rsp_range_with_peak_find():
     # test that given a given target, we get expected adc value
     # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
     radar = radar_tdm_1_chirp_8_adc
@@ -44,11 +46,32 @@ def test_rsp_simple():
     adc0 = adc_values[:, 0]
 
     ranges = ranges_from_fft_threshold(adc0,
-                                        chirp_slope=chirp_slope,
-                                        adc_sample_rate=adc_sample_rate,
-                                        fft_threshold=1)
+                                       chirp_slope=chirp_slope,
+                                       adc_sample_rate=adc_sample_rate,
+                                       fft_threshold=1)
     assert ranges.shape == (1,), "only one value should be reported"
     assert np.allclose(ranges, [3.7875]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
+
+
+def test_rsp_range_with_cfar():
+    # test that given a given target, we get expected adc value
+    # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
+    radar = radar_tdm_1_chirp_8_adc
+    chirp_slope = radar.transmitter.chirp_slope
+    adc_sample_rate = radar.receiver.adc_sample_rate
+    adc_values = sample_all_rays(adc_sampling_times_8_samples,
+                                 [radar],
+                                 [target_static_5p1m],
+                                 radar)
+    adc0 = adc_values[:, 0]
+
+    ranges = ranges_dft_cfar(adc0,
+                             chirp_slope=chirp_slope,
+                             adc_sample_rate=adc_sample_rate,
+                             pfa=0.01)
+
+    assert ranges.shape == (4,), "only one value should be reported, 4 b/o real sampling and no grouping anything else is regression"
+    assert np.allclose(ranges[0], [3.7875]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
 
 """
 def __range__wrapper(target_idxes=[0], radars_idxes=[0],

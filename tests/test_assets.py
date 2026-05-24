@@ -48,6 +48,8 @@ chirp_end_time_8adc = number_adc_samples_8*1/adc_sampling_frequency_0*1.5
 chirp_end_time_1024adc = number_adc_samples_1024*1/adc_sampling_frequency_0*1.5
 
 adc_sampling_times_8_samples = arange(0, 8/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
+adc_sampling_times_1024_samples = arange(0, 1024/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
+
 adc_8_values_complex_fif00 = array([ 0.        +0.j,0.52230123+0.85276106j,
                                      -0.48644699+0.87371009j, -0.99998642+0.00521191j,
                                      -0.49552783-0.86859206j,  0.51338395-0.85815903j,
@@ -90,6 +92,11 @@ tdm_2chirp_1024adc = Transmitter(chirp_end_time=chirp_end_time_1024adc,
                                  t_inter_chirp=t_inter_chirp_vmax_3mps,
                                  chirp_slope=chirp_slope_tdm0)
 
+tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
+                                     chirp_end_time=t_inter_chirp_vmax_2mps/3,
+                                     t_inter_chirp=t_inter_chirp_vmax_2mps,
+                                     chirps_count=32)
+
 ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                        chirp_slope=chirp_slope_tdm0,
                                        chirp_end_time=chirp_end_time_8adc,
@@ -110,6 +117,9 @@ receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
 receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      max_adc_buffer_size=1025,
                      adc_samples_per_chirp=number_adc_samples_1024)
+receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
+                             max_adc_buffer_size=1025,
+                             adc_samples_per_chirp=64)
 
 radar_tdm_1_chirp_8_adc = Radar(transmitter=tdm_1chirp_8adc,
                                 receiver=receiver0)
@@ -121,6 +131,8 @@ radar_tdm_2_chirp_1024adc = Radar(transmitter=tdm_2chirp_1024adc,
                                   receiver=receiver0)
 radar_tdm_2_frames_2_chirps_8adc = Radar(transmitter=tdm_2frames_2chirp_8adc,
                                          receiver=receiver0)
+radar_dmax_25m_vmax_2mps = Radar(transmitter=tdm_vmax_2mps,
+                                 receiver=receiver_dmax_25m)
 radar_tx_off = Radar(transmitter=transmitter_off,
                      receiver=receiver0,
                      debug=True)

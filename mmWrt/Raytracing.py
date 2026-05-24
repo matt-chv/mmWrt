@@ -184,7 +184,7 @@ def sample_all_rays(adc_times,
     Parameters
     ----------
     adc_times
-        (T)
+        (T), absolute time
     Returns
     -------
     adc_samples: NDArray
@@ -206,17 +206,14 @@ def sample_all_rays(adc_times,
 
     # rx_antennas_pos = array([rx_antenna.xyz for rx_antenna in receiver_radar.rx_antennas])
     rx_antennas_positions = receiver_radar.position_rx_antennas(adc_times)
-    print("rx ant", rx_antennas_positions.shape)
     # rx_antennas_pos = tile(rx_antennas_pos, (len(targets), 1, number_adc_samples))
 
     scatterer_position = empty((adc_times.shape[0], len(scatterers),  3))
     scatterer_count = len(scatterers)
     for i, target in enumerate(scatterers):
-        print("target.pos_t1(adc_times)",target.pos_t1(adc_times).shape)
         scatterer_position[:,i,:] = target.pos_t1(adc_times)
     # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
     # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
-    print("scatterer_position", scatterer_position.shape)
 
     # tx_antennas_pos = array([tx_antenna.xyz for radar in radars for tx_antenna in radar.tx_antennas])
     # FIXME: from
@@ -225,7 +222,6 @@ def sample_all_rays(adc_times,
     # tx_antennas_positions = (any transmitter radar) .position_tx_antennas(adc_times)
     for radar in radars:
         tx_antennas_positions = radar.position_tx_antennas(adc_times)
-        print("tx ant", tx_antennas_positions.shape)
 
         """distance_tx_target = scene_distance(targets_positions, tx_antennas_pos)
         print("distance_tx", distance_tx_target.shape)
@@ -244,11 +240,6 @@ def sample_all_rays(adc_times,
                                        scatterer_position,
                                        rx_antennas_positions)
         time_of_flight = total_distance/receiver_radar.v
-        print("193, distance.shape", total_distance.shape)
-        print("193, distance total", total_distance)
-
-        print("186, ToF", time_of_flight.shape)
-        print("193, distance total", total_distance)
 
         # for radar in radars:
         # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
@@ -260,13 +251,11 @@ def sample_all_rays(adc_times,
         timestamp_tensor = np.repeat(timestamp_tensor, scatterer_count, axis=2)
         timestamp_tensor = np.repeat(timestamp_tensor,
                                      len(receiver_radar.rx_antennas), axis=3)
-        
+
         radar_tx_times = timestamp_tensor - time_of_flight
 
         f_rx = radar.TX_freqs(radar_tx_times)  # for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
 
-        print("adc_times.shape @256", adc_times.shape)
-        print("f_rx.shape", f_rx.shape)
         ph_rx = radar.TX_phases(radar_tx_times)  #adc_times-time_of_flight)
 
         f_if = receiver_radar.mixer(adc_times, f_rx)
@@ -712,7 +701,7 @@ def rt_points__old(receiver_radar, targets, radar_equation=False,
     return baseband
 
 
-def rt_points(receiver_radar, targets, radars=None,
+def rt_points(radars, targets, receiver_radar,
               radar_equation=False,
               datatype=float32, debug=False,
               **raytracing_opt):
@@ -754,14 +743,15 @@ def rt_points(receiver_radar, targets, radars=None,
     n_chirps = receiver_radar.chirps_count
     n_tx = len(receiver_radar.tx_antennas)
     n_rx = len(receiver_radar.rx_antennas)
-    n_adc = receiver_radar.n_adc
-    ts = 1/receiver_radar.fs
+    adc_samples_per_chirp = receiver_radar.receiver.adc_samples_per_chirp
+    adc_sample_rate = receiver_radar.receiver.adc_sample_rate
+    adc_sample_time = 1/adc_sample_rate
     bw = receiver_radar.bw
-    adc_cube = zeros((n_frames, n_chirps, n_rx, n_adc)).astype(datatype)
+    adc_cube = zeros((n_frames, n_chirps, n_rx, adc_samples_per_chirp)).astype(datatype)
     f0_min, slope, Tc, T = 0, 0, 0, 0
 
     if radars is None:
-        radars = [receiver_radar]
+        self._log.warning("future versions will not allow radars to be None")
 
 
     baseband = {"adc_cube": adc_cube,
@@ -770,13 +760,13 @@ def rt_points(receiver_radar, targets, radars=None,
                 "t_inter_chirp": receiver_radar.t_inter_chirp,
                 "n_tx": n_tx,
                 "n_rx": n_rx,
-                "n_adc": n_adc,
+                "n_adc": adc_samples_per_chirp,
                 "datatype": datatype,
                 "f0_min": f0_min,
                 "slope": slope,
                 "bw": bw,
                 "Tc": Tc,
-                "TFFT": n_adc*ts,
+                "TFFT": adc_samples_per_chirp*adc_sample_time,
                 "T": T,
                 "fs": receiver_radar.fs, "v": receiver_radar.v}
     if "compute" not in raytracing_opt:
@@ -784,17 +774,19 @@ def rt_points(receiver_radar, targets, radars=None,
 
     for frame_idx in range(n_frames):
         for chirp_idx in range(n_chirps):
-            n_samples = adc_samples_count
-            ts = 1/adc_sampling_frequency
-            T = arange(0, n_samples*ts+ts, ts)
-            adc_times = arange(0, adc_samples_count/adc_sampling_frequency,
-                               1/adc_sampling_frequency)
+            # TODO: need to make this code more flexibile to handle
+            # cases where the chirp_start_time, chirp_slope and chirp_end_time
+            # vary on chirp per chirp
+            start_of_chirp = frame_idx * receiver_radar.t_inter_frame + \
+                chirp_idx * receiver_radar.t_inter_chirp
+            adc_times = arange(0, adc_samples_per_chirp*adc_sample_time,
+                               adc_sample_time) + start_of_chirp
             adc_values = sample_all_rays(adc_times,
-                                         receiver_radar,
-                                         targets,
                                          radars,
+                                         targets,
+                                         receiver_radar,
                                          datatype=datatype)
-            raise ValueError("Fix teh ADC cube generation to keep the same concept as before")
-            adc_cube[frame_idx, chirp_idx, :, :, :] = adc_values
-
+            # raise ValueError("Fix teh ADC cube generation to keep the same concept as before")
+            adc_cube[frame_idx, chirp_idx, None, :, :] = adc_values.reshape(1, len(receiver_radar.rx_antennas), adc_samples_per_chirp)
+    baseband["adc_cube"]=adc_cube
     return baseband

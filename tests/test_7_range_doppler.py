@@ -1,3 +1,4 @@
+import logging
 from os.path import abspath, join, pardir
 import sys
 
@@ -10,10 +11,37 @@ dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
-from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
+# from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
+from test_assets import radar_dmax_25m_vmax_2mps, target_static_5p1m, target_linear_speed_10p1m_1mps
 
 
-def test_FMCW_vibration():
+def test_rsp_range_doppler():
+    from mmWrt.RadarSignalProcessing import range_doppler
+    logging.basicConfig(level=logging.WARNING,
+                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+    logging.getLogger("Transmitter").setLevel(logging.WARNING)
+
+    radar = radar_dmax_25m_vmax_2mps
+    targets = [target_static_5p1m, target_linear_speed_10p1m_1mps]
+    bb = rt_points([radar], targets, radar)
+
+    print("bb[adc_cube].shape",bb["adc_cube"].shape)
+    rd = range_doppler(bb["adc_cube"][0,:,0,:],
+                       adc_sample_rate=radar.adc_sample_rate,
+                       chirp_slope=radar.chirp_slope,
+                       chirp_period=radar.t_inter_chirp)
+    print("rd", rd)
+
+    print(bb["chirps_count"])
+    cube = bb["adc_cube"][0,:,0,:]
+    print(cube.shape)
+    Z_fft2 = abs(fft2(cube))
+    Data_fft2 = Z_fft2
+    from mmWrt.Plots import plot_range_doppler
+    plot_range_doppler(cube, radar, debug=True)
+
+
+def tbd_FMCW_vibration():
     """ validates the uDoppler logic
     """
     NA = 64
@@ -57,3 +85,6 @@ def test_FMCW_vibration():
     Y = fft(dops)
     ym = find_peaks(Y)[0][0]
     assert ym == F1
+
+if __name__ == "__main__":
+    test_rsp_range_doppler()

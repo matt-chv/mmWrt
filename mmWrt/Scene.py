@@ -72,7 +72,6 @@ def two_way_range(tx_antennas_positions: NDArray,
     s = scatterer_positions.shape[1]
     tx = tx_antennas_positions.shape[1]
     t = rx_antennas_positions.shape[0]
-    print("rx s tx", rx, s, tx)
     rx_broadcast = rx_antennas_positions[:, None, None, :, :]   # [T, 1, 1, RX, 3]
     scatterer_broadcast = scatterer_positions[:, None, :, None, :]   # [T, 1, S, 1, 3]
     tx_broadcast = tx_antennas_positions[:, :, None, None, :]   # [T, TX, 1, 1, 3]
@@ -194,7 +193,6 @@ class Target():
 
     def pos_t1(self, t: NDArray) -> NDArray:
         # x0, y0, z0 = self.x, self.y, self.z
-        print("t.shape", t.shape)
         x_positions = self.xt(t)
         y_positions = self.yt(t)
         z_positions = self.zt(t)
@@ -203,8 +201,6 @@ class Target():
         y_positions = array(self.yt(t))
         z_positions = array(self.zt(t))
         position_t = stack((x_positions, y_positions, z_positions), axis=1)
-        print("200 position_t.shape", position_t.shape)
-
         return position_t
 
 
@@ -768,8 +764,6 @@ class Transmitter():
             self._log.error("self.t_inter_chirp = 0")
         chirp_indexes = np.arange(chirp_count)
         antenna_indexes = np.arange(antenna_count)
-        print("TX, TX_phase antenna_count",antenna_count )
-        print("TX, TX_phase timestamps.shape",timestamps.shape )
         assert antenna_count == timestamps.shape[1]
 
         # Absolute chirp index for transmitter k on its nth chirp
@@ -942,10 +936,12 @@ class Radar:
         # issue #5 - frames_count renamed to total_number_frames
         # chirps_count to total_number_chirps
         self.total_number_frames = self.frames_count
-        self.total_chirps_per_frame = transmitter.chirps_count
+        self.chirp_count = transmitter.chirps_count
         self.n_adc = receiver.n_adc
         self.number_adc_samples = self.n_adc
         self.fs = receiver.fs
+        self.adc_sample_rate = self.receiver.adc_sample_rate
+        self.chirp_slope = transmitter.chirp_slope
         self.bw = transmitter.bw
         self.tx_conf = transmitter.conf
         # self.mimo_mode = transmitter.conf["mimo_mode"]
@@ -1155,9 +1151,6 @@ class Radar:
         ph_tx = self.TX_phases(adc_times)
         rx_high_pass_freq = self.receiver.rx_high_pass_freq
         rx_low_pass_freq = self.receiver.rx_low_pass_freq
-        fif_max = np_max(f_if)
-        if (fif_max * 2 > self.fs) and (fif_max <1e9):
-            self._log.critical("some targets seem to be above Nyquist, they'll be filtered out")
 
         if_filter = (rx_high_pass_freq < abs(f_if)) & \
             (abs(f_if) < rx_low_pass_freq)
@@ -1166,6 +1159,11 @@ class Radar:
         self._log.debug(f"if_filter: {if_filter[:8]}")
 
         f_if[~(if_filter)] = 0
+        fif_max = np_max(f_if)
+        adc_sampling_frequency = self.fs
+        if (fif_max * 2 > adc_sampling_frequency) and (fif_max <1e9):
+            self._log.critical("some targets seem to be above Nyquist, they'll be filtered out")
+
         self._log.debug(f"f_if: {f_if[:8]}")
         if debug:
             print("f_if after if_filter", f_if)
@@ -1191,7 +1189,7 @@ class Radar:
                             2 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
                         YIF)
             # print("YIF B4 summing", YIF)
-            print("radar equation", radar_equation)
+            self._log.debug(f"radar equation:{radar_equation}")
             if radar_equation:
                 # FIXME: add here that with physic samples should be `0`
                 # for T<distance/v
