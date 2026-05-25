@@ -3,7 +3,7 @@ from numpy import abs as np_abs
 import numpy as np
 from numpy import sum as np_sum
 from numpy.typing import NDArray
-from scipy.fft import fft
+from scipy.fft import fft, fft2
 from scipy.signal import find_peaks
 from numpy import angle
 
@@ -305,16 +305,25 @@ def cfar_ca(fft_values: np.ndarray,
         right_end = i + guard_cell_count + train_cell_count + 1
         # Collect valid training cell indices
         train_indices = []
+        # FIXME: need to handle teh case when left_end or right_end out of range
         if left_start >= 0:
             train_indices.extend(range(left_start, left_end))
+        else:
+            train_indices.extend(range(0, left_end))
+            train_indices.extend(range(n_bins + left_start, n_bins))
         if right_end <= n_bins:
             train_indices.extend(range(right_start, right_end))
+        else:
+            train_indices.extend(range(right_start, n_bins))
+            train_indices.extend(range(0, right_end - n_bins))
+
         # Compute mean noise power from available training cells
         if train_indices:
             mean_noise = np.mean(magnitude[train_indices])
         else:
             # Fallback if no training cells available
-            mean_noise = np.mean(magnitude)
+            # mean_noise = np.mean(magnitude)
+            raise ValueError("No Training cells for CFAR")
         # Compute CFAR threshold
         cfar_threshold[i] = mean_noise * threshold_factor
     return cfar_threshold
@@ -663,30 +672,105 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
     return ranges
 
 
-def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
-          adc_sample_rate:float,fft_threshold:float) -> NDArray:
-    """ returns a NDArray of ranges using a simple fft threshold for target """
-    c = 3e8  # speed of light in m/s
-    adc_samples_per_chirp = adc_values.shape[0]
-    range_fft = fft(adc_values)
-    fft_values = np_abs(range_fft)
+def dft_cfr_idx(fft_mag:NDArray,
+                train_cell_count:int,
+                pfa:float) -> NDArray:
+    """ returns indexes where cfar finds peaks
+    """
 
     # fft_values = np.fft.fft(adc_values)
-    cfar_thresholds = cfar_ca(fft_values, guard_cell_count=1, train_cell_count=3,
-                              pfa=0.01)
+    cfar_thresholds = cfar_ca(fft_mag,
+                              guard_cell_count=1,
+                              train_cell_count=train_cell_count,
+                              pfa=1e-6)  # pfa)
 
     # cfar_th = cfar_ca_1d(range_mag, num_training_cells=10,
     #                num_guard_cells=1,
     #                           debug=False)
-
+    peak_idxs = where(fft_mag > cfar_thresholds + 1e-10)[0]
     # peaks = range_mag > cfar_thresholds
-    peak_idxs = where(fft_values > cfar_thresholds + 1e-10)[0]
+    import matplotlib.pyplot as plt
+    if fft_mag.shape[0]==32:
+        print("fft mag", fft_mag[:5])
+        print("cfar", cfar_thresholds[:5])
+        print("peak_idxs", peak_idxs)
+        print("fft_mag0", fft_mag[0] > cfar_thresholds[0])
+        print("fft_mag1", fft_mag[1] > cfar_thresholds[1])
+        print("fft_mag2", fft_mag[2] > cfar_thresholds[2])
 
+        plt.plot(fft_mag, 'r-')
+        plt.plot(cfar_thresholds, 'b*')
+        plt.title("doppler dimension")
+        plt.show()
+        
+        
+    return peak_idxs
+
+
+def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
+                    adc_sample_rate:float,pfa:float) -> NDArray:
+    """ returns a NDArray of ranges using a simple fft threshold for target """
+    adc_samples_per_chirp = adc_values.shape[0]
+    c = 3e8  # speed of light in m/s
+    adc_samples_per_chirp = adc_values.shape[0]
+    fft_mag = np_abs(fft(adc_values))
+    peak_idxs = dft_cfr_idx(fft_mag, pfa)
     # d = i * fs*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
         (2*chirp_slope*adc_samples_per_chirp)
     ranges = array([i2r(peak_idx) for peak_idx in peak_idxs])
     return ranges
+
+
+def range_doppler(adc_values: NDArray,
+                  adc_sample_rate:float,
+                  chirp_slope: float,
+                  wavelength:float,
+                  chirp_period: float):
+    """
+    Parameters
+    ----------
+    adc_values
+        (chirp_count, adc_samples count)
+    """
+    Z_fft2 = fft2(adc_values)
+    print("adc_values.shape", adc_values.shape)
+    print("adc_values.shape[1]", adc_values.shape[1] // 2)
+    Z_fft2 = Z_fft2[:, :adc_values.shape[1] // 2]
+    
+    import matplotlib.pyplot as plt
+    # plt.imshow(np_abs(Z_fft2))
+    # plt.show()
+    # exit()
+    fft_1d_mag = np_abs(np_sum(Z_fft2, axis=0))
+
+    range_idxes = dft_cfr_idx(fft_1d_mag[:-3],
+                              train_cell_count=10,
+                              pfa=0.001)
+    print("range_idxes", range_idxes)
+    range_idxes_grouped = peak_grouping_1d(range_idxes, fft_1d_mag)
+    print("range_idxes_grouped", range_idxes_grouped)
+    # FIXME: make this vectored
+    range_dopplers_idxes = []
+    # range_idxes_grouped = [range_idxes_grouped[0]]
+    """import matplotlib.pyplot as plt
+    plt.plot(np_abs(np_sum(Z_fft2, axis=1)))
+    plt.title("Range------Doppler")
+    plt.show()"""
+    # range_idxes_grouped = [13]
+    for range_idx in range_idxes_grouped:
+        doppler_idxes = dft_cfr_idx(np_abs(Z_fft2[:, range_idx]), 
+                                    train_cell_count=10,
+                                    pfa=0.0001)
+        doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
+                                               np_abs(Z_fft2[:, range_idx]))
+        range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
+        range_to_meters = lambda idx: float(idx*adc_sample_rate * 3e8 / \
+            (2*chirp_slope*adc_values.shape[1]))
+        doppler_to_mps = lambda idx: float(idx*wavelength/4/chirp_period)
+        detections = [(range_to_meters(r), doppler_to_mps(d)) for r, d in range_dopplers_idxes]
+    return detections
+
 
 
 def pcl(cube):

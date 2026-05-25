@@ -29,16 +29,10 @@ def test_rsp_range_doppler():
     rd = range_doppler(bb["adc_cube"][0,:,0,:],
                        adc_sample_rate=radar.adc_sample_rate,
                        chirp_slope=radar.chirp_slope,
+                       wavelength=3e8/radar.chirp_start_freq,
                        chirp_period=radar.t_inter_chirp)
-    print("rd", rd)
-
-    print(bb["chirps_count"])
-    cube = bb["adc_cube"][0,:,0,:]
-    print(cube.shape)
-    Z_fft2 = abs(fft2(cube))
-    Data_fft2 = Z_fft2
-    from mmWrt.Plots import plot_range_doppler
-    plot_range_doppler(cube, radar, debug=True)
+    print("detections", rd)
+    # [(4.734375, 0.0), (10.2578125, 0.0), (10.2578125, 16.0)]
 
 
 def tbd_FMCW_vibration():

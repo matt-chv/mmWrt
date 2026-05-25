@@ -931,6 +931,7 @@ class Radar:
         self.receiver = receiver
         self.rx_antennas = receiver.antennas
         self.tx_antennas = transmitter.antennas
+        self.chirp_start_freq = transmitter.chirp_start_freq
 
         self.frames_count = transmitter.frames_count
         # issue #5 - frames_count renamed to total_number_frames

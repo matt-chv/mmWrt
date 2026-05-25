@@ -3,7 +3,10 @@ from numpy.fft import fft2, fftshift
 import matplotlib.pyplot as plt
 
 
-def plot_range_doppler(cube, radar, _d0=None, _v0=None, no_speed_shift=True):
+def plot_range_doppler(cube, radar, _d0=None, 
+                       _v0=None, 
+                       no_speed_shift=True,
+                       debug=False):
     """ Plots Range Doppler with axis labeled in SI
 
     Parameters
@@ -82,5 +85,7 @@ def plot_range_doppler(cube, radar, _d0=None, _v0=None, no_speed_shift=True):
     plt.ylabel("Velocity (m/s)")
     plt.title(title)
     plt.imshow(rdop, aspect='auto')
+    if debug:
+        plt.show()
     plot_details = (fig, ranges, speeds)
     return plot_details
