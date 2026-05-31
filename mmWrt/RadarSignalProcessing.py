@@ -7,6 +7,8 @@ from scipy.fft import fft, fft2
 from scipy.signal import find_peaks
 from numpy import angle
 
+from .Scene import Radar
+
 
 def error(targets_synthetics, targets_f):
     """ Computes the error in the targets position estimation
@@ -690,7 +692,7 @@ def dft_cfr_idx(fft_mag:NDArray,
     peak_idxs = where(fft_mag > cfar_thresholds + 1e-10)[0]
     # peaks = range_mag > cfar_thresholds
     import matplotlib.pyplot as plt
-    if fft_mag.shape[0]==32:
+    if pfa==1e-6:
         print("fft mag", fft_mag[:5])
         print("cfar", cfar_thresholds[:5])
         print("peak_idxs", peak_idxs)
@@ -714,7 +716,8 @@ def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
     c = 3e8  # speed of light in m/s
     adc_samples_per_chirp = adc_values.shape[0]
     fft_mag = np_abs(fft(adc_values))
-    peak_idxs = dft_cfr_idx(fft_mag, pfa)
+    peak_idxs = dft_cfr_idx(fft_mag,train_cell_count=20,
+                            pfa=pfa)
     # d = i * fs*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
         (2*chirp_slope*adc_samples_per_chirp)
@@ -771,6 +774,43 @@ def range_doppler(adc_values: NDArray,
         detections = [(range_to_meters(r), doppler_to_mps(d)) for r, d in range_dopplers_idxes]
     return detections
 
+
+def range_aoa(adc_values: NDArray, radar: Radar):
+    import numpy as np
+    from scipy.fft import fft, fftshift
+
+    range_axis = 1
+    aoa_axis = 0
+
+    range_window = np.kaiser(adc_values.shape[range_axis], beta=6)
+    adc_windowed = adc_values * range_window[np.newaxis, :]
+
+    # --- Range FFT ---
+    range_fft = fft(adc_windowed, axis=range_axis)
+
+    aoa_window = np.kaiser(adc_values.shape[aoa_axis], beta=10)
+    range_fft_windowed = range_fft * aoa_window[:, np.newaxis]
+
+    range_aoa = fftshift(fft(range_fft_windowed, axis=aoa_axis), axes=aoa_axis)
+    range_aoa = fft(range_fft_windowed, axis=aoa_axis)
+    import matplotlib.pyplot as plt
+    plt.plot(np.abs(np.abs(range_aoa[0, :])))
+    plt.plot(np.abs(np.abs(range_aoa[1, :])))
+    plt.show()
+    range_peak_idxs = dft_cfr_idx(np.abs(range_aoa[0, :]),
+                            train_cell_count=20,
+                            pfa=1e-6)
+    print(range_peak_idxs)
+    range_idxes_grouped = peak_grouping_1d(range_peak_idxs, np.abs(range_aoa[0, :]))
+    i2r = lambda idx: idx*radar.adc_sample_rate * 3e8 / \
+        (2*radar.chirp_slope*radar.adc_sample_count)
+    ranges = array([i2r(peak_idx) for peak_idx in range_idxes_grouped])
+    print(ranges)
+    for idx in range_idxes_grouped:
+        aoa_peak_idxs = dft_cfr_idx(np.abs(range_aoa[:, idx]),
+                                    train_cell_count=32,
+                                    pfa=1e-6)
+        print("aoa_peak_idxs", aoa_peak_idxs)
 
 
 def pcl(cube):
