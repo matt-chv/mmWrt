@@ -940,6 +940,7 @@ class Radar:
         self.chirp_count = transmitter.chirps_count
         self.n_adc = receiver.n_adc
         self.number_adc_samples = self.n_adc
+        self.adc_sample_count = self.n_adc
         self.fs = receiver.fs
         self.adc_sample_rate = self.receiver.adc_sample_rate
         self.chirp_slope = transmitter.chirp_slope
@@ -1185,9 +1186,10 @@ class Radar:
             #            (np_abs(f_if) <= rx_low_pass_freq))
 
             YIF = where(if_filter,
-                        exp(2 * pi * 1j * (f_if) * Tc + 1j*(ph_tx-ph_rx) +
+                        exp(2 * pi * 1j * (f_if) * Tc +
+                            1j*(ph_tx-ph_rx) +
                             2 * pi * 1j * time_of_flight*self.transmitter.chirp_start_freq -  # this is the important term for speed measure
-                            2 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
+                            1 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
                         YIF)
             # print("YIF B4 summing", YIF)
             self._log.debug(f"radar equation:{radar_equation}")
@@ -1213,7 +1215,11 @@ class Radar:
 
             # adc values are the sum of signals arriving on the same RX antenna
             # so summing over axis=1 (TX) and axis=2 (scatterers)
+            self._log.debug(f"YIF.shape: {YIF.shape}")
+            self._log.debug(f"YIF t=0: {YIF[0:10,0,0,0]}")
             YIF = sum(YIF, axis=(1, 2))
+            self._log.debug(f"YIF.shape after sum on axis: {YIF.shape}")
+            self._log.debug(f"YIF t=0: {YIF[0:10,0]}")
 
             if datatype in [float64, float32, float16]:
                 YIF = real(YIF)
@@ -1223,6 +1229,7 @@ class Radar:
                 YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
 
         return YIF
+
     def position_tx_antennas(self, timestamps) -> NDArray:
         """
         Returns
@@ -1240,5 +1247,5 @@ class Radar:
         positions_t:
             (timestamps, antenna_count, 3)
         """
-        positions_t = stack([ant.position_in_time(timestamps) for ant in self.tx_antennas], axis=1)  # [T, N_ant, 3]
+        positions_t = stack([ant.position_in_time(timestamps) for ant in self.rx_antennas], axis=1)  # [T, N_ant, 3]
         return positions_t

@@ -221,7 +221,6 @@ def sample_all_rays(adc_times,
     scatterer_count = len(scatterers)
     for i, target in enumerate(scatterers):
         scatterer_position[:,i,:] = target.pos_t1(adc_times)
-    print("224", scatterer_position)
     # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
     # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
 
@@ -250,7 +249,10 @@ def sample_all_rays(adc_times,
                                        scatterer_position,
                                        rx_antennas_positions)
         log.debug(f"total_distance: {total_distance[0,:,:,:]}")
+
+
         time_of_flight = total_distance/receiver_radar.v
+        log.debug(f"time_of_flight: {time_of_flight[0,:,:,:]}")
 
         # for radar in radars:
         # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])

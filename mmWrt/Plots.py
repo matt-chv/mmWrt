@@ -1,5 +1,8 @@
 from numpy import arange
+import numpy as np
+from numpy.typing import NDArray
 from numpy.fft import fft2, fftshift
+from scipy.fft import fft
 import matplotlib.pyplot as plt
 
 
@@ -38,11 +41,11 @@ def plot_range_doppler(cube, radar, _d0=None,
     _f0_min = cfg["f0_min"]
     """
     c = radar.v
-    _fs = radar.fs
-    _k = radar.slope
-    _NA = radar.n_adc
+    _fs = radar.adc_sample_frequency
+    _k = radar.chirp_slope
+    _NA = radar.adc_sample_count
     _NC = radar.chirps_count
-    _TIC = radar.t_inter_chirp
+    _TIC = radar.chirp_period
     _f0_min = radar.f0_min
     _L0M = c/_f0_min
 
@@ -67,9 +70,11 @@ def plot_range_doppler(cube, radar, _d0=None,
         rdop = abs(fftshift(fft2(cube), axes=0))
 
     fig = plt.figure(figsize=(10, 6))
-    no_labels = 10  # how many labels to see on axis x
+    no_labels = min(_NA, 10)  # how many labels to see on axis x
     step_x = int(_NA / (no_labels - 1))  # step between consecutive labels
+
     x_positions = arange(0, _NA, step_x)  # pixel count at label position
+
     x_labels = ranges[::step_x]  # labels you want to see
     x_labels = [f"{d:.2g}" for d in x_labels]
     plt.xticks(x_positions, x_labels)
@@ -89,3 +94,64 @@ def plot_range_doppler(cube, radar, _d0=None,
         plt.show()
     plot_details = (fig, ranges, speeds)
     return plot_details
+
+def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
+    """
+    Parameters
+    ----------
+    cube
+        (antenna count, adc sample count) a 2D array
+    Returns
+    -------
+    None
+
+    Side Effects
+    ------------
+    Displays a Matplotlib figure window.
+    """
+    c = radar.v
+    _fs = radar.fs
+    _k = radar.slope
+    _NA = cube.shape[1]
+    NR = cube.shape[0]
+    _NC = radar.chirps_count
+    _TIC = radar.t_inter_chirp
+    _f0_min = radar.f0_min
+    _L0M = c/_f0_min
+
+
+    fast_time_axis = 1
+    RX_antennas_axis = 0
+    # first compute the range FFT
+    print("125, cub.shape", cube.shape)
+    range_dft = fft(cube, axis=fast_time_axis)
+
+    # then compute the AoA FFT
+    angle_dft = fft(range_dft, axis=RX_antennas_axis)
+    mag_dft = np.abs(angle_dft)
+
+    ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
+    angles = arange(-90, 90, 180/NR)
+
+    no_labels_y = 5  # how many labels to see on axis x
+    step_y = int(NR / (no_labels_y - 1))  # step between consecutive labels
+    y_positions = arange(0, NR, step_y)  # pixel count at label position
+    y_labels = angles[::step_y]  # labels you want to see, FIXME: needs different formulas
+    y_labels = [f"{v:.2g}" for v in y_labels]  # rounding up for easier dispaly
+
+    fig = plt.figure(figsize=(10, 6))
+    no_labels = min(_NA, 10)  # how many labels to see on axis x
+    step_x = int(_NA / (no_labels - 1))  # step between consecutive labels
+
+    x_positions = arange(0, _NA, step_x)  # pixel count at label position
+    x_labels = ranges[::step_x]  # labels you want to see
+    x_labels = [f"{d:.2g}" for d in x_labels]
+    x_positions = arange(0, _NA, step_x)  # pixel count at label position
+
+    plt.xticks(x_positions, x_labels)
+    plt.yticks(y_positions, y_labels)
+    plt.xlabel("Range (m)")
+    plt.ylabel("AoA (degrees)")
+    plt.title('AoA-Range 2D FFT')
+    plt.imshow(mag_dft)
+    plt.show()
