@@ -8,7 +8,7 @@ Does not cover:
 - attenuation
 v0.0.11: 1
 """
-
+import logging
 import numpy as np
 from os.path import abspath, join, pardir
 import sys
@@ -39,6 +39,8 @@ def test_rsp_range_with_peak_find():
     radar = radar_tdm_1_chirp_8_adc
     chirp_slope = radar.transmitter.chirp_slope
     adc_sample_rate = radar.receiver.adc_sample_rate
+    logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+
     adc_values = sample_all_rays(adc_sampling_times_8_samples,
                                  [radar],
                                  [target_static_5p1m],

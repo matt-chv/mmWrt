@@ -4,7 +4,7 @@ BB_IF - function to compute the BaseBand Intermediate Frequency
 
 BB_IF is called by rt_points to compute each respective scatterer's IF contribution
 """
-
+import logging
 from numpy import any, arctan2, arange, array, concatenate, exp, mean, newaxis, pi, real, sum, sqrt, where, zeros, empty
 from numpy import abs as np_abs, max as np_max
 from numpy.typing import NDArray
@@ -16,11 +16,19 @@ from numpy import tile, sum
 import numpy as np
 
 from time import perf_counter
+from .mylogs import auto_log
 
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 from .Scene import two_way_range
 
+
+module_logger = logging.getLogger(__name__)
+module_logger.setLevel(logging.ERROR)  # Default module level
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+module_logger.addHandler(ch)
 
 
 def __BB_IF_single_radar__(f0_min, slope, T, antenna_tx, antenna_rx, target,
@@ -170,13 +178,14 @@ def __FIF__old(adc_times, radars, scatterers, receiver_radar):
     if_freqs = tx_freqs-rx_freqs
     return if_freqs
 
+@auto_log
 def sample_all_rays(adc_times,
                     radars,
                     targets,
                     receiver_radar,
                     datatype=float32,
                     radar_equation=False,
-                    debug=False) -> NDArray:
+                    debug=False, log=None) -> NDArray:
     """ Computes the ADC samples at the given ADC times for the receiver radar
     v2 (now fully vectorised)
     reserved for future release to replace rt_points ?!?!?
@@ -184,7 +193,7 @@ def sample_all_rays(adc_times,
     Parameters
     ----------
     adc_times
-        (T), absolute time
+        (T): absolute time
     Returns
     -------
     adc_samples: NDArray
@@ -212,6 +221,7 @@ def sample_all_rays(adc_times,
     scatterer_count = len(scatterers)
     for i, target in enumerate(scatterers):
         scatterer_position[:,i,:] = target.pos_t1(adc_times)
+    print("224", scatterer_position)
     # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
     # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
 
@@ -239,6 +249,7 @@ def sample_all_rays(adc_times,
         total_distance = two_way_range(tx_antennas_positions,
                                        scatterer_position,
                                        rx_antennas_positions)
+        log.debug(f"total_distance: {total_distance[0,:,:,:]}")
         time_of_flight = total_distance/receiver_radar.v
 
         # for radar in radars:
@@ -259,12 +270,14 @@ def sample_all_rays(adc_times,
         ph_rx = radar.TX_phases(radar_tx_times)  #adc_times-time_of_flight)
 
         f_if = receiver_radar.mixer(adc_times, f_rx)
-
+        log.debug(f"fif:{f_if}")
+        log.debug(f"adc_samples t=0, before incremental sums:{adc_samples[0:10,0]}")
         adc_samples += receiver_radar.adc_sampling(f_if=f_if,
                                                    ph_rx=ph_rx,
                                                    adc_times=timestamp_tensor,
                                                    time_of_flight=time_of_flight,
                                                    datatype=datatype)
+        log.debug(f"adc_samples t=0, *after* incremental sums:{adc_samples[0:10,0]}")
 
     return adc_samples
 
@@ -786,7 +799,12 @@ def rt_points(radars, targets, receiver_radar,
                                          targets,
                                          receiver_radar,
                                          datatype=datatype)
-            # raise ValueError("Fix teh ADC cube generation to keep the same concept as before")
-            adc_cube[frame_idx, chirp_idx, None, :, :] = adc_values.reshape(1, len(receiver_radar.rx_antennas), adc_samples_per_chirp)
-    baseband["adc_cube"]=adc_cube
+            # switch axis as now timestamps becomes dimension -1
+            # RX becomes axis -2
+            # we need to add a new empty axis for TX for backward compatibility
+            adc_values = adc_values.T
+            adc_values = adc_values[None, :, :]
+
+            adc_cube[frame_idx, chirp_idx, None, :, :] = adc_values
+    baseband["adc_cube"] = adc_cube
     return baseband
