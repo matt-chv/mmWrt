@@ -1,3 +1,5 @@
+import logging
+import numpy as np
 from os.path import abspath, join, pardir
 import sys
 from scipy.fft import fft
@@ -11,11 +13,25 @@ sys.path.insert(0, dp)
 from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
     Target, Transmitter  # noqa: E402
 from mmWrt.Raytracing import rt_points  # noqa: E402
-from mmWrt import __version__  # noqa: E402
+from mmWrt.Plots import plot_range_azimuth
 
 
-@pytest.mark.skipif(__version__.find("rc") >= 0, reason="only for release")
 def test_SIMO_AoA():
+    from numpy import complex128, complex64
+    from test_assets import radar_ula_64_RX, target_static_5p1m, target_static_10p1m
+    from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold
+    radar = radar_ula_64_RX
+    # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    # logging.getLogger("Radar").setLevel(logging.DEBUG)
+    bb = rt_points([radar], [target_static_5p1m, target_static_10p1m],
+                   radar)
+
+    plot_range_azimuth(bb["adc_cube"][0,0,:,:], radar)
+    assert False
+
+
+# @pytest.mark.skipif(__version__.find("rc") >= 0, reason="only for release")
+def tbd_SIMO_AoA():
     f0 = 62e9
     # Number of ADC samples
     NA = 64
@@ -64,3 +80,6 @@ def test_SIMO_AoA():
     # plt.plot(abs(A_FFT[0,0,0,:,4]))
     # plt.savefig("AoA FFT B4.png")
     # plt.savefig("AoA FFT A8_3.png")
+
+if __name__ == "__main__":
+    test_SIMO_AoA()

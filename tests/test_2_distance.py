@@ -61,3 +61,19 @@ def test_distance_5p1m_times():
     expected = np.zeros((10, 1, 1, 1))
     assert np.allclose(tmp, expected, atol=1e-3)
     assert tmp.shape == expected.shape
+
+def test_distance_multiple_antennas():
+    from test_assets import antennas_ULA_64_60G
+    times = np.array([0])
+    antenna_positions = np.empty((8, 1, 3))
+    antenna_positions[:, :, :] = [a.position_in_time(t=times) for a in antennas_ULA_64_60G]
+    targets_positions = np.empty((1, 1, 3))
+    targets_positions[:, 0, :] = target_static_5p1m.pos_t1(t=times)
+    d0 = two_way_range(antenna_positions, targets_positions, antenna_positions)
+    print(d0)
+
+
+
+
+if __name__ == "__main__":
+    test_distance_multiple_antennas()
