@@ -95,6 +95,7 @@ def plot_range_doppler(cube, radar, _d0=None,
     plot_details = (fig, ranges, speeds)
     return plot_details
 
+
 def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     """
     Parameters
@@ -119,7 +120,6 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     _f0_min = radar.f0_min
     _L0M = c/_f0_min
 
-
     fast_time_axis = 1
     RX_antennas_axis = 0
     # first compute the range FFT
@@ -128,7 +128,7 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
 
     # then compute the AoA FFT
     angle_dft = fft(range_dft, axis=RX_antennas_axis)
-    mag_dft = np.abs(angle_dft)
+    mag_dft = np.abs(angle_dft)  # type: ignore[reportCallIssue]
 
     ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
     angles = arange(-90, 90, 180/NR)
