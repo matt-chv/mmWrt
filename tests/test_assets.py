@@ -11,13 +11,21 @@ RED = "\033[31m"
 GREEN = "\033[32m"
 DEFAULT = "\033[0m"
 
+# speed of light in void
+c = 3e8
+n_air = 1  # really is 1.0003 but simplified for testing
+v_light = c/n_air
+
 f0_60G = 60e9
-lambda_60G = 3e8/f0_60G
+f0_77G = 77e9
+lambda_60G = v_light/f0_60G
+lambda_77G = v_light/f0_77G
 chirp_slope_tdm0 = 5e12
 chirp_slope_5e12 = chirp_slope_tdm0
 
-number_adc_samples_8 = 8
-number_adc_samples_1024 = 1024
+adc_samples_count_8 = 8
+adc_samples_count_64 = 64
+adc_samples_count_1024 = 1024
 d_0m = 0.01
 d_5p1m = 5.1
 d_5p05m = 5.05
@@ -44,8 +52,8 @@ t_inter_frame_50ms = 50e-3
 phase_slope_half_pi = 0.5
 
 adc_sampling_frequency_0 = 3*fif01
-chirp_end_time_8adc = number_adc_samples_8*1/adc_sampling_frequency_0*1.5
-chirp_end_time_1024adc = number_adc_samples_1024*1/adc_sampling_frequency_0*1.5
+chirp_end_time_8adc = adc_samples_count_8*1/adc_sampling_frequency_0*1.5
+chirp_end_time_1024adc = adc_samples_count_1024*1/adc_sampling_frequency_0*1.5
 
 adc_sampling_times_8_samples = arange(0, 8/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
 adc_sampling_times_1024_samples = arange(0, 1024/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
@@ -111,15 +119,21 @@ fif = 1e6 = 64 idx
 nadc = 256
 fs = 
 tdm_1e12_77_"""
+antennas_ULA_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
+
 
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                     adc_samples_per_chirp=number_adc_samples_8)
+                     adc_samples_per_chirp=adc_samples_count_8)
 receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      max_adc_buffer_size=1025,
-                     adc_samples_per_chirp=number_adc_samples_1024)
+                     adc_samples_per_chirp=adc_samples_count_1024)
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              max_adc_buffer_size=1025,
                              adc_samples_per_chirp=64)
+
+receiver_ULA_64 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
+                           antennas = antennas_ULA_64_60G,
+                           adc_samples_per_chirp=adc_samples_count_64)
 
 radar_tdm_1_chirp_8_adc = Radar(transmitter=tdm_1chirp_8adc,
                                 receiver=receiver0)
@@ -139,11 +153,13 @@ radar_tx_off = Radar(transmitter=transmitter_off,
 radar_tx_cw = Radar(transmitter=transmitter_cw_60G,
                      receiver=receiver0,
                      debug=True)
-radars = [radar_tdm_1_chirp_8_adc, radar_tdm_1_chirp_1024_adc, radar_tdm_2_chirp_8adc]
+radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
+                        receiver=receiver_ULA_64)
+# radars = [radar_tdm_1_chirp_8_adc, radar_tdm_1_chirp_1024_adc, radar_tdm_2_chirp_8adc]
 
 target_static_0 = Target(xt=lambda t: d_0m+0*t)
 target_static_5p1m = Target(xt=lambda t: d_5p1m+0*t)
-target_static_10p1m = Target(xt=lambda t: d_10p1m+0*t)
+target_static_10p1m = Target(yt=lambda t: d_10p1m+0*t)
 target_linear_speed_5p1m_1mps = Target(xt=lambda t: d_5p1m + v_1mps*t)
 target_linear_speed_10p1m_1mps = Target(xt=lambda t: d_10p1m + v_1mps*t)
 
