@@ -125,6 +125,44 @@ def test_rsp_cfar_ex3(peak_idx: int):
     assert peak_idx == np.where((magnitude > threshold + 1e-10))[0][0]
 
 
+def test_rsp_grouping_ex1():
+    mag = np.array([0, 0, 10, 9, 0, 0, 8, 7, 0, 0])
+    idx = np.array([2, 3, 6, 7])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([2, 6]))
+
+def test_rsp_grouping_ex2():
+    mag = np.array([10, 5, 0, 0, 0, 0, 8, 7, 0, 0])
+    idx = np.array([0, 1, 6, 7])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([0, 6]))
+
+def test_rsp_grouping_ex3():
+    mag = np.array([5, 15, 0, 0, 0, 0, 8, 7, 0, 0])
+    idx = np.array([0, 1, 6, 7])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([1, 6]))
+
+def test_rsp_grouping_ex4():
+    mag = np.array([5, 15, 0, 0, 0, 0, 0, 0, 8, 7])
+    idx = np.array([0, 1, 8, 9])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([1, 8]))
+
+
+def test_rsp_grouping_ex5():
+    mag = np.array([5, 15, 0, 0, 0, 0, 0, 0, 1, 10])
+    idx = np.array([0, 1, 8, 9])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([1, 9]))
+
+
+def test_rsp_grouping_ex5():
+    mag = np.array([15, 5, 0, 0, 0, 0, 0, 0, 0, 10])
+    idx = np.array([0, 1, 9])
+    grouped_idx = rsp.peak_grouping_1d(idx, mag)
+    assert np.allclose(grouped_idx, np.array([0, 9]))
+
 
 def tbd_test_FMCW_1j():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
@@ -430,3 +468,5 @@ def tbd_test_target_def():
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 
+if __name__ == "__main__":
+    test_rsp_grouping_ex5()
