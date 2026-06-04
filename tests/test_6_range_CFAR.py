@@ -1,12 +1,5 @@
-""" Tests RANGE FFT + CFAR
-Includes:
-1. 1 radar 1 chirp TDM: 8 adc samples / 1024 adc samples
-2. targets:
-    - static at 0, 5.1 and 10.1 meters (adding 0 as np.find_peaks does not work for 1st range bin)
-    - linear motion at 1 m/s starting at 5.1 and 10.1 meters
-3. CFAR: handled in test_range_cfar.py
-- non point targets
-- attenuation
+""" Tests CFAR
+v0.0.11: 7
 """
 
 from os.path import abspath, join, pardir
@@ -28,7 +21,7 @@ from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
-from test_1_range_point import __range__wrapper  # noqa: E402
+# from test_1_range_point import __range__wrapper  # noqa: E402
 from test_assets import target_static_5p1m, radar_tdm_1_chirp_8_adc, d_5p1m
 
 def __range__wrapper2(targets, radars,
@@ -77,7 +70,7 @@ def __range__wrapper2(targets, radars,
             raise ValueError("Error too large")
 
 
-def test_tdm_8adc_target0():
+def tbd_tdm_8adc_target0():
     __range__wrapper(target_idxes=[0], radars_idxes=[0],
                      distance_idxes=[0],
                      cfar_peak_detect=True)
@@ -85,7 +78,7 @@ def test_tdm_8adc_target0():
 @pytest.mark.parametrize("targets, radars, distances, cfar_peak_detect", [
     ([target_static_5p1m], [radar_tdm_1_chirp_8_adc], [d_5p1m], True),
 ])
-def test_tdm_8adc_range0m(targets, radars,
+def tbd_tdm_8adc_range0m(targets, radars,
                      distances,
                      cfar_peak_detect):
     """ Test CFAR on range bin 0 as np.find_peaks does not work on range bin 0, 

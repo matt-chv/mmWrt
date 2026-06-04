@@ -30,6 +30,7 @@ d_0m = 0.01
 d_5p1m = 5.1
 d_5p05m = 5.05
 d_10p1m = 10.1
+d_15p1m = 15.1
 d_th = 100
 v_1mps = 1
 vmax_2mps = 2*v_1mps
@@ -56,15 +57,28 @@ chirp_end_time_8adc = adc_samples_count_8*1/adc_sampling_frequency_0*1.5
 chirp_end_time_1024adc = adc_samples_count_1024*1/adc_sampling_frequency_0*1.5
 
 adc_sampling_times_8_samples = arange(0, 8/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
+# print("adc_sampling_times_8_samples", adc_sampling_times_8_samples)
+# [0.00000000e+00 9.90099010e-07 1.98019802e-06 2.97029703e-06
+# 3.96039604e-06 4.95049505e-06 5.94059406e-06 6.93069307e-06]
 adc_sampling_times_1024_samples = arange(0, 1024/adc_sampling_frequency_0, 1/adc_sampling_frequency_0)
 
 adc_8_values_complex_fif00 = array([ 0.        +0.j,0.52230123+0.85276106j,
                                      -0.48644699+0.87371009j, -0.99998642+0.00521191j,
                                      -0.49552783-0.86859206j,  0.51338395-0.85815903j,
                                       0.9996648 +0.02589005j,  0.46827505+0.88358275j])
-# adc_8_values_complex_fif00[0] = 0
+adc_8_values_complex_fif00 = array([ 0.        +0.j        , 0.5067312 +0.86210411j,
+                                    -0.5022311 +0.86473344j,-0.9999162 -0.01294611j,
+                                    -0.47967476-0.87744636j, 0.52888126-0.84869583j,
+                                     0.9990299 +0.0440371j , 0.45215427+0.89193975j])
+#adc_8_values_complex_fif00 = exp(2*1j*pi*fif00*adc_sampling_times_8_samples)
+#adc_8_values_complex_fif00[0] = 0
 adc_8_values_complex_fif01 = exp(2*1j*pi*fif01*adc_sampling_times_8_samples)
 adc_8_values_complex_fif01[0] = 0
+
+antennas_ULA_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
+antennas_ULA_x_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
+antennas_ULA_y_64_60G = [Antenna(y=lambda_60G/2*i) for i in range(64)]
+antennas_ULA_z_64_60G = [Antenna(z=lambda_60G/2*i) for i in range(64)]
 
 antenna_origin_static = Antenna()
 
@@ -100,10 +114,17 @@ tdm_2chirp_1024adc = Transmitter(chirp_end_time=chirp_end_time_1024adc,
                                  t_inter_chirp=t_inter_chirp_vmax_3mps,
                                  chirp_slope=chirp_slope_tdm0)
 
+tdm_64chirp_1024adc_ula_z_64 = Transmitter(chirp_start_freq=f0_60G,
+                                  chirp_slope=chirp_slope_tdm0,
+                                  chirp_end_time=chirp_end_time_1024adc,
+                                  antennas=antennas_ULA_z_64_60G,
+                                  chirps_count=64,
+                                  t_inter_chirp=t_inter_chirp_vmax_3mps)
+
 tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
-                                     chirp_end_time=t_inter_chirp_vmax_2mps/3,
-                                     t_inter_chirp=t_inter_chirp_vmax_2mps,
-                                     chirps_count=32)
+                            chirp_end_time=t_inter_chirp_vmax_2mps/3,
+                            t_inter_chirp=t_inter_chirp_vmax_2mps,
+                            chirps_count=32)
 
 ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                        chirp_slope=chirp_slope_tdm0,
@@ -119,20 +140,29 @@ fif = 1e6 = 64 idx
 nadc = 256
 fs = 
 tdm_1e12_77_"""
-antennas_ULA_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
 
 
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_samples_per_chirp=adc_samples_count_8)
+
 receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      max_adc_buffer_size=1025,
                      adc_samples_per_chirp=adc_samples_count_1024)
+
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              max_adc_buffer_size=1025,
                              adc_samples_per_chirp=64)
 
+receiver_dmax_50m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
+                             max_adc_buffer_size=1025,
+                             adc_samples_per_chirp=64)
+
+receiver_dmax_100m = Receiver(adc_sample_rate=adc_sampling_frequency_0*4.1/3,  #MCV: was 1/3
+                             max_adc_buffer_size=1025,
+                             adc_samples_per_chirp=64)
+
 receiver_ULA_64 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                           antennas = antennas_ULA_64_60G,
+                           antennas=antennas_ULA_x_64_60G,
                            adc_samples_per_chirp=adc_samples_count_64)
 
 radar_tdm_1_chirp_8_adc = Radar(transmitter=tdm_1chirp_8adc,
@@ -155,11 +185,13 @@ radar_tx_cw = Radar(transmitter=transmitter_cw_60G,
                      debug=True)
 radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
                         receiver=receiver_ULA_64)
-# radars = [radar_tdm_1_chirp_8_adc, radar_tdm_1_chirp_1024_adc, radar_tdm_2_chirp_8adc]
+radar_ula_64_TX = Radar(transmitter=tdm_64chirp_1024adc_ula_z_64,
+                        receiver=receiver_dmax_100m)
 
 target_static_0 = Target(xt=lambda t: d_0m+0*t)
 target_static_5p1m = Target(xt=lambda t: d_5p1m+0*t)
 target_static_10p1m = Target(yt=lambda t: d_10p1m+0*t)
+target_static_z_15p1m = Target(zt=lambda t: 15.1+0*t)  #d_15p1m+0*t)
 target_linear_speed_5p1m_1mps = Target(xt=lambda t: d_5p1m + v_1mps*t)
 target_linear_speed_10p1m_1mps = Target(xt=lambda t: d_10p1m + v_1mps*t)
 

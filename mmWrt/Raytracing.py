@@ -181,7 +181,7 @@ def __FIF__old(adc_times, radars, scatterers, receiver_radar):
 @auto_log
 def sample_all_rays(adc_times,
                     radars,
-                    targets,
+                    scatterers,
                     receiver_radar,
                     datatype=float32,
                     radar_equation=False,
@@ -200,7 +200,7 @@ def sample_all_rays(adc_times,
         (adc_times x receiver antenna count)
     """
     # FIXME: change from targets to scatterers everywhere
-    scatterers = targets
+    # scatterers = targets
     rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     number_adc_samples = adc_times.shape[0]
@@ -219,8 +219,8 @@ def sample_all_rays(adc_times,
 
     scatterer_position = empty((adc_times.shape[0], len(scatterers),  3))
     scatterer_count = len(scatterers)
-    for i, target in enumerate(scatterers):
-        scatterer_position[:,i,:] = target.pos_t1(adc_times)
+    for i, scatterer in enumerate(scatterers):
+        scatterer_position[:,i,:] = scatterer.pos_t1(adc_times)
     # diff = targets_positions - tx_antennas_pos # 2000 targets * 1024 samples  operations
     # distance_tx_target = sqrt(sum(diff * diff, axis=-1))
 
@@ -249,7 +249,6 @@ def sample_all_rays(adc_times,
                                        scatterer_position,
                                        rx_antennas_positions)
         log.debug(f"total_distance: {total_distance[0,:,:,:]}")
-
 
         time_of_flight = total_distance/receiver_radar.v
         log.debug(f"time_of_flight: {time_of_flight[0,:,:,:]}")

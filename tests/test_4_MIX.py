@@ -4,7 +4,7 @@ v 0.0.11 - 5 passed
 import logging
 from os.path import abspath, join, pardir
 import sys
-from test_assets import radar_tdm_1_chirp_8_adc, d_5p1m, \
+from test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc, d_5p1m, \
     target_static_10p1m, target_static_5p1m, fif00, fif01, \
     chirp_slope_tdm0, adc_8_values_complex_fif00, \
     adc_sampling_times_8_samples, tof_5p1m, f0_60G
@@ -75,15 +75,16 @@ def test_RX_freq_2():
     assert f_if.shape == f_if_expected.shape
     assert allclose(f_if, f_if_expected, atol=1e-8)
 
+
 def test_interferer_mixing():
     # to simulate mixing, we define a radar with CW transmission
     # receiving a frequency and change LPF filter,
     # to get IF = RF RX - CW
     from tests.test_assets import radar_tx_cw
-    from numpy import abs as np_abs
 
-    adc_times = np.array([1]*7)[:, None, None, None]
+    adc_times = np.array([1]*7)  # [:, None, None, None]
     f_rx = np.arange(57e9, 64e9, 1e9)
+    f_rx = f_rx[:, None, None, None]
 
     if_frequencies = radar_tx_cw.mixer(adc_times,
                                        f_rx=f_rx)
@@ -108,15 +109,14 @@ def test_no_mixing():
 def test_interferer_no_mixing():
     # to simulate no mixing, we define a radar without transmission
     # receiving a frequency and change LPF filter, to get IF = RF RX
-    from tests.test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc
-    from numpy import abs as np_abs
 
     radar = radar_tdm_1_chirp_8_adc
     adc_sample_rate = radar.receiver.adc_sample_rate
     adc_times = np.arange(0, radar.number_adc_samples, 1) * \
         (1/adc_sample_rate)
-    adc_times = adc_times[:, None, None, None]
-    f_rx = np.array([radar.TX_freqs(adc_times) for radar in [radar_tdm_1_chirp_8_adc]])
+
+    # broadcast adc_times to match (T,TX,S,RX)
+    f_rx = radar_tdm_1_chirp_8_adc.TX_freqs(adc_times[:, None, None, None])
 
     if_frequencies = radar_tx_off.mixer(adc_times,
                                         f_rx=f_rx)

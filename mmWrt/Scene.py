@@ -640,7 +640,7 @@ class Transmitter():
         antenna_indexes = np.arange(antenna_count)
         self._log.debug(f"antenna_count: {antenna_count}")
         self._log.debug(f"chirps_count: {chirp_count}")
-        assert antenna_count == timestamps.shape[1]
+        assert antenna_count == timestamps.shape[1], f"timestamps shape {timestamps.shape} does not match antenna count {antenna_count}"
 
 
         # Absolute chirp index for transmitter k on its nth chirp
@@ -1041,6 +1041,7 @@ class Radar:
         that the `itermediate frequency` the if is the substraction of the
         two rf frequencies. This function is a stub for other possible down
         conversion in future versions.
+        Note: no low pass filtering here. Currently done at IF stage
 
         Parameters
         ----------
@@ -1052,81 +1053,14 @@ class Radar:
         ------
         f_if
             (T, TX, S, RX)
-        """        
-        receiver_antenna_count = len(self.receiver.antennas)
-        timestamps_rx = np.repeat(timestamps[:, None, None, None],
-                                  receiver_antenna_count,
-                                  axis=3)
+        """
+        target_shape = (timestamps.shape[0], f_rx.shape[1], f_rx.shape[2], f_rx.shape[3])
+        timestamps_rx = np.broadcast_to(timestamps[:, None, None, None], target_shape)
+
+        # raise Exception("here we should have  timestamp dimensions (T, TX, S, RX)")
         f_tx = self.TX_freqs(timestamps_rx)
         f_if = f_tx - f_rx
-        return f_if
 
-    def __BB_IF__old(self, adc_times, f_rx,
-              debug=False) -> NDArray:
-        """ Simplified mixer and IF filtering to model
-        intermediate frequency function ADC sampling.
-        provisions to account for interferer radars.
-
-        Parameters
-        ----------
-        Tc: NDArray[float32]
-            the relative time to start of chirp in (s)
-        f_rx: NDArray[float32]
-            the local TX chirp transmit frequency in (Hz)
-        f_tx: NDArray[float32]
-            the frequency at which chirp was trasmitted in (Hz)
-        rx_hpf: float
-            high-pass filter - cutting off DC component. brikwall so far. (Hz)
-        rx_lpf: float
-            low-pass filter - cutting off beyond Nyquist. (Hz)
-        tx_phase_offset: float
-            used especially for DDMA modulation in radian
-        debug: bool
-            if True displays debug information
-        Returns
-        -------
-        YIF:
-            the ADC values in complex, shape is (1,adc_times.shape)
-        Example
-        -------
-        >> BB_IF(array([0,3e-7,6.6e-7,1.e-6]),
-                array([6e10,6.0003e10,6.0006e+10,6.001e10]),
-                array([6.1e10,6.1003e10,6.1006e10,6.101e10]),
-                rx_hpf=1e3, rx_lpf=1e8)
-        << [0.+0.j 0.+0.j 0.+0.j 0.+0.j]
-        >> BB_IF(array([0, 1.3e-7, 2.6e-7, 4e-7,
-                        5.3e-7, 6.6e-7, 8e-7, 9.3e-7,
-                        1e-6, 1.2e-6, 1.3e-6, 1.46e-6,
-                        1.6e-6, 1.73e-6, 1.86e-6, 2e-6]),
-                    array([6.001e9, 6.007e9,6.014e9,6.021e9,
-                        6.027e9,6.034e9,6.041e9,6.047e9,
-                        6.054e9,6.061e9,6.067e9,6.074e9,
-                        6.081e9,6.087e9,6.094e9,6.101e9]),
-                    array([6e9,6.006e9,6.013e9,6.02e9,
-                        6.026e9,6.033e9,6.04e9,6.046e9,
-                        6.053e9,6.06e9,6.066e9,6.073e9,
-                        6.08e9,6.086e9,6.093e9,6.1e9]),
-                    rx_hpf=1e3, rx_lpf=1e8)
-        << [ 1. +0.00000000e+00j,  0.68454711+7.28968627e-01j,
-            -0.06279052+9.98026728e-01j, -0.80901699+5.87785252e-01j,
-            -0.98228725-1.87381315e-01j, -0.53582679-8.44327926e-01j,
-            0.30901699-9.51056516e-01j,  0.90482705-4.25779292e-01j,
-            1.        -1.13310778e-15j,  0.30901699+9.51056516e-01j,
-            -0.30901699+9.51056516e-01j, -0.96858316+2.48689887e-01j,
-            -0.80901699-5.87785252e-01j, -0.12533323-9.92114701e-01j,
-            0.63742399-7.70513243e-01j,  1.        -2.26621556e-15j]
-        """
-
-        f_tx = self.TX_freqs(adc_times)
-        print(1002,"f_tx", f_tx)
-
-        f_if = f_tx-f_rx
-        # FIXME:
-        # how do we change here as f_if needs to be (timestamps, tx, scatterer)
-        # so 1TX 1 Scatterer 1RX => f_if is (8, 1, 1) - (8,1)
-        # with 1 TX 2 scatterers 1 RX => f_if is (8, 2) - (8,1) (twice on axis 1)
-        # with 2TX 2 Scatterers 2 RX, each RX sees up to 4 tones (if DDM or 2 tones sames as 4 with 2 zeroz) 
-        # on each RX (8,4,2) with then gets added in (8,2) on axis1 after sinewave
         return f_if
 
     def adc_sampling(self, f_if,
@@ -1165,6 +1099,10 @@ class Radar:
         adc_sampling_frequency = self.fs
         if (fif_max * 2 > adc_sampling_frequency) and (fif_max <1e9):
             self._log.critical("some targets seem to be above Nyquist, they'll be filtered out")
+            print(f_if)
+            print("adc_saml",adc_sampling_frequency)
+            print(fif_max*2)
+            exit()
 
         self._log.debug(f"f_if: {f_if[:8]}")
         if debug:
@@ -1184,14 +1122,12 @@ class Radar:
             # print("Tc = adc_times-adc_times[0]", Tc)
             #IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
             #            (np_abs(f_if) <= rx_low_pass_freq))
-
             YIF = where(if_filter,
                         exp(2 * pi * 1j * (f_if) * Tc +
                             1j*(ph_tx-ph_rx) +
                             2 * pi * 1j * time_of_flight*self.transmitter.chirp_start_freq -  # this is the important term for speed measure
                             1 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
                         YIF)
-            # print("YIF B4 summing", YIF)
             self._log.debug(f"radar equation:{radar_equation}")
             if radar_equation:
                 # FIXME: add here that with physic samples should be `0`

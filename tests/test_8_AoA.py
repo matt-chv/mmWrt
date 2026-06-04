@@ -14,20 +14,55 @@ from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
     Target, Transmitter  # noqa: E402
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Plots import plot_range_azimuth
+from mmWrt.RadarSignalProcessing import range_aoa, detection_xy
+from test_assets import radar_ula_64_RX, target_static_5p1m, target_static_10p1m, target_static_z_15p1m, radar_ula_64_TX
 
-
-def test_SIMO_AoA():
-    from numpy import complex128, complex64
-    from test_assets import radar_ula_64_RX, target_static_5p1m, target_static_10p1m
-    from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold
+def test_SIMO_AoA_polar():
+    import copy
     radar = radar_ula_64_RX
+    target3 = copy.deepcopy(target_static_5p1m)
+    target3.xt = lambda t: -2.1 + 0.0*t
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     # logging.getLogger("Radar").setLevel(logging.DEBUG)
+    bb = rt_points([radar], [target_static_5p1m, target_static_10p1m, target3],
+                   radar)
+
+    detection_list = range_aoa(bb["adc_cube"][0,0,:,:], radar)
+    print("detection_list", detection_list)
+    expected_detections = np.array([[1.89375, 0],[5.2078125, 0],[9.9421875, -90.]])
+    print("expected_detections", expected_detections)
+    assert np.allclose(detection_list,
+                       expected_detections, atol=0.2)
+    assert detection_list.shape == expected_detections.shape
+
+def test_SIMO_AoA_cartesian():
+    radar = radar_ula_64_RX
     bb = rt_points([radar], [target_static_5p1m, target_static_10p1m],
                    radar)
 
-    plot_range_azimuth(bb["adc_cube"][0,0,:,:], radar)
-    assert False
+    detection_list = detection_xy(bb["adc_cube"][0,0,:,:], radar)
+    print("detection_list", detection_list)
+    expected_detections = np.array([[5.2078125, 0],[0, -9.9421875]])
+    assert np.allclose(detection_list,
+                       expected_detections, atol=0.2)
+    assert detection_list.shape == expected_detections.shape
+
+def test_MISO_AoA_cartesian():
+    import copy
+    radar = radar_ula_64_TX
+
+    bb = rt_points([radar], [target_static_5p1m, target_static_10p1m, target_static_z_15p1m],
+                   radar)
+    adc_cube = bb["adc_cube"][0,:,0,:]
+
+
+    detection_list = detection_xy(adc_cube, radar)
+    expected_detections = np.array([[0, -5.18],
+                                    [0, -10.35],
+                                    [14.88, 0]])
+    assert np.allclose(detection_list,
+                       expected_detections, atol=0.2)
+    assert detection_list.shape == expected_detections.shape
 
 
 # @pytest.mark.skipif(__version__.find("rc") >= 0, reason="only for release")
@@ -82,4 +117,4 @@ def tbd_SIMO_AoA():
     # plt.savefig("AoA FFT A8_3.png")
 
 if __name__ == "__main__":
-    test_SIMO_AoA()
+    test_MISO_AoA_cartesian()
