@@ -1,3 +1,9 @@
+""" testing RSP.range_aoa, detection_xy
+Covers:
+ - TDM mode
+(not written DDM, SFMCW)
+v0.0.11: 0
+"""
 import logging
 import numpy as np
 from os.path import abspath, join, pardir

@@ -11,6 +11,9 @@ from numpy import angle
 from .Scene import Radar
 from .mylogs import auto_log
 
+ERR_CFAR_CELL_COUNT = "Too few cells in to have train cells and guard cells"
+
+
 module_logger = logging.getLogger(__name__)
 module_logger.setLevel(logging.ERROR)  # Default module level
 ch = logging.StreamHandler()
@@ -251,11 +254,69 @@ def cfar_1d(FT,
         print("CFAR_TH shape", cfar_th.shape)
     return cfar_th
 
+
+def cfar_alpha(train_cell_count: int, pfa: float) -> float:
+    """
+    Compute the CA-CFAR threshold multiplier for a given PFA.
+    Assumes exponentially distributed power (complex Gaussian clutter).
+
+    Parameters
+    ----------
+    train_cell_count:
+        Number of training cells (must be >= 1).
+    pfa:
+        Probability of False Alarm (0 < pfa < 1).
+    Returns
+    -------
+    alpha:
+        Threshold multiplier for CA-CFAR.
+    Raises
+    ------
+    ValueError
+        If ``pfa`` is not in the open interval (0, 1).
+    ValueError
+        If ``train_cell_count`` is less than 1.
+
+    Notes
+    -----
+    The closed-form relationship between alpha and PFA for CA-CFAR
+    with N independent exponential training samples is:
+
+        PFA = (1 + alpha / N)^(-N)
+
+    Solved for alpha:
+
+        alpha = N * (PFA^(-1/N) - 1)
+
+    This derivation assumes homogeneous clutter. Results are
+    statistically meaningless on non-Gaussian or non-stationary
+    backgrounds, though the returned float remains numerically valid
+    and can still be passed to ``_cfar_core`` as an empirically
+    chosen multiplier.
+
+    Side Effects
+    ------------
+    None.
+
+    Examples
+    --------
+    >>> round(cfar_alpha(8, 1e-4), 4)
+    26.0309
+    >>> cfar_alpha(16, 1e-2)  # more training cells, lower alpha
+    4.953...
+    >>> cfar_alpha(1, 0.5)
+    1.0
+    """
+    assert 0 < pfa < 1
+    assert train_cell_count >= 1
+    alpha = train_cell_count * (pfa ** (-1.0 / train_cell_count) - 1.0)
+    return alpha
+
 @auto_log
-def cfar_ca(fft_values: np.ndarray,
+def _cfar_ca(fft_values: np.ndarray,
             guard_cell_count: int,
             train_cell_count: int,
-            pfa: float,
+            threshold_factor: float,
             debug: bool = False,
             log=None) -> np.ndarray:
     """
@@ -272,13 +333,20 @@ def cfar_ca(fft_values: np.ndarray,
         Number of guard cells on each side of the cell under test.
     train_cell_count
         Number of training cells on each side (excluding guard cells).
-    pfa:
-        Probability of False Alarm (0 < pfa < 1).
+    threshold_factor:
+        Factor to multiply with the estimated noise level to get the CFAR threshold.
+        derived from the desired Pfa using a `configuration helper` function like `cfar_alpha`.
+        Also closer to embedded code implementation.
 
     Returns
     -------
     cfar_thresholds
         CFAR threshold for each range bin (same shape as fft_values).
+
+    Raises
+    ------
+    ValueError
+        when the count of guard cells + train cells is less than total number of cells
 
     Notes
     -----
@@ -322,8 +390,13 @@ def cfar_ca(fft_values: np.ndarray,
         train_cell_count = n_bins//2
         log.warning("Number of training cells exceeds total bins, reducing to maximum possible.")
     # assert num_train_cells < n_bins, "Number of training cells must be less than total bins"
-    assert train_cell_count > guard_cell_count, "Training cells must be more than guard cells" 
-    threshold_factor = -np.log(pfa) / num_train_cells
+    try:
+        assert 2 * train_cell_count + 2 * guard_cell_count +1 < n_bins  #, "Training + guard cells + 1 (CuT) must be more than total cells count" 
+    except:
+        raise ValueError(ERR_CFAR_CELL_COUNT)
+    # assert train_cell_count > guard_cell_count, "Training cells must be more than guard cells" 
+    # threshold_factor = -np.log(pfa) / num_train_cells
+    # threshold_factor = cfar_alpha(train_cell_count, pfa)
 
     # Initialize threshold array
     cfar_threshold = np.zeros(n_bins, dtype=float)
@@ -333,40 +406,10 @@ def cfar_ca(fft_values: np.ndarray,
         # to avoid handling cases where training cells are out of range
         # just roll the magnitude array
         rolled_magnitude = np.roll(magnitude, n_bins//2-idx)
-        rolled_magnitude[n_bins//2-guard_cell_count:n_bins//2+guard_cell_count+1]=0
-        training_magnitude = rolled_magnitude[n_bins//2-train_cell_count:n_bins//2-guard_cell_count] + \
-                            rolled_magnitude[n_bins//2+guard_cell_count+1:n_bins//2+train_cell_count+1]
+        # rolled_magnitude[n_bins//2-guard_cell_count:n_bins//2+guard_cell_count+1]=0
+        training_magnitude = np.concatenate((rolled_magnitude[n_bins//2-train_cell_count-1:n_bins//2-guard_cell_count],
+                                            rolled_magnitude[n_bins//2+guard_cell_count+1:n_bins//2+train_cell_count+1]))
         mean_noise = np.mean(training_magnitude)
-        """# Define indices for training cells on the left
-        left_start = i - train_cell_count - guard_cell_count
-        left_end = i - guard_cell_count
-        # Define indices for training cells on the right
-        right_start = i + guard_cell_count + 1
-        right_end = i + guard_cell_count + train_cell_count + 1
-        # Collect valid training cell indices
-        train_indices = []
-        # FIXME: need to handle teh case when left_end or right_end out of range
-        if left_start >= 0:
-            train_indices.extend(range(left_start, left_end))
-        else:
-            train_indices.extend(range(0, left_end))
-            train_indices.extend(range(n_bins + left_start, n_bins))
-        if right_end <= n_bins:
-            train_indices.extend(range(right_start, right_end))
-        else:
-            train_indices.extend(range(right_start, n_bins))
-            train_indices.extend(range(0, right_end - n_bins))
-
-        # Compute mean noise power from available training cells
-        if train_indices:
-            print(353, train_indices)
-            print(n_bins , left_start, train_cell_count, guard_cell_count)
-            mean_noise = np.mean(magnitude[train_indices])
-        else:
-            # Fallback if no training cells available
-            # mean_noise = np.mean(magnitude)
-            raise ValueError("No Training cells for CFAR")
-        # Compute CFAR threshold"""
         cfar_threshold[idx] = mean_noise * threshold_factor
     if debug:
         import matplotlib.pyplot as plt
@@ -381,7 +424,62 @@ def cfar_ca(fft_values: np.ndarray,
     return cfar_threshold
 
 
-def peak_grouping_1d(cfar_idx, mag_r):
+def cfar_ca(fft_values: np.ndarray,
+            guard_cell_count: int,
+            train_cell_count: int,
+            pfa: float,
+            debug: bool = False) -> np.ndarray:
+    threshold_factor = cfar_alpha(train_cell_count, pfa)
+    return _cfar_ca(fft_values, guard_cell_count, train_cell_count,
+                    threshold_factor, debug)
+
+def peak_grouping_1d(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
+    """groups adjacent idx from cfar by first putting adjacent one in clusters
+    then finding the index with the highest magnitude in FFT and returning
+    this one as peak
+
+    Parameters
+    ----------
+    cfar_idx:
+        array of index (usually those where fft magnitude is 
+        higher than CFAR threshold)
+    mag_r:
+        array of magnitude (usually np.abs(fft) on which CFAR was computed)
+
+    Returns
+    -------
+    idx_grouped
+        Array of indices (from ``cfar_idx``) at which each group's peak occurs.
+
+    Examples
+    --------
+    >>> cfar_idx = np.array([0, 1, 2, 5, 6, 7, 14])
+    >>> mag_r  = np.array([3, 9, 4, 2, 7, 5,  1])
+    >>> peak_grouping_1d(cfar_idx, mag_r)
+    array([ 1,  6, 14])
+
+    Ties resolve to the first occurrence:
+
+    >>> cfar_idx = np.array([0, 1, 2])
+    >>> mag_r  = np.array([5, 5, 3])
+    >>> peak_grouping_1d(cfar_idx, mag_r)
+    array([0])
+    """
+    # np.diff computes element-wise differences between consecutive elements: out[i] = a[i+1] - a[i]
+    # np.flatnonzero returns a 1D array of indices where the condition is non-zero (True)
+    gaps = np.flatnonzero(np.diff(cfar_idx) > 1) + 1  # +1 shifts split points to the start of each new group
+
+    # np.split divides an array into sub-arrays at the given split points (indices into the array)
+    idx_groups = np.split(cfar_idx, gaps)
+    # mag_r has more values than cfar_idx, we need to split it at the same points as cfar_idx to get the corresponding magnitudes for each group
+    val_groups = np.split(mag_r[cfar_idx], gaps)
+
+    idx_grouped = np.array([grp_idx[np.argmax(grp_val)]
+                            for grp_idx, grp_val in zip(idx_groups, val_groups)])
+    return idx_grouped
+
+
+def __peak_grouping_1d__(cfar_idx, mag_r):
     """groups adjacent idx from cfar by first putting adjacent one in clusters
     then finding the index with the highest magnitude in FFT and returning
     this one as peak

@@ -1,7 +1,6 @@
 """ testing the RX side of the system.
 combination of TX_Freq and ToF
 f_rx = receiver_radar.TX_freqs(adc_times-time_of_flight)
-ph_rx = 
 v0.0.11: 1 passed
 """
 

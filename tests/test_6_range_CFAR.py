@@ -1,5 +1,5 @@
-""" Tests CFAR
-v0.0.11: 7
+""" Tests for CFAR and 1D peak grouping
+v0.0.11: 26
 """
 
 from os.path import abspath, join, pardir
@@ -20,6 +20,7 @@ from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
+from mmWrt.RadarSignalProcessing import cfar_ca, cfar_alpha, ERR_CFAR_CELL_COUNT
 
 # from test_1_range_point import __range__wrapper  # noqa: E402
 from test_assets import target_static_5p1m, radar_tdm_1_chirp_8_adc, d_5p1m
@@ -88,11 +89,43 @@ def tbd_tdm_8adc_range0m(targets, radars,
                       distances,
                       cfar_peak_detect)
 
+def test_cfar_length():
+    # if the fake_fft is too short we expect
+    # a ValueError exception
+    mag_length=1
+    # ensures cfar shape is the same as input
+    fake_fft = np.ones(mag_length)
+    try:
+        threshold = cfar_ca(fake_fft, guard_cell_count=1,
+                            train_cell_count=2, pfa=0.01)
+    except Exception as ex:
+        assert str(ex) == ERR_CFAR_CELL_COUNT
+    else:
+        assert False
+
+
+@pytest.mark.parametrize("mag_length", [
+    (2**idx) for idx in range(3, 10)])
+def test_rsp_cfar_length(mag_length):
+    # ensures cfar shape is the same as input
+    fake_fft = np.ones(mag_length)
+    threshold = cfar_ca(fake_fft, guard_cell_count=1,
+                        train_cell_count=2, pfa=0.01)
+    assert threshold.shape == fake_fft.shape, "CFAR threshold should have same length as input"
+
+
+def test_rsp__cfar_ca__threshold():
+    """ bypassing pfa, to check the thresholds values are as expected"""
+    from mmWrt.RadarSignalProcessing import _cfar_ca
+    fake_fft = np.ones(16)
+    threshold = _cfar_ca(fake_fft, guard_cell_count=1,
+                         train_cell_count=2, threshold_factor=1)
+    assert threshold[10] == 1
+
 
 def test_rsp_cfar_ex1():
-    from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 1: Peak at first range bin
-    fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 0, 0])
     threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
     magnitude = np.abs(fft)
     peak_idx = np.argmax(magnitude)
@@ -102,27 +135,44 @@ def test_rsp_cfar_ex1():
 def test_rsp_cfar_ex2():
     from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 2: Peak in the middle
-    fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
+    fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 0, 0])
     threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
     magnitude = np.abs(fft)
     peak_idx = np.argmax(magnitude)
     assert peak_idx == np.where(magnitude > threshold)[0][0]
 
 
+def test_noise_floor_calibration():
+    # Threshold at an interior bin equals alpha * mean(training cells).
+    n_train, n_guard, pfa = 4, 1, 1e-3
+    noise_floor = 3.7  # arbitrary non-unit value to catch scaling bugs
+
+    x = np.full(30, noise_floor)
+    threshold = cfar_ca(x, guard_cell_count=n_guard,
+                        train_cell_count=n_train, pfa=pfa)
+
+    alpha = cfar_alpha(n_train, pfa)
+    cut = 15  # arbitrary interior bin, well clear of edges
+
+    assert threshold[cut] == pytest.approx(alpha * noise_floor)
+
+
 @pytest.mark.parametrize("peak_idx", [
-    (1), (2), (3), (4), (5)])
+    (idx) for idx in range(8)])
 def test_rsp_cfar_ex3(peak_idx: int):
     from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 3: Peak in the middle
     adc_count = 16
     time_values = np.arange(0, 1, 1/adc_count)
-    adc_values = np.sin(2 * np.pi * peak_idx * time_values)
+    adc_values = np.exp(2 * 1j * np.pi * peak_idx * time_values)
     fft_values = np.fft.fft(adc_values)
     threshold = cfar_ca(fft_values, guard_cell_count=1, train_cell_count=3,
-                         pfa=0.01)
+                        pfa=1e-6)
     magnitude = np.abs(fft_values)
 
-    assert peak_idx == np.where((magnitude > threshold + 1e-10))[0][0]
+    assert np.where((magnitude > threshold + 1e-10))[0].size > 0, f"no peaks detected but should have been at idx: {peak_idx}"
+    if np.where((magnitude > threshold + 1e-10))[0].size > 0:
+        assert peak_idx == np.where((magnitude > threshold + 1e-10))[0][0], f"peaks detected at {np.where((magnitude > threshold + 1e-10))[0][0]} but should have been at idx: {peak_idx}"
 
 
 def test_rsp_grouping_ex1():
@@ -131,11 +181,13 @@ def test_rsp_grouping_ex1():
     grouped_idx = rsp.peak_grouping_1d(idx, mag)
     assert np.allclose(grouped_idx, np.array([2, 6]))
 
+
 def test_rsp_grouping_ex2():
     mag = np.array([10, 5, 0, 0, 0, 0, 8, 7, 0, 0])
     idx = np.array([0, 1, 6, 7])
     grouped_idx = rsp.peak_grouping_1d(idx, mag)
     assert np.allclose(grouped_idx, np.array([0, 6]))
+
 
 def test_rsp_grouping_ex3():
     mag = np.array([5, 15, 0, 0, 0, 0, 8, 7, 0, 0])
@@ -154,10 +206,10 @@ def test_rsp_grouping_ex5():
     mag = np.array([5, 15, 0, 0, 0, 0, 0, 0, 1, 10])
     idx = np.array([0, 1, 8, 9])
     grouped_idx = rsp.peak_grouping_1d(idx, mag)
-    assert np.allclose(grouped_idx, np.array([1, 9]))
+    assert np.allclose(grouped_idx, np.array([1, 9])), f"Expected peak at index 1 and 9, got {grouped_idx}"
 
 
-def test_rsp_grouping_ex5():
+def test_rsp_grouping_ex6():
     mag = np.array([15, 5, 0, 0, 0, 0, 0, 0, 0, 10])
     idx = np.array([0, 1, 9])
     grouped_idx = rsp.peak_grouping_1d(idx, mag)
@@ -468,5 +520,3 @@ def tbd_test_target_def():
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 
-if __name__ == "__main__":
-    test_rsp_grouping_ex5()
