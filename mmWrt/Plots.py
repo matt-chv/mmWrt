@@ -41,7 +41,7 @@ def plot_range_doppler(cube, radar, _d0=None,
     _f0_min = cfg["f0_min"]
     """
     c = radar.v
-    _fs = radar.adc_sample_frequency
+    _fs = radar.adc_sample_rate  # adc_sample_frequency
     _k = radar.chirp_slope
     _NA = radar.adc_sample_count
     _NC = radar.chirps_count

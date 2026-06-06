@@ -29,8 +29,10 @@ def range_to_meters(idx: NDArray, adc_sample_rate,
         (2*chirp_slope*adc_samples_per_chirp))
 
 
-def doppler_to_mps(idx: NDArray, wavelength, chirp_period):
-    return (float(idx*wavelength/4/chirp_period))
+def doppler_to_mps(idx: NDArray, chirp_count,
+                   wavelength, chirp_period):
+    result = float(idx*wavelength/2/chirp_period/chirp_count - wavelength/4/chirp_period)
+    return result
 
 
 def bin_to_deg(idx: NDArray, ula_element_count):
@@ -906,42 +908,32 @@ def range_doppler(adc_values: NDArray,
         (chirp_count, adc_samples count)
     """
     fs = adc_sample_rate
-    na = adc_values.shape[0]
+    na = adc_values.shape[1]
     k = chirp_slope
     l = wavelength
     tc = chirp_period
+    nc = adc_values.shape[0]
 
-    Z_fft2 = fft2(adc_values)
-    Z_fft2 = Z_fft2[:, :adc_values.shape[1] // 2]
-    
-    fft_1d_mag = np_abs(np_sum(Z_fft2, axis=0))
+    Z_fft2 = abs(np.fft.fftshift(np.fft.fft2(adc_values), axes=0))[:, :na // 2]
 
-    range_idxes = dft_cfr_idx(fft_1d_mag[:-3],
-                              train_cell_count=10,
-                              pfa=0.001)
-    print("range_idxes", range_idxes)
+    fft_1d_mag = np_abs(np.sum(Z_fft2, axis=0))
+
+    range_idxes = dft_cfr_idx(fft_1d_mag,
+                              train_cell_count=6,
+                              pfa=0.1)
     range_idxes_grouped = peak_grouping_1d(range_idxes, fft_1d_mag)
-    print("range_idxes_grouped", range_idxes_grouped)
     # FIXME: make this vectored
     range_dopplers_idxes = []
     # range_idxes_grouped = [range_idxes_grouped[0]]
-    """import matplotlib.pyplot as plt
-    plt.plot(np_abs(np_sum(Z_fft2, axis=1)))
-    plt.title("Range------Doppler")
-    plt.show()"""
-    # range_idxes_grouped = [13]
+
     for range_idx in range_idxes_grouped:
-        print("range", range_to_meters(range_idx, fs, na, k))
-        doppler_idxes = dft_cfr_idx(np_abs(Z_fft2[:, range_idx]), 
+        doppler_idxes = dft_cfr_idx(np_abs(Z_fft2[:, range_idx]),
                                     train_cell_count=10,
-                                    pfa=0.0001)
+                                    pfa=0.001)
         doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
-                                               np_abs(Z_fft2[:, range_idx]))
+                                                 np_abs(Z_fft2[:, range_idx]))
         range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
-        #range_to_meters = lambda idx: float(idx*adc_sample_rate * 3e8 / \
-        #    (2*chirp_slope*adc_values.shape[1]))
-        # doppler_to_mps = lambda idx: float(idx*wavelength/4/chirp_period)
-        detections = [(range_to_meters(r, fs, na, k), doppler_to_mps(d, l, tc)) for r, d in range_dopplers_idxes]
+    detections = np.array([(range_to_meters(r, fs, na, k), doppler_to_mps(d, nc, l, tc)) for r, d in range_dopplers_idxes])
     return detections
 
 

@@ -436,6 +436,7 @@ class Transmitter():
         # self.slope = slope
         
         self.t_inter_chirp = t_inter_chirp
+        self.chirp_period = t_inter_chirp
         self.chirps_count = chirps_count
         self.antennas = antennas
         if t_inter_frame == 0:
@@ -944,6 +945,7 @@ class Radar:
         self.fs = receiver.fs
         self.adc_sample_rate = self.receiver.adc_sample_rate
         self.chirp_slope = transmitter.chirp_slope
+        self.chirp_period = transmitter.chirp_period
         self.bw = transmitter.bw
         self.tx_conf = transmitter.conf
         # self.mimo_mode = transmitter.conf["mimo_mode"]

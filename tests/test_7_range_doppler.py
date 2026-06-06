@@ -2,10 +2,11 @@
 Covers:
  - TDM mode
 (not written DDM, SFMCW)
-v0.0.11: 0
+v0.0.11: 1
 """
 import logging
 from os.path import abspath, join, pardir
+import numpy as np
 import sys
 
 from numpy import sin, pi, zeros
@@ -17,29 +18,32 @@ dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
+from mmWrt.RadarSignalProcessing import range_doppler
 # from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
-from test_assets import radar_dmax_25m_vmax_2mps, target_static_5p1m, target_linear_speed_10p1m_1mps
+from test_assets import radar_dmax_25m_vmax_2mps, target_static_5p1m, \
+    target_linear_speed_10p1m_1mps
 
 
-def tbd_rsp_range_doppler():
+def test_rsp_range_doppler():
     # FIXME: this does not work anymore - CFAR too short
-    from mmWrt.RadarSignalProcessing import range_doppler
-    logging.basicConfig(level=logging.WARNING,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
-    logging.getLogger("Transmitter").setLevel(logging.WARNING)
-
     radar = radar_dmax_25m_vmax_2mps
     targets = [target_static_5p1m, target_linear_speed_10p1m_1mps]
-    bb = rt_points([radar], targets, radar)
 
-    print("bb[adc_cube].shape",bb["adc_cube"].shape)
+    # logging.basicConfig(level=logging.WARNING,
+    #                    format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+    # logging.getLogger("Transmitter").setLevel(logging.WARNING)
+    # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
+
+    bb = rt_points([radar], targets, radar)
     rd = range_doppler(bb["adc_cube"][0,:,0,:],
                        adc_sample_rate=radar.adc_sample_rate,
                        chirp_slope=radar.chirp_slope,
                        wavelength=3e8/radar.chirp_start_freq,
                        chirp_period=radar.t_inter_chirp)
     print("detections", rd)
-    # [(4.734375, 0.0), (10.2578125, 0.0), (10.2578125, 16.0)]
+    assert rd.shape == (2,2)
+    assert np.allclose(rd, np.array([[ 4.734375, 0.],
+                                     [10.2578125, 0.958125]]))
 
 
 def tbd_FMCW_vibration():
@@ -87,3 +91,5 @@ def tbd_FMCW_vibration():
     ym = find_peaks(Y)[0][0]
     assert ym == F1
 
+if __name__ == "__main__":
+    test_rsp_range_doppler()
