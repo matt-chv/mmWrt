@@ -123,7 +123,7 @@ tdm_1chirp_1024adc_ula_z_64 = Transmitter(chirp_start_freq=f0_60G,
                                   chirp_slope=chirp_slope_tdm0,
                                   chirp_end_time=chirp_end_time_1024adc,
                                   antennas=antennas_ULA_z_64_60G,
-                                  chirps_count=1,
+                                  chirps_count=64,
                                   t_inter_chirp=t_inter_chirp_vmax_3mps)
 
 tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
@@ -194,8 +194,8 @@ radar_tx_cw = Radar(transmitter=transmitter_cw_60G,
                      debug=True)
 radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
                         receiver=receiver_ULA_64)
-radar_ula_64_TX = Radar(transmitter=tdm_1chirp_1024adc_ula_z_64,
-                        receiver=receiver_dmax_100m)
+radar_ula_64_TX_z = Radar(transmitter=tdm_1chirp_1024adc_ula_z_64,
+                          receiver=receiver_dmax_100m)
 
 target_static_0 = Target(xt=lambda t: d_0m+0*t)
 target_static_5p1m = Target(xt=lambda t: d_5p1m+0*t)

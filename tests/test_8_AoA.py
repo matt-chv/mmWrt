@@ -2,7 +2,7 @@
 Covers:
  - TDM mode
 (not written DDM, SFMCW)
-v0.0.11: 0
+v0.0.11: 3
 """
 import logging
 import numpy as np
@@ -21,7 +21,7 @@ from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Plots import plot_range_azimuth
 from mmWrt.RadarSignalProcessing import range_aoa, detection_xy
-from test_assets import radar_ula_64_RX, target_static_5p1m, target_static_10p1m, target_static_z_15p1m, radar_ula_64_TX
+from test_assets import radar_ula_64_RX, target_static_5p1m, target_static_10p1m, target_static_z_15p1m, radar_ula_64_TX_z
 
 def test_SIMO_AoA_polar():
     import copy
@@ -58,7 +58,7 @@ def test_MISO_AoA_cartesian():
     # import copy
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
-    radar = radar_ula_64_TX
+    radar = radar_ula_64_TX_z
 
 
     bb = rt_points([radar],
@@ -67,11 +67,9 @@ def test_MISO_AoA_cartesian():
     adc_cube = bb["adc_cube"][0,:,0,:]
 
     detection_list = detection_xy(adc_cube, radar)
-    print(detection_list)
     expected_detections = np.array([[0, -5.18],
                                     [0, -10.35],
                                     [14.88, 0]])
-    print(expected_detections)
     assert np.allclose(detection_list,
                        expected_detections, atol=0.2)
     assert detection_list.shape == expected_detections.shape

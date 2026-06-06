@@ -996,7 +996,6 @@ def range_aoa(adc_values: NDArray, radar: Radar):
 
 def detection_xy(adc_values: NDArray, radar: Radar):
     detection_list_polar = range_aoa(adc_values, radar)
-    print("detection_list_polar", detection_list_polar)
     detection_list_cartesian = []
     for r, phi in detection_list_polar:
         x = r * np.cos(np.deg2rad(phi))
