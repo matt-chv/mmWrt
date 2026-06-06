@@ -960,17 +960,19 @@ def range_aoa(adc_values: NDArray, radar: Radar):
 
     # --- Range FFT ---
     range_fft = fft(adc_windowed, axis=range_axis)
+    if np.isrealobj(adc_values):
+        range_fft = range_fft[:, :adc_values.shape[1]//2]
 
     # Angle FFT
-    aoa_window = np.kaiser(adc_values.shape[aoa_axis], beta=10)
+    aoa_window = np.kaiser(range_fft.shape[aoa_axis], beta=10)
     range_fft_windowed = range_fft * aoa_window[:, np.newaxis]
 
     # range_aoa = fftshift(fft(range_fft_windowed, axis=aoa_axis), axes=aoa_axis)
     range_aoa_dft = fft(range_fft_windowed, axis=aoa_axis)
 
     range_peak_idxs = dft_cfr_idx(np.abs(range_fft[0, :]),
-                                  train_cell_count=20,
-                                  pfa=1e-6,
+                                  train_cell_count=8,
+                                  pfa=0.1,
                                   debug=False)
     range_idxes_grouped = peak_grouping_1d(range_peak_idxs,
                                            np.abs(range_fft[0, :]))
@@ -978,7 +980,7 @@ def range_aoa(adc_values: NDArray, radar: Radar):
     ranges = range_to_meters(range_idxes_grouped, radar.adc_sample_rate,
                              radar.adc_sample_count, radar.chirp_slope)
     detection_list = []
-    for idx, range_idx in enumerate(range_idxes_grouped[:len(range_idxes_grouped)//2]):
+    for idx, range_idx in enumerate(range_idxes_grouped):
         # NOTE:
         # no need for CFAR here as we are already in a range bin where we know there is a target,
         # we just need to find the angle of arrival
@@ -994,6 +996,7 @@ def range_aoa(adc_values: NDArray, radar: Radar):
 
 def detection_xy(adc_values: NDArray, radar: Radar):
     detection_list_polar = range_aoa(adc_values, radar)
+    print("detection_list_polar", detection_list_polar)
     detection_list_cartesian = []
     for r, phi in detection_list_polar:
         x = r * np.cos(np.deg2rad(phi))

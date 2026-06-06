@@ -33,7 +33,7 @@ d_10p1m = 10.1
 d_15p1m = 15.1
 d_th = 100
 v_1mps = 1
-vmax_2mps = 2*v_1mps
+vmax_2mps = 2.19*v_1mps #MCV was 2
 vmax_3mps = 3
 dphase_dt_1mps = 4*pi*v_1mps/lambda_60G
 # vmax = lambda_0/2/time_inter_chirp
@@ -119,11 +119,11 @@ tdm_1chirp_64adc = Transmitter(chirp_start_freq=f0_60G,
                                   chirps_count=64,
                                   t_inter_chirp=t_inter_chirp_vmax_3mps)
 
-tdm_64chirp_1024adc_ula_z_64 = Transmitter(chirp_start_freq=f0_60G,
+tdm_1chirp_1024adc_ula_z_64 = Transmitter(chirp_start_freq=f0_60G,
                                   chirp_slope=chirp_slope_tdm0,
                                   chirp_end_time=chirp_end_time_1024adc,
                                   antennas=antennas_ULA_z_64_60G,
-                                  chirps_count=1024,
+                                  chirps_count=1,
                                   t_inter_chirp=t_inter_chirp_vmax_3mps)
 
 tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
@@ -158,8 +158,7 @@ receiver_fs0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                               adc_samples_per_chirp=adc_samples_count_64)
 
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
-                             max_adc_buffer_size=1025,
-                             adc_samples_per_chirp=64)
+                             adc_samples_per_chirp=adc_samples_count_64)
 
 receiver_dmax_50m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              max_adc_buffer_size=1025,
@@ -195,7 +194,7 @@ radar_tx_cw = Radar(transmitter=transmitter_cw_60G,
                      debug=True)
 radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
                         receiver=receiver_ULA_64)
-radar_ula_64_TX = Radar(transmitter=tdm_64chirp_1024adc_ula_z_64,
+radar_ula_64_TX = Radar(transmitter=tdm_1chirp_1024adc_ula_z_64,
                         receiver=receiver_dmax_100m)
 
 target_static_0 = Target(xt=lambda t: d_0m+0*t)
