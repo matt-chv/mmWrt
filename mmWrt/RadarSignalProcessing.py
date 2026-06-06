@@ -313,7 +313,7 @@ def cfar_alpha(train_cell_count: int, pfa: float) -> float:
     return alpha
 
 @auto_log
-def _cfar_ca(fft_values: np.ndarray,
+def _cfar_ca(magnitude: np.ndarray,
             guard_cell_count: int,
             train_cell_count: int,
             threshold_factor: float,
@@ -327,7 +327,7 @@ def _cfar_ca(fft_values: np.ndarray,
 
     Parameters
     ----------
-    fft_values
+    magnitude
         Complex FFT values (1D array).
     guard_cell_count
         Number of guard cells on each side of the cell under test.
@@ -380,11 +380,12 @@ def _cfar_ca(fft_values: np.ndarray,
     2
     """
     # Convert complex FFT values to magnitude
-    magnitude = np.abs(fft_values)
-    n_bins = len(magnitude)
+    # magnitude = np.abs(fft_values)
+    n_bins = magnitude.shape[0]
     # Compute threshold factor from PFA
     # Using chi-square approximation: for single cell test in noise,
     # threshold_factor ≈ -ln(pfa)
+    log.debug(f"fft_values.shape: {magnitude.shape} vs train_cell(x2)={train_cell_count*2}")
     num_train_cells = 2 * train_cell_count
     if train_cell_count > n_bins//2:
         train_cell_count = n_bins//2
@@ -393,6 +394,7 @@ def _cfar_ca(fft_values: np.ndarray,
     try:
         assert 2 * train_cell_count + 2 * guard_cell_count +1 < n_bins  #, "Training + guard cells + 1 (CuT) must be more than total cells count" 
     except:
+        print(2 * train_cell_count + 2 * guard_cell_count +1, n_bins)
         raise ValueError(ERR_CFAR_CELL_COUNT)
     # assert train_cell_count > guard_cell_count, "Training cells must be more than guard cells" 
     # threshold_factor = -np.log(pfa) / num_train_cells
@@ -411,7 +413,13 @@ def _cfar_ca(fft_values: np.ndarray,
                                             rolled_magnitude[n_bins//2+guard_cell_count+1:n_bins//2+train_cell_count+1]))
         mean_noise = np.mean(training_magnitude)
         cfar_threshold[idx] = mean_noise * threshold_factor
-    if debug:
+        if log.level == 10 and idx == 11:
+            print("rolled_magnitude", rolled_magnitude)
+            print("training_magnitude", training_magnitude)
+            print("mean_noise", mean_noise)
+            print("cfar_threshold[idx]", cfar_threshold[idx])
+    if log.level == 10:
+        log.debug(f"threshold factor: {threshold_factor}")
         import matplotlib.pyplot as plt
         plt.plot(magnitude, label="Signal Magnitude")
         plt.plot(cfar_threshold, label="CFAR Threshold")
@@ -429,7 +437,9 @@ def cfar_ca(fft_values: np.ndarray,
             train_cell_count: int,
             pfa: float,
             debug: bool = False) -> np.ndarray:
+
     threshold_factor = cfar_alpha(train_cell_count, pfa)
+    
     return _cfar_ca(fft_values, guard_cell_count, train_cell_count,
                     threshold_factor, debug)
 
@@ -825,9 +835,13 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
     peaks = find_peaks(np_abs(range_fft[:len(range_fft)//2]),
                        height=fft_threshold)[0]
     # d = i * fs*c/2/k/NA
-    i2r = lambda idx: idx*adc_sample_rate * c / \
-        (2*chirp_slope*adc_samples_per_chirp)
-    ranges = array([i2r(peak_idx) for peak_idx in peaks])
+    # i2r = lambda idx: idx*adc_sample_rate * c / \
+    #    (2*chirp_slope*adc_samples_per_chirp)
+    # ranges = array([i2r(peak_idx) for peak_idx in peaks])
+    ranges = array([range_to_meters(peak_idx,
+                                    adc_sample_rate,
+                                    adc_samples_per_chirp,
+                                    chirp_slope) for peak_idx in peaks])
     return ranges
 
 
@@ -842,22 +856,37 @@ def dft_cfr_idx(fft_mag:NDArray,
     cfar_thresholds = cfar_ca(fft_mag,
                               guard_cell_count=1,
                               train_cell_count=train_cell_count,
-                              pfa=1e-6,
-                              debug=debug)  # pfa)
+                              pfa=pfa,
+                              debug=debug)
 
     peak_idxs = where(fft_mag > cfar_thresholds + 1e-10)[0]
     return peak_idxs
 
-
-def ranges_dft_cfar(adc_values:NDArray, chirp_slope:float,
-                    adc_sample_rate:float,pfa:float) -> NDArray:
+@auto_log
+def ranges_dft_cfar(adc_values:NDArray,
+                    adc_sample_rate:float,
+                    chirp_slope:float,
+                    pfa:float,
+                    log=None) -> NDArray:
     """ returns a NDArray of ranges using a simple fft threshold for target """
     adc_samples_per_chirp = adc_values.shape[0]
     c = 3e8  # speed of light in m/s
     adc_samples_per_chirp = adc_values.shape[0]
     fft_mag = np_abs(fft(adc_values))
-    peak_idxs = dft_cfr_idx(fft_mag,train_cell_count=20,
+
+
+    #exit()
+
+    if np.isrealobj(adc_values):
+        fft_mag = fft_mag[:fft_mag.shape[0]//2]
+    train_cell_count = min((adc_values.shape[0]-3)//2, 20)
+    train_cell_count = 8 #MCV
+    log.debug(f"train_cell_count: {train_cell_count}")
+
+    peak_idxs = dft_cfr_idx(fft_mag,
+                            train_cell_count=train_cell_count,
                             pfa=pfa)
+    log.debug(f"peak_idxs: {peak_idxs}")
     # d = i * fs*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
         (2*chirp_slope*adc_samples_per_chirp)

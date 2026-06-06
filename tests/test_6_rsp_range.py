@@ -24,8 +24,9 @@ from mmWrt.Raytracing import sample_all_rays
 from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold, ranges_dft_cfar
 #from mmWrt.Scene import Radar, Transmitter, Receiver, Target
 
-from test_assets import adc_sampling_times_8_samples, radar_tdm_1_chirp_8_adc, \
-    target_static_5p1m, radar_tdm_1_chirp_1024_adc, adc_sampling_times_1024_samples
+from test_assets import adc_sampling_times_8_samples, adc_sampling_times_64_samples, radar_tdm_1_chirp_8_adc, \
+    target_static_5p1m, radar_tdm_1_chirp_1024_adc, adc_sampling_times_1024_samples, \
+    radar_tdm_1_chirp_64_adc
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -59,23 +60,27 @@ def tbd_rsp_range_with_cfar():
     # calling CFAR with FFT size 8 -> does not work anymore
     # test that given a given target, we get expected adc value
     # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
-    radar = radar_tdm_1_chirp_8_adc
+    # logging.basicConfig(level=logging.DEBUG, force=True)
+    # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
+    # logging.getLogger("mmWrt.Scene").setLevel(logging.DEBUG)
+    radar = radar_tdm_1_chirp_64_adc
     chirp_slope = radar.transmitter.chirp_slope
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_values = sample_all_rays(adc_sampling_times_8_samples,
+    adc_values = sample_all_rays(adc_sampling_times_64_samples,
                                  [radar],
                                  [target_static_5p1m],
                                  radar)
     adc0 = adc_values[:, 0]
-
+    # NOTE: if setting pfa=1e-6 below the CFAR threshold will reject the main lobe
+    # to be highlighted in examples
     ranges = ranges_dft_cfar(adc0,
                              chirp_slope=chirp_slope,
                              adc_sample_rate=adc_sample_rate,
                              pfa=0.01)
 
-    print(74, ranges)
-    assert ranges.shape == (4,), "only one value should be reported, 4 b/o real sampling and no grouping anything else is regression"
-    assert np.allclose(ranges[0], [3.7875]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
+    assert ranges.shape == (1,), f"only one value should be reported, 1 b/o real sampling and no grouping anything else is regression. Got: {ranges.shape}"
+    assert np.allclose(ranges[0], [5.2078125]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
+
 
 """
 def __range__wrapper(target_idxes=[0], radars_idxes=[0],
@@ -289,3 +294,6 @@ def test_cfar_error():
         raise ValueError("Error not raised")
 
 """
+
+if __name__ == "__main__":
+    tbd_rsp_range_with_cfar()

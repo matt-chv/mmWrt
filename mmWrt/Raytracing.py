@@ -196,8 +196,8 @@ def sample_all_rays(adc_times,
         (T): absolute time
     Returns
     -------
-    adc_samples: NDArray
-        (adc_times x receiver antenna count)
+    adc_samples
+        (T, RX) - note this convention is changed in raytracing level to (RX, T)
     """
     # FIXME: change from targets to scatterers everywhere
     # scatterers = targets
