@@ -266,9 +266,8 @@ def sample_all_rays(adc_times,
 
         radar_tx_times = timestamp_tensor - time_of_flight
 
-        f_rx = radar.TX_freqs(radar_tx_times)  # for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
-
-        ph_rx = radar.TX_phases(radar_tx_times)  #adc_times-time_of_flight)
+        f_rx = radar.TX_freqs(radar_tx_times)
+        ph_rx = radar.TX_phases(radar_tx_times)
 
         f_if = receiver_radar.mixer(adc_times, f_rx)
         log.debug(f"fif:{f_if}")
@@ -785,21 +784,22 @@ def rt_points(radars, targets, receiver_radar,
                 "fs": receiver_radar.fs, "v": receiver_radar.v}
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = False
-
+    from tqdm import tqdm
     for frame_idx in range(n_frames):
-        for chirp_idx in range(n_chirps):
+        for chirp_idx in tqdm(range(n_chirps),
+                              total=n_chirps, desc=f"Processing Chirp from frame: {frame_idx}"):
             # TODO: need to make this code more flexibile to handle
             # cases where the chirp_start_time, chirp_slope and chirp_end_time
             # vary on chirp per chirp
             start_of_chirp = frame_idx * receiver_radar.t_inter_frame + \
-                chirp_idx * receiver_radar.t_inter_chirp
+                chirp_idx * receiver_radar.chirp_period
             adc_times = arange(0, adc_samples_per_chirp*adc_sample_time,
-                               adc_sample_time) + start_of_chirp
+                            adc_sample_time) + start_of_chirp
             adc_values = sample_all_rays(adc_times,
-                                         radars,
-                                         targets,
-                                         receiver_radar,
-                                         datatype=datatype)
+                                        radars,
+                                        targets,
+                                        receiver_radar,
+                                        datatype=datatype)
             # switch axis as now timestamps becomes dimension -1
             # RX becomes axis -2
             # we need to add a new empty axis for TX for backward compatibility

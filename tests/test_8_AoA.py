@@ -128,3 +128,6 @@ def tbd_SIMO_AoA():
     # plt.plot(abs(A_FFT[0,0,0,:,4]))
     # plt.savefig("AoA FFT B4.png")
     # plt.savefig("AoA FFT A8_3.png")
+
+if __name__ == "__main__":
+    test_MISO_AoA_cartesian()

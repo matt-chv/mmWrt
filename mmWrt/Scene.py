@@ -220,7 +220,7 @@ class Target():
 
 
 class Antenna:
-    def __init__(self, x=0.0, y=0, z=0, angle_gains_db10=zeros((360, 360)),
+    def __init__(self, x=0.0, y=0.0, z=0.0, angle_gains_db10=zeros((360, 360)),
                  f_min_GHz=60, f_max_GHz=64, freq_gains_db10=zeros(4)):
         """ initialize antenna position and gains.
         Defaults to isotropic radiation pattern
@@ -472,143 +472,7 @@ class Transmitter():
                     self.tx_on_times.append((chirp_start, chirp_end))
                 return"""
 
-    def __frame_t_start__old(self, frame_idx,
-                      dither_std=0.0, dither_seed=42,
-                      dithering=False):
-        """ returns the time offset at which frame frame_idx starts
-        Default function for TDM mode with some dithering, needs to be overridden
-        for more complex modes
-
-        Parameters
-        ----------
-        frame_idx: int
-            index of the frame
-
-        Returns
-        -------
-        t_start_frame: float
-            time at which the frame starts relative to first start of first frame
-        """
-        t_start_dithered = 0
-        if dithering:
-            random.seed(dither_seed + frame_idx)
-            t_start_dithered += random.normal(0, dither_std)
-        t_start_frame = self.tx_start_time + frame_idx * self.t_inter_frame + t_start_dithered
-        return t_start_frame
-
-    def __chirp_t_start__old(self, frame_idx, chirp_idx, dither_std=0.0,
-                      dither_seed=42.0, dithering=False) -> float:
-        """ returns the time offset at which frame frame_idx starts
-        Default function for TDM mode with some dithering,
-        needs to be overridden for more complex modes
-
-        Parameters
-        ----------
-        frame_idx: int
-            index of the frame
-        chirp_idx: int
-            index of the chirp
-        dither_std: float
-            std of the chirp start time dithering
-        dither_seed: float
-            see for the random number generator
-        dithering: bool
-            if True dithering is enabled
-
-        Returns
-        -------
-        t_start: float
-            time offset in seconds
-        """
-        t_start_dithered = 0
-        if dithering:
-            random.seed(dither_seed + frame_idx*self.chirps_count + chirp_idx)
-            t_start_dithered += random.normal(0, dither_std)
-        t_start = self.frame_t_start(frame_idx) + \
-            chirp_idx * self.t_inter_chirp + t_start_dithered
-        return t_start
-
-    def TX_freqs__old(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
-        """ FIXME: remove this function, kept for logging until all unit test passes 
-        Default transmitter freq over time interval, intended to be overridden
-        by more complex models like with subframes or complex stepped FMCW cases
-        especially used when dealing with multiple simultaneous transmitters for interferene modelling
-        this implementation assumes a simple linear FMCW chirp with constant interchirp time (no dithering)
-        and a single frame (i.e. no change of slope on per frame/ subframe/ chirp basis).
-
-        Parameters
-        ----------
-        times: NDArray
-            time stamps in seconds
-
-        Returns
-        -------
-        freq_o_times: NDArray[float64]
-            2D of TX frequency slopes over time, will have size 0 if TX is not `ON` at anytime between t_start and t_end
-            axis 1 is chirp, axis 0 is absolute time (i.e. not referred to start of chirp).
-        """
-
-        """#freq_o_times = zeros((2, times.shape[0]))
-        freq_o_times = zeros((1, times.shape[0]))
-        # freq_o_times[0, :] = times
-
-        def piecewise_chirp(t):
-            conditions = []
-            functions = []
-            for frame_idx in range(self.frames_count):
-                for chirp_idx in range(self.chirps_count):
-                    t_start_chirp = self.t_inter_frame*frame_idx + \
-                        self.t_inter_chirp*chirp_idx
-                    end_chirp = t_start_chirp + self.ramp_end_time
-                    conditions.append(((t >= t_start_chirp) & (t <= end_chirp)))
-                    " "" IMPORTANT NOTE for future (self?-)reader(s)
-                    due to late binding in Python when using lambda functions inside a loop. 
-                    Inside the loop, the lambda function captures the variable t_start_chirp by reference, not by value. 
-                    So, when calling freq function later , the lambda function only refers to the final value of t_start_chirp, 
-                    which is the chirp start time of the last chirp of the last frame (after the loop ends).
-
-                    To ensure the value is used keep the following 
-                        tx_freq = lambda t_adc, t_start_chirp=t_start_chirp: self.f0_min + (t_adc-t_start_chirp)*self.slope
-                    which passes t_start_chirp as a default argument to the lambda, ensuring the value of t_start_chirp is captured at the time the lambda is created.
-
-                    failling to do so and writting something like below will miserably fail and take forever to debug
-                    tx_freq = lambda t_adc: self.f0_min + (t_adc-t_start_chirp)*self.slope
-                    " ""  # noqa E501
-                    tx_freq = lambda t_adc, t_start_chirp=t_start_chirp: \
-                        self.f0_min + (t_adc-t_start_chirp)*self.slope
-
-                    functions.append(tx_freq)
-                    """
-            # numpy select used to define piecewise chirp TX frequencies
-            # could be extended for different chirps slopes / non linear slopes
-            # FIXME: move the creation of conditions and functions to __init__
-            # then in this function just do the select
-            # chirp_frequencies = select(conditions,
-            #                           [f(t) for f in functions],
-            #                           default=0)
-            # return chirp_frequencies
-        self.__tx_freq_t()
-        freq_o_times = self.chirp_frequencies(times)
-        # freq_o_times = piecewise_chirp(times)
-
-        return freq_o_times
-    
-    def TX_freqs_old_new(self, timestamps: NDArray) -> NDArray[float64]:
-        """
-        Parameters:
-        ----------
-        timestamps
-            [TS] the absolute time at which the transmit frequency have to be evaluated
-
-        Returns:
-        -------
-        frequency_tx_over_timestamps
-            [TS, TX]: the transmit frequency for each TX antenna at timestamps
-        """
-        raise Exception("code yet to be written")
-        return frequency_tx_over_timestamps
-
-    def TX_freqs(self, timestamps: NDArray) -> NDArray:
+    def TX_freqs_oom(self, timestamps: NDArray) -> NDArray:
         """ FIXME: this functions' description only describes the ToF use case, not LO use case
         
         Returns for each TX->Scatterer->RX path the TX frequency
@@ -706,41 +570,96 @@ class Transmitter():
         tx_frequencies = (active * freq).sum(axis=4)
         return tx_frequencies
 
-    def __TX_phases__old(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
-        """ computes the TX phase at given times, default TDM: 0
+    def TX_freqs(self, timestamps: NDArray) -> NDArray:
+        """FIXME: this functions' description only describes the ToF use case, not LO use case
+        
+        Returns for each TX->Scatterer->RX path the TX frequency
+        at which the chirps was sent when it is received by the mixer
 
         Parameters
         ----------
-        times: NDArray
-            time stamps in seconds
-        tx_idx: int
-            if tx_idx == -1 then gives the VCO phase, used for RX 
-            if tx_idx > 0 then gives the VCO phase for specific PA
-
+        timestamps
+            (timestamps, TX antenna count, Scatterer count, RX antenna count)
+            the timestamp at which ADC are sampling, the TX freq is then
+            computed as timestamp-time_of_flight
         Returns
-        -------
-        phase_o_times: NDArray[float64]
-            the phase, by default in TDM always 0
+        --------
+        tx_frequencies
+            (timestamps, TX antenna count, Scatterer count, RX antenna count)
+            values at each timestamp of the TX freq for antenna
+            which can then be used to compute the tones on each RX antenna
+            before mixing with LO to generate all the IF tones
         """
-        tx_phases = zeros(times.shape)
-        return tx_phases
+        import numpy as np
 
-    def __tx_freq_t(self):
-        """ should be called every time self.tx_start_time is updated"""
-        from numpy import arange, tile, repeat, piecewise
-        chirp_idx = tile(arange(0, self.chirps_count), self.frames_count)
-        frame_idx = repeat(arange(0, self.frames_count), self.chirps_count)
-        start_time = self.t_inter_frame*frame_idx + \
-                        self.t_inter_chirp*chirp_idx + self.tx_start_time
-        end_time = start_time + self.ramp_end_time
-        freqs = [lambda t_adc, t_start_chirp=t_start_chirp:
-                 self.f0_min + (t_adc-t_start_chirp)*self.slope for t_start_chirp in start_time]
-        def __temp2(t_adc):
-            conditions = [(t_adc>=start_t) & (t_adc<=end_t) for start_t, end_t in zip(start_time, end_time)]
-            return piecewise(t_adc, conditions, freqs)
+        chirp_start_freq = self.chirp_start_freq
+        chirp_slope      = self.chirp_slope
+        chirp_end_time   = self.chirp_end_time
+        t_inter_chirp    = self.t_inter_chirp
+        if t_inter_chirp==0:
+            chirp_period = chirp_end_time
+        else:
+            chirp_period = t_inter_chirp
+        chirp_count      = self.chirps_count
+        antenna_count    = len(self.antennas)
 
-        self.chirp_frequencies = __temp2
-    def TX_phases(self, timestamps: NDArray) -> NDArray:
+        if ((chirp_count > 1) or (antenna_count > 1)) and t_inter_chirp == 0:
+            self._log.error("self.t_inter_chirp = 0")
+
+        assert antenna_count == timestamps.shape[1], (
+            f"timestamps shape {timestamps.shape} does not match antenna count {antenna_count}"
+        )
+
+        self._log.debug(f"antenna_count: {antenna_count}")
+        self._log.debug(f"chirps_count:  {chirp_count}")
+
+        multiplexing = self.multiplexing
+
+        # timestamps: (ts, TX, S, RX)
+        # All arithmetic below stays at this shape — no chirp axis is ever created.
+
+        if multiplexing == "TDM":
+            # chirp_start for antenna `a`, chirp `k`:
+            #   chirp_start[a, k] = (a + k * antenna_count) * t_inter_chirp
+            #
+            # Invert: given timestamp t and antenna index a (broadcast from axis 1),
+            #   global_chirp = t / t_inter_chirp          (continuous)
+            #   k            = floor((global_chirp - a) / antenna_count)
+            #
+            # Then chirp_start = (a + k * antenna_count) * t_inter_chirp
+
+            # antenna index broadcast to (1, TX, 1, 1)
+            ant = np.arange(antenna_count)[None, :, None, None]
+
+            global_chirp = timestamps / chirp_period            # (ts, TX, S, RX)
+            k = np.floor((global_chirp - ant) / antenna_count).astype(np.int64)
+            k = np.clip(k, 0, chirp_count - 1)
+
+            cs = (ant + k * antenna_count) * chirp_period       # chirp_start per element
+
+        elif multiplexing == "DDM":
+            # All antennas share the same chirp timeline:
+            #   chirp_start[k] = k * chirp_period
+            k  = np.floor(timestamps / chirp_period).astype(np.int64)
+            k  = np.clip(k, 0, chirp_count - 1)
+            cs = k * chirp_period                               # (ts, TX, S, RX)
+
+        else:
+            raise ValueError(f"Unsupported multiplexing scheme: {multiplexing!r}")
+
+        self._log.debug(f"multiplexing: {multiplexing}")
+
+        # Check timestamp falls within the active chirp window (not in dead-time)
+        # chirp_end = cs + chirp_end_time  (chirp_end_time is the chirp duration scalar)
+        active = (timestamps >= cs) & (timestamps <= cs + chirp_end_time)
+
+        # Frequency at this timestamp within the active chirp; zeroed outside
+        # All arrays are (ts, TX, S, RX) — no large intermediates
+        tx_frequencies = np.where(active, chirp_start_freq + chirp_slope * (timestamps - cs), 0.0)
+
+        return tx_frequencies
+
+    def TX_phases_old(self, timestamps: NDArray) -> NDArray:
         """Returns for each TX->Scatterer->RX path the TX phase
         at which the chirps was sent when it is received by the mixer.
         For code logic and documentation refer to TX_freqs
@@ -802,6 +721,63 @@ class Transmitter():
         phase = chirp_index[None, :, None, None, :] * phase_slope[None, :, None, None, None]
 
         tx_phases = (active * phase).sum(axis=4)
+        return tx_phases
+
+    def TX_phases(self, timestamps: NDArray) -> NDArray:
+        """Returns for each TX->Scatterer->RX path the TX phase
+        at which the chirps was sent when it is received by the mixer.
+        For code logic and documentation refer to TX_freqs
+
+        Parameters
+        ----------
+        timestamps
+            (T, TX, Scatterer, RX)
+        Returns
+        --------
+        tx_phases
+            (T, TX, Scatterer, RX)
+        """
+        chirp_end_time = self.chirp_end_time
+        t_inter_chirp  = self.t_inter_chirp
+        chirp_count    = self.chirps_count
+        antenna_count  = len(self.antennas)
+
+        if ((chirp_count > 1) or (antenna_count > 1)) and t_inter_chirp == 0:
+            self._log.error("self.t_inter_chirp = 0")
+
+        assert antenna_count == timestamps.shape[1]
+
+        multiplexing = self.multiplexing
+
+        if multiplexing == "TDM":
+            # phase_slope is zero for all antennas in TDM — result is always 0
+            # but we still gate on active to preserve the zero-outside-chirp contract
+            ant = np.arange(antenna_count)[None, :, None, None]   # (1, TX, 1, 1)
+            k   = np.floor((timestamps / t_inter_chirp - ant) / antenna_count).astype(np.int64)
+            k   = np.clip(k, 0, chirp_count - 1)
+            cs  = (ant + k * antenna_count) * t_inter_chirp
+
+            # phase_slope == 0 for all antennas → tx_phases is identically 0
+            # keep the np.where for correctness in case TDM ever gets non-zero slopes
+            phase_slope = np.zeros(antenna_count)                  # (TX,)
+            ps  = phase_slope[None, :, None, None]                 # (1, TX, 1, 1)
+            phase = k * ps                                         # (ts, TX, S, RX)
+
+        elif multiplexing == "DDM":
+            k  = np.floor(timestamps / t_inter_chirp).astype(np.int64)
+            k  = np.clip(k, 0, chirp_count - 1)
+            cs = k * t_inter_chirp
+
+            phase_slope = np.asarray(self.conf["TX_phaser_slopes"])  # (TX,)
+            ps  = phase_slope[None, :, None, None]                   # (1, TX, 1, 1)
+            phase = k * ps                                           # (ts, TX, S, RX)
+
+        else:
+            raise ValueError(f"Unsupported multiplexing scheme: {multiplexing!r}")
+
+        active     = (timestamps >= cs) & (timestamps <= cs + chirp_end_time)
+        tx_phases  = np.where(active, phase, 0.0)
+
         return tx_phases
 
 class TransmitterDDM(Transmitter):

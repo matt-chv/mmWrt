@@ -3,6 +3,7 @@ v0.0.11: 8 passed
 """
 import copy
 import logging
+import numpy as np
 from os.path import abspath, join, pardir
 import sys
 from time import time, perf_counter
@@ -86,7 +87,7 @@ def test_tx_frequency_ramp_1_tx():
         print("got", txfs)
         raise
 
-        
+
 def test_tx_frequency_ramp_2_tx_tdm():
     # changing the ramp end time to have 2 chirps
     # changing the antenna count to 2 antennas
@@ -241,3 +242,20 @@ def test_transmitterDDM_phaser0_chirp0(start_time, offset, tx_idx, phase):
     expected = array([phase, phase, phase, phase]) * pi
     assert tx_phis.shape == (4, 1, 1, 1)
     assert allclose(tx_phis, expected, atol=1e-8)
+
+
+def tbd_TX_Freqs_64TX_64loops():
+    # v0.0.11-rc1 fix
+    # times(64,64,3,64) -> freq is (64, 64, 3, 64, 4096) which is 24GiB
+    # which crashes simulation
+    from test_assets import radar_ura_64_TX_z
+    radar = radar_ura_64_TX_z
+    ts = np.array([0])
+    times = np.zeros((1,64,1,64))  # (64, 64, 3, 64)
+    times = np.zeros((64, 64, 3, 64))
+    # (1, 64, 1, 64)
+    txfs = radar.TX_freqs(times)
+    print(txfs.shape)
+
+if __name__ == "__main__":
+    tbd_TX_Freqs_64TX_64loops()

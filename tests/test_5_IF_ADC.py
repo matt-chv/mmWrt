@@ -29,9 +29,10 @@ def test_adc_simple():
                                  [target_static_5p1m],
                                  radar_tdm_1_chirp_8_adc)
     adc0 = adc_values[:, 0]
+    expected = np.real(adc_8_values_complex_fif00)
 
-    assert adc0.shape == adc_8_values_complex_fif00.shape
-    assert np.allclose(adc0, np.real(adc_8_values_complex_fif00), atol=1e-2)
+    assert adc0.shape == adc_8_values_complex_fif00.shape, "shapes don't match"
+    assert np.allclose(adc0, expected, atol=1e-2), f"adc0:{adc0} vs expected: {expected}"
 
 """
 @pytest.mark.parametrize("target, radar, datatype, index", [

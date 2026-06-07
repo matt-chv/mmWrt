@@ -1004,20 +1004,22 @@ def detection_xy(adc_values: NDArray, radar: Radar):
     detection_list_cartesian = np.array(detection_list_cartesian)
     return detection_list_cartesian
 
-def pcl(cube):
+def pcl(adc_values: NDArray) -> NDArray:
     """ returns array of 3D pcl
 
     Parameters
     ----------
-    cube: numpy array
-        cube is [chirp][elevation][azimuth][adc]
+    adc_values
+        (z virtual antennas, x virtual antennas, chirps, adc)
 
     Returns
     -------
-    pcl: numpy array
-        pcl is a 1D array of point
-        each point is defined by (x,y,z,vr,mag)
+    pcl
+        (x, y, z, vr, mag) detections
     """
-    pass
+    # 1. get Range-Doppler Detections
+    # 2. get Azimuth
+    # 3. get Elevation
+    # 4. merge
     points = []
     return points
