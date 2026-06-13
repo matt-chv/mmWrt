@@ -46,6 +46,7 @@ tof_5p1m = d_5p1m/3e8
 tof_10p1m = d_10p1m/3e8
 fif00 = 2*chirp_slope_tdm0*d_5p1m/3e8  # 170 kHz
 fif01 = 2*chirp_slope_tdm0*d_10p1m/3e8
+fif_tdm0_15m = 2*chirp_slope_tdm0*d_15p1m/3e8
 t_inter_frame_50ms = 50e-3
 
 
@@ -53,6 +54,8 @@ t_inter_frame_50ms = 50e-3
 phase_slope_half_pi = 0.5
 
 adc_sampling_frequency_0 = 3*fif01
+adc_sampling_frequency_tdm0_dmax_15m = 2.1*fif_tdm0_15m
+
 chirp_end_time_8adc = adc_samples_count_8*1/adc_sampling_frequency_0*1.5
 chirp_end_time_64adc = adc_samples_count_64*1/adc_sampling_frequency_0*1.5
 chirp_end_time_1024adc = adc_samples_count_1024*1/adc_sampling_frequency_0*1.5
@@ -83,6 +86,8 @@ adc_8_values_complex_fif01 = exp(2*1j*pi*fif01*adc_sampling_times_8_samples)
 adc_8_values_complex_fif01[0] = 0
 
 antennas_ULA_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
+antennas_ULA_x_16_60G = [Antenna(x=lambda_60G/2*i) for i in range(16)]
+antennas_ULA_z_16_60G = [Antenna(z=lambda_60G/2*i) for i in range(16)]
 antennas_ULA_x_64_60G = [Antenna(x=lambda_60G/2*i) for i in range(64)]
 antennas_ULA_y_64_60G = [Antenna(y=lambda_60G/2*i) for i in range(64)]
 antennas_ULA_z_64_60G = [Antenna(z=lambda_60G/2*i) for i in range(64)]
@@ -127,12 +132,21 @@ tdm_1chirp_64adc = Transmitter(chirp_start_freq=f0_60G,
                                chirps_count=64,
                                t_inter_chirp=t_inter_chirp_vmax_3mps)
 
-tdm_1chirp_1024adc_ula_z_64 = Transmitter(chirp_start_freq=f0_60G,
-                                          chirp_slope=chirp_slope_tdm0,
-                                          chirp_end_time=chirp_end_time_1024adc,
-                                          antennas=antennas_ULA_z_64_60G,
-                                          chirps_count=64,
-                                          t_inter_chirp=t_inter_chirp_vmax_3mps)
+tdm_1loop_64chirp_ulat_64tx_z_1024adc = \
+    Transmitter(chirp_start_freq=f0_60G,
+                chirp_slope=chirp_slope_tdm0,
+                chirp_end_time=chirp_end_time_1024adc,
+                antennas=antennas_ULA_z_64_60G,
+                chirps_count=64,
+                t_inter_chirp=t_inter_chirp_vmax_3mps)
+
+tdm_32loop_16Tz_64adc = \
+    Transmitter(chirp_start_freq=f0_60G,
+                chirp_slope=chirp_slope_tdm0,
+                chirp_end_time=chirp_end_time_64adc,
+                antennas=antennas_ULA_z_16_60G,
+                chirps_count=32*16,
+                t_inter_chirp=t_inter_chirp_vmax_3mps)
 
 tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
                             chirp_end_time=t_inter_chirp_vmax_2mps/3,
@@ -145,7 +159,8 @@ ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                        t_inter_chirp=1.1*chirp_end_time_8adc,
                                        antennas=[Antenna() for _ in range(2)],
                                        chirps_count=4,
-                                       conf={"TX_phaser_slopes": [0, phase_slope_half_pi]})
+                                       conf={"TX_phaser_slopes":
+                                             [0, phase_slope_half_pi]})
 
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_samples_per_chirp=adc_samples_count_8)
@@ -167,6 +182,11 @@ receiver_dmax_50m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
 receiver_dmax_100m = Receiver(adc_sample_rate=adc_sampling_frequency_0*4.1/3,
                               max_adc_buffer_size=1025,
                               adc_samples_per_chirp=64)
+
+receiver_ULA_16R_64adc_dmax_15m = \
+    Receiver(adc_sample_rate=adc_sampling_frequency_tdm0_dmax_15m,
+             antennas=antennas_ULA_x_16_60G,
+             adc_samples_per_chirp=adc_samples_count_64)
 
 receiver_ULA_64 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                            antennas=antennas_ULA_x_64_60G,
@@ -194,8 +214,12 @@ radar_tx_cw = Radar(transmitter=transmitter_cw_60G,
                     debug=True)
 radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
                         receiver=receiver_ULA_64)
-radar_ula_64_TX_z = Radar(transmitter=tdm_1chirp_1024adc_ula_z_64,
+radar_ula_64_TX_z = Radar(transmitter=tdm_1loop_64chirp_ulat_64tx_z_1024adc,
                           receiver=receiver_dmax_100m)
+# radar convention:
+# tdm/ddm (loop,TX,RX,ADC)
+radar_tdm_32loop_16T16R_64adc = Radar(transmitter=tdm_32loop_16Tz_64adc,
+                                      receiver=receiver_ULA_16R_64adc_dmax_15m)
 
 target_static_0 = Target(xt=lambda t: d_0m+0*t)
 target_static_5p1m = Target(xt=lambda t: d_5p1m+0*t)

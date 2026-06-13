@@ -38,7 +38,7 @@ def test_SIMO_AoA_polar():
     # print("detection_list", detection_list)
     expected_detections = np.array([[1.89375, 0],
                                     [5.2078125, 0],
-                                    [9.9421875, -90.]])
+                                    [9.9421875, 90.]])
     # print("expected_detections", expected_detections)
     assert np.allclose(detection_list,
                        expected_detections, atol=0.2)
@@ -52,7 +52,7 @@ def test_SIMO_AoA_cartesian():
 
     detection_list = detection_xy(bb["adc_cube"][0, 0, :, :], radar)
     print("detection_list", detection_list)
-    expected_detections = np.array([[5.2078125, 0], [0, -9.9421875]])
+    expected_detections = np.array([[5.2078125, 0], [0, 9.9421875]])
     assert np.allclose(detection_list,
                        expected_detections, atol=0.2)
     assert detection_list.shape == expected_detections.shape
@@ -70,8 +70,9 @@ def test_MISO_AoA_cartesian():
     adc_cube = bb["adc_cube"][0, :, 0, :]
 
     detection_list = detection_xy(adc_cube, radar)
-    expected_detections = np.array([[0, -5.18],
-                                    [0, -10.35],
+
+    expected_detections = np.array([[0, 5.18],
+                                    [0, 10.35],
                                     [14.88, 0]])
     assert np.allclose(detection_list,
                        expected_detections, atol=0.2)
@@ -129,5 +130,3 @@ def tbd_SIMO_AoA():
     # plt.savefig("AoA FFT B4.png")
     # plt.savefig("AoA FFT A8_3.png")
 
-if __name__ == "__main__":
-    test_MISO_AoA_cartesian()

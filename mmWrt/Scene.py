@@ -429,7 +429,8 @@ class Transmitter():
         slope = chirp_slope
 
         if chirp_slope < 1e8:
-            print("chirp_slope is low", chirp_slope)
+            # print("chirp_slope is low", )
+            self._log.debug(f"chirp_slope is low (WARN): {chirp_slope}")
         bw = chirp_slope * chirp_end_time
         self.f0_min = chirp_start_freq
         self.chirp_start_freq = chirp_start_freq
@@ -945,11 +946,10 @@ class Radar:
 
         bw_adc = self.n_adc*transmitter.slope/receiver.fs
 
-        if debug:  # pragma: no cover
-            if bw_adc < 0.8 * transmitter.bw:
-                print(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
-            print(f"Bandwidth in chirp: {transmitter.bw:.2g}")
-            print(f"Bandwidth in ADC buffers: {bw_adc:.2g}")
+        self._log.debug(f"Bandwidth in chirp: {transmitter.bw:.2g}")
+        if bw_adc < 0.8 * transmitter.bw:  # pragma: no cover
+            self._log.debug(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
+        self._log.debug(f"Bandwidth in ADC buffers: {bw_adc:.2g}")
         if self.n_adc < 8:  # pragma: no cover
             print("!!!! ADC # low", self.n_adc)
             print("BW", transmitter.bw)
@@ -981,25 +981,22 @@ class Radar:
             for idx, _ in enumerate(self.rx_antennas):
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            if debug:  # pragma: no cover
-                print("rx fmin (GHz)", self.rx_antennas[idx].f_min_GHz)
-                print("rx fmax (GHz)", self.rx_antennas[idx].f_max_GHz)
+            
+        self._log.debug("rx fmin (GHz)", self.rx_antennas[idx].f_min_GHz)
+        self._log.debug("rx fmax (GHz)", self.rx_antennas[idx].f_max_GHz)
 
         if all(self.tx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.tx_antennas):
                 self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
+
+        self._log.debug("tx fmin", self.tx_antennas[idx].f_min_GHz)
+        self._log.debug("tx fmax", self.tx_antennas[idx].f_max_GHz)
+        if t_fft > t_chirp:
             if debug:  # pragma: no cover
-                print("tx fmin", self.tx_antennas[idx].f_min_GHz)
-                print("tx fmax", self.tx_antennas[idx].f_max_GHz)
-        try:
-            assert t_fft <= t_chirp
-        except AssertionError:
-            print(f"T_FFT: {t_fft:.2g}")
-            print(f"T_C: {t_chirp:.2g}")
-            if debug:  # pragma: no cover
-                pass
+                self._log.warning(f"T_FFT: {t_fft:.2g} > T_C: {t_chirp:.2g}")
             else:
+                self._log.error(f"T_FFT: {t_fft:.2g} > T_C: {t_chirp:.2g}")
                 raise ValueError(ERR_TFFT_lte_TC)
 
         try:

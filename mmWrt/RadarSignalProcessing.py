@@ -36,7 +36,7 @@ def doppler_to_mps(idx: NDArray, chirp_count,
 
 
 def bin_to_deg(idx: NDArray, ula_element_count):
-    return np.rad2deg(np.arcsin(2 * idx / ula_element_count)-np.pi/2)
+    return np.rad2deg(np.arcsin(2 * idx / ula_element_count))  #-np.pi/2)
 
 
 def error(targets_synthetics, targets_f):
@@ -870,7 +870,9 @@ def ranges_dft_cfar(adc_values:NDArray,
                     chirp_slope:float,
                     pfa:float,
                     log=None) -> NDArray:
-    """ returns a NDArray of ranges using a simple fft threshold for target """
+    """ returns a NDArray of ranges using a simple fft threshold for target
+    if adc_values are real, will return half the range bins
+    """
     adc_samples_per_chirp = adc_values.shape[0]
     c = 3e8  # speed of light in m/s
     adc_samples_per_chirp = adc_values.shape[0]
@@ -967,8 +969,7 @@ def range_aoa(adc_values: NDArray, radar: Radar):
     aoa_window = np.kaiser(range_fft.shape[aoa_axis], beta=10)
     range_fft_windowed = range_fft * aoa_window[:, np.newaxis]
 
-    # range_aoa = fftshift(fft(range_fft_windowed, axis=aoa_axis), axes=aoa_axis)
-    range_aoa_dft = fft(range_fft_windowed, axis=aoa_axis)
+    range_aoa_dft = np.fft.fftshift(fft(range_fft_windowed, axis=aoa_axis), axes=aoa_axis)
 
     range_peak_idxs = dft_cfr_idx(np.abs(range_fft[0, :]),
                                   train_cell_count=8,
@@ -1004,7 +1005,7 @@ def detection_xy(adc_values: NDArray, radar: Radar):
     detection_list_cartesian = np.array(detection_list_cartesian)
     return detection_list_cartesian
 
-def pcl(adc_values: NDArray) -> NDArray:
+def pcl(adc_values: NDArray, radar) -> NDArray:
     """ returns array of 3D pcl
 
     Parameters
@@ -1019,7 +1020,22 @@ def pcl(adc_values: NDArray) -> NDArray:
     """
     # 1. get Range-Doppler Detections
     # 2. get Azimuth
+    detection_list_r_theta = range_aoa(adc_values[0,0,0,:,:], radar)
     # 3. get Elevation
+    detection_list_r_phi = range_aoa(adc_values[0,0,:,0,:], radar)
     # 4. merge
-    points = []
-    return points
+    detections_xyz = []
+    for idx in range(3):
+        r1 = detection_list_r_theta[idx][0]
+        r2 = detection_list_r_phi[idx][0]
+        r = (r1+r2)/2
+        theta = detection_list_r_theta[idx][1]
+        phi = detection_list_r_phi[idx][1]
+        theta, phi = theta*np.pi/180, phi*np.pi/180
+
+        x = r * np.cos(theta) * np.sin(phi)
+        y = r * np.sin(theta) * np.sin(phi)
+        z = r * np.sin(theta) * np.cos(phi)
+        detections_xyz.append([x, y, z])
+    detections_xyz = np.array(detections_xyz)
+    return detections_xyz
