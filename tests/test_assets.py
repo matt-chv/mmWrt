@@ -166,7 +166,7 @@ receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_sample_count=adc_samples_count_8)
 
 receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                     max_adc_buffer_size=1025,
+                     adc_sample_count_max=1025,
                      adc_sample_count=adc_samples_count_1024)
 
 receiver_adc_sample_rate0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
@@ -176,11 +176,11 @@ receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              adc_sample_count=adc_samples_count_64)
 
 receiver_dmax_50m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
-                             max_adc_buffer_size=1025,
+                             adc_sample_count_max=1025,
                              adc_sample_count=64)
 
 receiver_dmax_100m = Receiver(adc_sample_rate=adc_sampling_frequency_0*4.1/3,
-                              max_adc_buffer_size=1025,
+                              adc_sample_count_max=1025,
                               adc_sample_count=64)
 
 receiver_ULA_16R_64adc_dmax_15m = \

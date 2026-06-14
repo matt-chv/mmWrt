@@ -312,7 +312,7 @@ class Receiver():
     def __init__(self,
                  adc_sample_rate=4e2,
                  antennas=(Antenna(),),
-                 max_adc_buffer_size=1024,
+                 adc_sample_count_max=1024,
                  adc_sample_rate_max=25e6,
                  adc_sample_count=0,
                  config=None,
@@ -323,7 +323,7 @@ class Receiver():
         # self.adc_sampling_frequency = adc_sample_rate
         self.adc_sample_rate = adc_sample_rate
         self.antennas = antennas
-        self.max_adc_buffer_size = max_adc_buffer_size
+        self.adc_sample_count_max = adc_sample_count_max
         # self.adc_sample_count = adc_sample_count
         # self.adc_sample_count = adc_sample_count
         adc_sample_count = adc_sample_count
@@ -951,16 +951,16 @@ class Radar:
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
 
-        self._log.debug("rx fmin (GHz)", self.rx_antennas[idx].f_min_GHz)
-        self._log.debug("rx fmax (GHz)", self.rx_antennas[idx].f_max_GHz)
+        self._log.debug(f"rx fmin (GHz): {self.rx_antennas[idx].f_min_GHz}")
+        self._log.debug(f"rx fmax (GHz): {self.rx_antennas[idx].f_max_GHz}")
 
         if all(self.tx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.tx_antennas):
                 self.tx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.tx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
 
-        self._log.debug("tx fmin", self.tx_antennas[idx].f_min_GHz)
-        self._log.debug("tx fmax", self.tx_antennas[idx].f_max_GHz)
+        self._log.debug(f"tx fmin:{self.tx_antennas[idx].f_min_GHz}")
+        self._log.debug(f"tx fmax:{self.tx_antennas[idx].f_max_GHz}")
         if t_fft > t_chirp:
             if debug:  # pragma: no cover
                 self._log.warning(f"T_FFT: {t_fft:.2g} > T_C: {t_chirp:.2g}")
@@ -969,12 +969,12 @@ class Radar:
                 raise ValueError(ERR_TFFT_lte_TC)
 
         try:
-            assert self.adc_sample_count < receiver.max_adc_buffer_size
+            assert self.adc_sample_count < receiver.adc_sample_count_max
         except AssertionError:
             if debug:  # pragma: no cover
                 print(f"buffer size: {self.adc_sample_count} > " +
-                      f"vs max buffer size: {receiver.max_adc_buffer_size}" +
-                      f"ratio: {self.adc_sample_count/receiver.max_adc_buffer_size}")
+                      f"vs max buffer size: {receiver.adc_sample_count_max}" +
+                      f"ratio: {self.adc_sample_count/receiver.adc_sample_count_max}")
             raise ValueError("ADC buffer overflow")
         return
 

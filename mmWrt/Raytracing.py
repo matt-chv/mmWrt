@@ -56,7 +56,7 @@ def sample_all_rays(adc_times,
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     adc_sample_count = adc_times.shape[0]
     adc_samples = zeros((adc_sample_count,
-                         len(receiver_radar.rx_antennas)))
+                         len(receiver_radar.rx_antennas)), dtype=datatype)
 
     rx_antennas_positions = receiver_radar.position_rx_antennas(adc_times)
 

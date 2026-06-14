@@ -1,5 +1,5 @@
 """ Tests for CFAR and 1D peak grouping
-v0.0.11: 26
+v0.0.11: 27
 """
 
 from os.path import abspath, join, pardir
@@ -12,6 +12,7 @@ import numpy as np
 from numpy import where
 from numpy import complex128 as complex
 from numpy import float32  # alternatives: float16, float64
+from scipy.signal import find_peaks
 
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
@@ -218,7 +219,7 @@ def test_rsp_grouping_ex6():
 
 def tbd_test_FMCW_1j():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=True)
 
     scatterer1 = Scatterer(5.1)
@@ -246,7 +247,7 @@ def tbd_test_FMCW_1j():
 
 def tbd_test_FMCW_radar_equation():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=True)
 
     # adding RCS to ensure scatterers are detected ...
@@ -274,7 +275,7 @@ def tbd_test_FMCW_radar_equation():
 
 def tbd_test_FMCW_radar_equation_corner_reflector():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=True)
 
     # adding RCS to ensure scatterers are detected ...
@@ -308,7 +309,7 @@ def tbd_test_FMCW_radar_equation_corner_reflector():
 
 def tbd_test_FMCW_real_adc_po2():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   adc_po2=True,
                   debug=True)
 
@@ -336,7 +337,7 @@ def tbd_test_FMCW_real_adc_po2():
 
 def tbd_test_FMCW_real_error():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=True)
 
     scatterer1 = Scatterer(5.1)
@@ -374,7 +375,7 @@ def tbd_test_FMCW_ADC_adc_sample_rate_vs_adc_sample_rate_max():
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
                   receiver=Receiver(adc_sample_rate=1e6,
                                     adc_sample_rate_max=1e5,
-                                    max_adc_buffer_size=2048, debug=True))
+                                    adc_sample_count_max=2048, debug=True))
     except ValueError as ex:
         str_ex = str(ex)
     assert str_ex == "ADC sampling value must stay below adc_sample_rate_max"
@@ -385,7 +386,7 @@ def tbd_test_TFFT_lte_TC():
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
                   receiver=Receiver(adc_sample_rate=1e4,
                                     adc_sample_rate_max=1e5,
-                                    max_adc_buffer_size=2048*4, adc_sample_count=2048*3,
+                                    adc_sample_count_max=2048*4, adc_sample_count=2048*3,
                                     debug=True))
     except ValueError as ex:
         str_ex = str(ex)
@@ -394,7 +395,7 @@ def tbd_test_TFFT_lte_TC():
 
 def tbd_test_Nyquist():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=3e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=3e3, adc_sample_count_max=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -416,7 +417,7 @@ def tbd_test_FMCW_ADC_buffer_size():
     str_ex = ""
     try:
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=1e6, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=1e6, adc_sample_count_max=2048),
                   debug=False)
     except ValueError as ex:
         str_ex = str(ex)
@@ -426,7 +427,7 @@ def tbd_test_FMCW_ADC_buffer_size():
 
 def tbd_test_FMCW_range_chirp_N():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -445,7 +446,7 @@ def tbd_test_FMCW_range_chirp_N():
 
 def tbd_test_FMCW_cfar_names_ok():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -472,7 +473,7 @@ def tbd_test_FMCW_cfar_names_ok():
 
 def tbd_test_FMCW_cfar_names_nok():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -493,7 +494,7 @@ def tbd_test_FMCW_cfar_names_nok():
 
 def tbd_test_if2d():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
                   debug=False)
     f2d = rsp.if2d(radar)
     assert f2d == 0.02142857142857143
@@ -520,3 +521,72 @@ def tbd_test_scatterer_def():
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 
+
+def test_high_speed():
+    """ test that the raytracing logic works for high-speed scatterer
+    """
+    from matplotlib import pyplot as plt
+    from mmWrt.Scene import Radar, Transmitter, Receiver,Scatterer
+    from scipy.fft import fft, fft2
+    from scipy.signal import stft
+
+    NC=1
+    n=16
+    NA=512*n*2
+    fs0 = 10e5*n
+    slope0 = 2e12
+    tic0 = 1.2e-3
+    raytracing_opt = {"logging_level":10}
+    debug_ON =False
+    bandwidth = 4e9
+    c = 3e8
+
+    radar = Radar(transmitter=Transmitter(chirp_end_time=bandwidth/slope0,
+                                          chirp_slope=slope0,
+                                          chirp_period=tic0,
+                                          chirp_count=NC),
+                  receiver=Receiver(adc_sample_rate=fs0,
+                                    adc_sample_count=NA,
+                                    adc_sample_count_max=NA+1,
+                                    adc_sample_rate_max=fs0*2,
+                                    debug=debug_ON), debug=debug_ON)
+
+    x1, v1 = 5, 20000
+    scatterer1 = Scatterer(xt=lambda t: v1*t+x1)
+
+    scatterers = [scatterer1]
+
+    bb = rt_points([radar], scatterers,
+                   radar,
+                   datatype=complex, debug=debug_ON,
+                   raytracing_opt=raytracing_opt)
+
+    cube = bb["adc_cube"][0,0,0,:]
+
+    seg_n = 512
+    # nperseg: Length of each segment
+    # noverlapint: Number of points to overlap between segments. If None, noverlap = nperseg // 2
+    # return_onesidedbool, optional - If True, return a one-sided spectrum for real data.
+    _, _, fft_st = stft(cube, nperseg=seg_n, return_onesided=False)
+    # find the range bin where scatterer is at the begining of STFT
+    peak_at_start = find_peaks(abs(fft_st[:,0]))[0][0]
+    # find the range bin where the scatterer is at the end of STFT
+    peak_at_end = find_peaks(abs(fft_st[:,-1]))[0][0]
+
+    # speed = Delta D/Delta T
+
+    # Range bin resolution from samples
+    R_bin_fft = fs0*c/2/slope0/NA
+    # Range bin resolution for STFT is scaled up by nperseg
+    R_bin_stft = R_bin_fft*NA/seg_n
+    # compute the chirp time, which is also the divider for the speed
+    Tc = NA*1/fs0
+    # The scatterer distance grows 2x (there and back) so speed needs to be divided by 2
+    speed_estimate = (peak_at_end-peak_at_start)*R_bin_stft/Tc/2
+    known_result_from_estimate = 20599.365234375
+    assert speed_estimate==known_result_from_estimate, \
+        f"speed of scatterer is: {v1} close to: {known_result_from_estimate}, but found to be: {speed_estimate}"
+
+
+if __name__ == "__main__":
+    test_high_speed()
