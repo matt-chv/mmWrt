@@ -16,36 +16,6 @@ ERR_TOO_MANY_CHIRPS = "Too many chirps, not yet considered"
 
 ADCType = TypeVar("ADCType", complex64, float32, float64)
 
-def __badcode__scene_distance(targets_positions, antennas_pos):
-    """ computes the distance between targets and antennas for each time point, using broadcasting
-
-    Parameters
-    ----------
-    targets_positions: NDArray
-        shape (n_targets, n_time_points, 3)
-    antennas_pos: NDArray
-        shape (n_antennas, 3)
-
-    Returns
-    -------
-    distance_tx_target: NDArray
-        shape (n_targets, n_time_points, n_antennas)
-    """
-    # Compute the distance from tx to target for each time point
-    # targets_positions has shape (n_targets, n_time_points, 3)
-    # tx_antennas_pos has shape (n_antennas, 3)
-    # we want to compute the distance between each target and each antenna for each time point
-    # this can be done using broadcasting by reshaping the arrays appropriately
-    # we can reshape targets_positions to (n_targets, n_time_points, 1, 3) and tx_antennas_pos to (1, 1, n_antennas, 3)
-    # then we can compute the difference and the distance using broadcasting
-    # antennas_pos = antennas_pos.reshape(1, 1, antennas_pos.shape[0], 3)
-    # targets_positions = targets_positions.reshape(targets_positions.shape[0],
-    #                                              targets_positions.shape[1], 1,
-    #                                              targets_positions.shape[2])
-    diff = targets_positions - antennas_pos  # 2000 targets * 1024 samples  operations
-    distance = sqrt(sum(diff * diff, axis=-1))
-    return distance
-
 
 def two_way_range(tx_antennas_positions: NDArray,
                   scatterer_positions: NDArray,
@@ -783,6 +753,7 @@ class Transmitter():
 
         return tx_phases
 
+
 class TransmitterDDM(Transmitter):
     def __init__(self,
                  chirp_start_freq=60e9,
@@ -857,6 +828,7 @@ class TransmitterDDM(Transmitter):
             pass
             #return tx_phases
         return tx_phases
+
 
 class Medium:
     def __init__(self, v=3e8, L=0, name="void"):
