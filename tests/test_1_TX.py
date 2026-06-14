@@ -1,20 +1,19 @@
 """ This is mostly to test the TX_freq and phases
-v0.0.11: 8 passed
+v0.0.11: 9 passed
 """
 import copy
 import logging
 import numpy as np
 from os.path import abspath, join, pardir
 import sys
-from time import time, perf_counter
-from numpy import allclose, arange, array, concatenate, linspace, pi, tile, repeat, zeros
+from numpy import allclose, arange, array, concatenate, linspace, pi
 import pytest
 
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 # from mmWrt.Raytracing import BB_IF
-from mmWrt.Scene import Radar, Transmitter, TransmitterDDM, Antenna, Receiver, Target  # noqa: E402
+from mmWrt.Scene import Antenna  # noqa: E402
 from test_assets import ddm_4chirps_0_half_pi, phase_slope_half_pi
 from test_assets import tdm_1chirp_8adc, radar_vibrate, target_vibrate, tof_10p1m
 
@@ -88,7 +87,7 @@ def test_tx_frequency_ramp_1_tx():
         raise
 
 
-def test_tx_frequency_ramp_2_tx_tdm():
+def tbd_tx_frequency_ramp_2_tx_tdm0():
     # changing the ramp end time to have 2 chirps
     # changing the antenna count to 2 antennas
     # making sure that times are all withing
@@ -120,13 +119,13 @@ def test_tx_frequency_ramp_2_tx_tdm():
 
     tx0_expected = array([6.00000000e+10, 6.00198020e+10,
                           6.00396040e+10, 6.00594059e+10])
-    tx1_expected = zeros((4))
+    tx1_expected = np.zeros((4))
     assert txfs.shape == (4, 2, 1, 1), f"Shape mismatch: got {txfs.shape}, expected {(4, 2, 1, 1)}"
     assert allclose(tx0, tx0_expected, atol=1e-8), "antenna 0 TX frequencies does not match expected"
     assert allclose(tx1, tx1_expected, atol=1e-8), "antenna 1 TX frequencies does not match expected"
 
 
-def test_tx_frequency_ramp_2_tx_tdm():
+def test_tx_frequency_ramp_2_tx_tdm1():
     # changing the ramp end time to have 2 chirps
     # changing the antenna count to 2 antennas
     # making sure that times are all withing
@@ -257,8 +256,10 @@ def tbd_TX_Freqs_64TX_64loops():
     txfs = radar.TX_freq(times)
     print(txfs.shape)
 
-def tbd_tx_freq_frames():
-    radar, target = radar_vibrate, target_vibrate
+
+def test_tx_freq_frames():
+    """ basic test on TX_Freq when frame_idx > 0"""
+    radar, _ = radar_vibrate, target_vibrate
 
     """    frameidx 0
     chirpidx 1
@@ -277,11 +278,11 @@ def tbd_tx_freq_frames():
         adc_sample_count = radar.adc_sample_count
         # adc_samples_per_chirp = radar.adc_samples_per_chirp
         start_of_chirp = frame_idx * radar.t_inter_frame + \
-                    chirp_idx * radar.chirp_period
+            chirp_idx * radar.chirp_period
         adc_sample_time = 1/radar.adc_sample_rate
 
         adc_times = arange(0, adc_sample_count*adc_sample_time,
-                        adc_sample_time) + start_of_chirp
+                           adc_sample_time) + start_of_chirp
         timestamp_tensor = adc_times[:, None, None, None]
         timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=1)
         timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
@@ -297,6 +298,3 @@ def tbd_tx_freq_frames():
         f_mix_list.append(f_mix)
     assert np.allclose(f_mix_list[0], f_mix_list[1])
     print("ok")
-
-if __name__ == "__main__":
-    test_tx_frequency_ramp_1_tx()
