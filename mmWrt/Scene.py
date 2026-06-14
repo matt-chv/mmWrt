@@ -1,6 +1,7 @@
 """ This module defines the main classes used to define a radar """
 
 import logging
+import numpy as np
 from numpy import all, array, exp, log2, ndarray, pi, random, real, select, stack, \
     sum, sqrt, where, zeros
 from numpy import abs as np_abs, any as np_any, max as np_max
@@ -393,7 +394,7 @@ class Transmitter():
                  antennas=[Antenna()],
                  t_inter_chirp=0.0,
                  chirps_count=1,
-                 t_inter_frame=0.0,
+                 t_inter_frame=50e-3,
                  frames_count=1,
                  **kwargs):
         """Transmitter class models a radar transmitter
@@ -571,7 +572,7 @@ class Transmitter():
         tx_frequencies = (active * freq).sum(axis=4)
         return tx_frequencies
 
-    def TX_freqs(self, timestamps: NDArray) -> NDArray:
+    def TX_freq(self, timestamps: NDArray) -> NDArray:
         """FIXME: this functions' description only describes the ToF use case, not LO use case
         
         Returns for each TX->Scatterer->RX path the TX frequency
@@ -591,18 +592,20 @@ class Transmitter():
             which can then be used to compute the tones on each RX antenna
             before mixing with LO to generate all the IF tones
         """
-        import numpy as np
 
         chirp_start_freq = self.chirp_start_freq
-        chirp_slope      = self.chirp_slope
-        chirp_end_time   = self.chirp_end_time
-        t_inter_chirp    = self.t_inter_chirp
-        if t_inter_chirp==0:
+        chirp_slope = self.chirp_slope
+        chirp_end_time = self.chirp_end_time
+        t_inter_chirp = self.t_inter_chirp
+        # FIXME: remove this
+        if t_inter_chirp == 0:
             chirp_period = chirp_end_time
         else:
             chirp_period = t_inter_chirp
-        chirp_count      = self.chirps_count
-        antenna_count    = len(self.antennas)
+        frame_period = self.t_inter_frame
+        chirp_count = self.chirps_count
+        frame_count = self.frames_count
+        antenna_count = len(self.antennas)
 
         if ((chirp_count > 1) or (antenna_count > 1)) and t_inter_chirp == 0:
             self._log.error("self.t_inter_chirp = 0")
@@ -617,7 +620,9 @@ class Transmitter():
         multiplexing = self.multiplexing
 
         # timestamps: (ts, TX, S, RX)
-        # All arithmetic below stays at this shape — no chirp axis is ever created.
+        frame_index = timestamps // frame_period
+        frame_index = np.clip(frame_index, 0, frame_count - 1)
+        transmit_timestamps = timestamps - frame_index * frame_period
 
         if multiplexing == "TDM":
             # chirp_start for antenna `a`, chirp `k`:
@@ -631,20 +636,17 @@ class Transmitter():
 
             # antenna index broadcast to (1, TX, 1, 1)
             ant = np.arange(antenna_count)[None, :, None, None]
-
-            global_chirp = timestamps / chirp_period            # (ts, TX, S, RX)
+            global_chirp = transmit_timestamps / chirp_period            # (ts, TX, S, RX)
             k = np.floor((global_chirp - ant) / antenna_count).astype(np.int64)
             k = np.clip(k, 0, chirp_count - 1)
-
-            cs = (ant + k * antenna_count) * chirp_period       # chirp_start per element
+            cs = (ant + k * antenna_count) * chirp_period  # chirp_start per element
 
         elif multiplexing == "DDM":
             # All antennas share the same chirp timeline:
             #   chirp_start[k] = k * chirp_period
-            k  = np.floor(timestamps / chirp_period).astype(np.int64)
+            k  = np.floor(transmit_timestamps / chirp_period).astype(np.int64)
             k  = np.clip(k, 0, chirp_count - 1)
             cs = k * chirp_period                               # (ts, TX, S, RX)
-
         else:
             raise ValueError(f"Unsupported multiplexing scheme: {multiplexing!r}")
 
@@ -652,11 +654,11 @@ class Transmitter():
 
         # Check timestamp falls within the active chirp window (not in dead-time)
         # chirp_end = cs + chirp_end_time  (chirp_end_time is the chirp duration scalar)
-        active = (timestamps >= cs) & (timestamps <= cs + chirp_end_time)
+        active = (transmit_timestamps >= cs) & (transmit_timestamps <= cs + chirp_end_time)
 
         # Frequency at this timestamp within the active chirp; zeroed outside
         # All arrays are (ts, TX, S, RX) — no large intermediates
-        tx_frequencies = np.where(active, chirp_start_freq + chirp_slope * (timestamps - cs), 0.0)
+        tx_frequencies = np.where(active, chirp_start_freq + chirp_slope * (transmit_timestamps - cs), 0.0)
 
         return tx_frequencies
 
@@ -812,7 +814,7 @@ class TransmitterDDM(Transmitter):
         assert len(conf["TX_phaser_slopes"]) == len(antennas)
         self.TX_phaser_slopes = conf["TX_phaser_slopes"]
         
-    def TX_freqs(self, times: NDArray, tx_idx=-1) -> NDArray[float64]:
+    def TX_freq(self, times: NDArray, tx_idx=-1) -> NDArray[float64]:
         """ Default implementation for DDM"""
         # if tx_idx==-1: return VCO chirp (used for any RX )
         # if tx_idx >= 0: return the TX antenna one (used for specific TX antenna phase)
@@ -926,7 +928,7 @@ class Radar:
         self.bw = transmitter.bw
         self.tx_conf = transmitter.conf
         # self.mimo_mode = transmitter.conf["mimo_mode"]
-        self.TX_freqs = transmitter.TX_freqs
+        self.TX_freq = transmitter.TX_freq
         self.TX_phases = transmitter.TX_phases
         # FIXME: MCV 2026-05-22 removed this as did not seem needed anymore ?!?
         # self.chirp_t_start = transmitter.chirp_t_start
@@ -937,7 +939,7 @@ class Radar:
                     f"{receiver.fs:.2g}= {transmitter.bw*receiver.fs:.2g}" +\
                     f" /  {transmitter.slope:.2g}"
                 # , transmitter.bw, receiver.fs, transmitter.slope
-                
+
             if debug:  # pragma: no cover
                 print("updating NADC from 0 to:", self.n_adc)
                 raise ValueError(log_msg)
@@ -981,7 +983,7 @@ class Radar:
             for idx, _ in enumerate(self.rx_antennas):
                 self.rx_antennas[idx].f_min_GHz = self.f0_min/1e9
                 self.rx_antennas[idx].f_max_GHz = (self.f0_min + self.bw)/1e9
-            
+
         self._log.debug("rx fmin (GHz)", self.rx_antennas[idx].f_min_GHz)
         self._log.debug("rx fmax (GHz)", self.rx_antennas[idx].f_max_GHz)
 
@@ -1032,8 +1034,7 @@ class Radar:
         target_shape = (timestamps.shape[0], f_rx.shape[1], f_rx.shape[2], f_rx.shape[3])
         timestamps_rx = np.broadcast_to(timestamps[:, None, None, None], target_shape)
 
-        # raise Exception("here we should have  timestamp dimensions (T, TX, S, RX)")
-        f_tx = self.TX_freqs(timestamps_rx)
+        f_tx = self.TX_freq(timestamps_rx)
         f_if = f_tx - f_rx
 
         return f_if
@@ -1123,7 +1124,6 @@ class Radar:
                 else:
                     YIF = YIF / distance**4
                 YIF = YIF * 10**(L*distance)
-
             # adc values are the sum of signals arriving on the same RX antenna
             # so summing over axis=1 (TX) and axis=2 (scatterers)
             self._log.debug(f"YIF.shape: {YIF.shape}")
@@ -1138,7 +1138,8 @@ class Radar:
                 pass
             elif datatype in [int64, int32, int16]:
                 YIF = int(real(YIF)/max(real(YIF)) * (2**(8*datatype().nbytes-1)-1))
-
+        else:
+            YIF = sum(YIF, axis=(1, 2))
         return YIF
 
     def position_tx_antennas(self, timestamps) -> NDArray:

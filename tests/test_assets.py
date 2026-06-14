@@ -1,4 +1,4 @@
-from numpy import array, arange, exp, pi
+from numpy import array, arange, exp, pi, sin
 from os.path import abspath, join, pardir
 import sys
 
@@ -227,6 +227,41 @@ target_static_10p1m = Target(yt=lambda t: d_10p1m+0*t)
 target_static_z_15p1m = Target(zt=lambda t: 15.1+0*t)
 target_linear_speed_5p1m_1mps = Target(xt=lambda t: d_5p1m + v_1mps*t)
 target_linear_speed_10p1m_1mps = Target(xt=lambda t: d_10p1m + v_1mps*t)
+
+# vibrate assets
+
+NF_vibrate = 256
+# NF_vibrate = 10
+NC_vibrate = 32
+NA_vibrate = 64
+TIC = 1.2e-6
+TIF = 1.2e-3
+k = 10e12
+cet = 0.01e9*10/k  # 1e-6
+fs = 50e6
+ts = 1/fs
+
+R_res = c/2/k/NA_vibrate/ts
+R_max = R_res*NA_vibrate
+rv = R_max*3/NA_vibrate
+
+v_res = lambda_60G/4/NC_vibrate/TIC
+v_max = v_res * NC_vibrate
+A = R_res/3  # amplitude is 1/3 of range bin to stay in it
+w = v_max/A/5*2
+
+radar_vibrate = Radar(transmitter=Transmitter(chirp_start_freq=f0_60G,
+                                              chirp_slope=k,
+                                              chirp_end_time=cet,
+                                              chirps_count=NC_vibrate,
+                                              t_inter_chirp=TIC,
+                                              t_inter_frame=TIF,
+                                              frames_count=NF_vibrate),
+                      receiver=Receiver(adc_sample_rate=fs,
+                                        max_fs=2e8,
+                                        adc_samples_per_chirp=NA_vibrate))
+F1_vibrate = 5
+target_vibrate = Target(xt=lambda t: A*sin(w*t)+rv)
 
 target_5p1m_radar1_bin_1 = 1
 target_10p1m_radar1_bin_3 = 3

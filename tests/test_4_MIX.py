@@ -116,7 +116,7 @@ def test_interferer_no_mixing():
         (1/adc_sample_rate)
 
     # broadcast adc_times to match (T,TX,S,RX)
-    f_rx = radar_tdm_1_chirp_8_adc.TX_freqs(adc_times[:, None, None, None])
+    f_rx = radar_tdm_1_chirp_8_adc.TX_freq(adc_times[:, None, None, None])
 
     if_frequencies = radar_tx_off.mixer(adc_times,
                                         f_rx=f_rx)

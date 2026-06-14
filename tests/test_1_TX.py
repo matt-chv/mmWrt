@@ -16,7 +16,7 @@ sys.path.insert(0, dp)
 # from mmWrt.Raytracing import BB_IF
 from mmWrt.Scene import Radar, Transmitter, TransmitterDDM, Antenna, Receiver, Target  # noqa: E402
 from test_assets import ddm_4chirps_0_half_pi, phase_slope_half_pi
-from test_assets import tdm_1chirp_8adc
+from test_assets import tdm_1chirp_8adc, radar_vibrate, target_vibrate, tof_10p1m
 
 
 
@@ -73,7 +73,7 @@ def test_tx_frequency_ramp_1_tx():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
 
     assert txfs.shape == (4, 1, 1, 1)
     # change shape for easier validation
@@ -110,7 +110,7 @@ def test_tx_frequency_ramp_2_tx_tdm():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
 
     # change shape for easier validation
     tx0 = txfs[:, 0, 0, 0]
@@ -151,7 +151,7 @@ def test_tx_frequency_ramp_2_tx_tdm():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
 
     # change shape for easier validation
     tx0 = txfs[:, 0, 0, 0]
@@ -182,7 +182,7 @@ def test_tx_frequency_ramp_2_tx_ddm():
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     radar.multiplexing = "DDM"
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
 
     tx0 = txfs[:, 0, 0, 0]
     tx1 = txfs[:, 1, 0, 0]
@@ -208,7 +208,7 @@ def test_tx_frequency_out_of_ramp():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
     tx0 = txfs[:, 0, 0, 0]
     tx0_expected = array([0, 0, 6.00594059e+10, 0])
     assert allclose(tx0, tx0_expected, atol=1e-8), "antenna TX0 frequencies does not match expected"
@@ -254,8 +254,49 @@ def tbd_TX_Freqs_64TX_64loops():
     times = np.zeros((1,64,1,64))  # (64, 64, 3, 64)
     times = np.zeros((64, 64, 3, 64))
     # (1, 64, 1, 64)
-    txfs = radar.TX_freqs(times)
+    txfs = radar.TX_freq(times)
     print(txfs.shape)
 
+def tbd_tx_freq_frames():
+    radar, target = radar_vibrate, target_vibrate
+
+    """    frameidx 0
+    chirpidx 1
+    [1.20e-06 1.21e-06 1.22e-06 1.23e-06 1.24e-06 1.25e-06 1.26e-06 1.27e-06
+    1.28e-06 1.29e-06 1.30e-06 1.31e-06 1.32e-06 1.33e-06 1.34e-06 1.35e-06
+    1.36e-06 1.37e-06 1.38e-06 1.39e-06 1.40e-06 1.41e-06 1.42e-06 1.43e-06
+    1.44e-06 1.45e-06 1.46e-06 1.47e-06 1.48e-06 1.49e-06 1.50e-06 1.51e-06
+    1.52e-06 1.53e-06 1.54e-06 1.55e-06 1.56e-06 1.57e-06 1.58e-06 1.59e-06
+    1.60e-06 1.61e-06 1.62e-06 1.63e-06 1.64e-06 1.65e-06 1.66e-06 1.67e-06
+    1.68e-06 1.69e-06 1.70e-06 1.71e-06 1.72e-06 1.73e-06 1.74e-06 1.75e-06
+    1.76e-06 1.77e-06 1.78e-06 1.79e-06 1.80e-06 1.81e-06 1.82e-06 1.83e-06]
+    """
+    f_mix_list = []
+    for frame_idx in [0,1]:
+        chirp_idx = 1
+        adc_sample_count = radar.adc_sample_count
+        # adc_samples_per_chirp = radar.adc_samples_per_chirp
+        start_of_chirp = frame_idx * radar.t_inter_frame + \
+                    chirp_idx * radar.chirp_period
+        adc_sample_time = 1/radar.adc_sample_rate
+
+        adc_times = arange(0, adc_sample_count*adc_sample_time,
+                        adc_sample_time) + start_of_chirp
+        timestamp_tensor = adc_times[:, None, None, None]
+        timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=1)
+        timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
+        timestamp_tensor = np.repeat(timestamp_tensor,
+                                    1, axis=3)
+
+        tx_freq = radar.TX_freq(timestamp_tensor)
+        print("fTX", tx_freq.T)
+        rx_freq = radar.TX_freq(timestamp_tensor-tof_10p1m)
+        print("fTX", tx_freq.T)
+        f_mix = radar.mixer(adc_times, rx_freq)
+        print("f_mix", f_mix.T)
+        f_mix_list.append(f_mix)
+    assert np.allclose(f_mix_list[0], f_mix_list[1])
+    print("ok")
+
 if __name__ == "__main__":
-    tbd_TX_Freqs_64TX_64loops()
+    test_tx_frequency_ramp_1_tx()

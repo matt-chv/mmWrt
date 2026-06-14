@@ -2,7 +2,7 @@
 Covers:
  - TDM mode
 (not written DDM, SFMCW)
-v0.0.11: 1
+v0.0.11: 2
 """
 import logging
 from os.path import abspath, join, pardir
@@ -21,11 +21,10 @@ from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_doppler
 # from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
 from test_assets import radar_dmax_25m_vmax_2mps, target_static_5p1m, \
-    target_linear_speed_10p1m_1mps
+    target_linear_speed_10p1m_1mps, radar_vibrate, target_vibrate
 
 
 def test_rsp_range_doppler():
-    # FIXME: this does not work anymore - CFAR too short
     radar = radar_dmax_25m_vmax_2mps
     targets = [target_static_5p1m, target_linear_speed_10p1m_1mps]
 
@@ -46,50 +45,52 @@ def test_rsp_range_doppler():
                                      [10.2578125, 0.958125]]))
 
 
-def tbd_FMCW_vibration():
+def test_FMCW_vibration():
     """ validates the uDoppler logic
     """
-    NA = 64
-    NC = 32
-    NF = 256
-    TIF = 1.2e-3
-    radar = Radar(transmitter=Transmitter(bw=0.01e9, slope=10e12,
-                                          t_inter_chirp=1.2e-6,
-                                          chirps_count=NC,
-                                          t_inter_frame=TIF,
-                                          frames_count=NF),
-                  receiver=Receiver(fs=100e6, max_adc_buffer_size=1024,
-                                    max_fs=110e6,
-                                    n_adc=NA),
-                  debug=False)
+    from test_assets import NF_vibrate, NA_vibrate, NC_vibrate, F1_vibrate
+    NC = NC_vibrate
+    NF = NF_vibrate
 
-    F1 = 6
-    f1 = F1/(NF*TIF)
-    v0 = 160
-    A0 = v0/(2*pi*f1)
+    # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    radar = radar_vibrate
+    target = target_vibrate
+    fn = "adc_cube_vibrate.npy"
+    fp = abspath(join(__file__, pardir, fn))
 
-    target = Target(xt=lambda t: 4*A0*sin(2*pi*f1*t)+300)
+    run = False
+    if run:
+        bb = rt_points([radar], [target], radar)
+        adc_cube = bb["adc_cube"]
+        np.save(fp, adc_cube)
+    else:
+        adc_cube = np.load(fp)
 
-    bb = rt_points(radar, [target], datatype=complex)  # type: ignore
     udops1 = zeros((NC, NF))
-    tx_i, rx_i = 0, 0
-
-    for frame_idx in range(NF):
-        # compute range doppler
-        cube = bb["adc_cube"][frame_idx, :, tx_i, rx_i, :]
-        Z_fft2 = abs(fftshift(fft2(cube)))
-        # find peak in range
-        pk = find_peaks(abs(fft(cube[0, :])))[0][0]
-        # append doppler bin at peak range
-        udops1[:, frame_idx] = Z_fft2[:, pk]
-
     dops = []
     for frame_idx in range(NF):
-        dop = find_peaks(udops1[:, frame_idx])[0][0]
-        dops.append(dop)
-    Y = fft(dops)
-    ym = find_peaks(Y)[0][0]
-    assert ym == F1
+        r_fft = np.fft.fft(adc_cube[frame_idx, :, 0, :], axis=1)
+        try:
+            r_peak = find_peaks(np.abs(r_fft[0,:]), height=12)[0][0]
+        except Exception as ex:
+            print(f"r_peak - ex: {str(ex)} -- fidx: {frame_idx}")
+            raise ValueError("failed to find peak")
+        rd_fft = np.fft.fftshift(np.fft.fft(r_fft, axis=0), axes=0)
+        try:
+            d_peak = find_peaks(np.abs(rd_fft[:, r_peak]), height=300)[0][0]
+        except Exception as ex:
 
-if __name__ == "__main__":
-    test_rsp_range_doppler()
+            if np.abs(np.abs(rd_fft[0, r_peak])) >=300:
+                d_peak = 0
+            elif np.abs(np.abs(rd_fft[31, r_peak])) >=300:
+                d_peak = 31
+            else:
+                print(f"d_peak - ex: {str(ex)} -- fidx: {frame_idx}")
+                raise ValueError("failed to find peak")
+        udops1[:, frame_idx] = np.abs(rd_fft[:, r_peak])
+        dops.append(d_peak)
+    dops = np.array(dops)
+
+    Y = fft(dops - np.mean(dops))
+    ym = find_peaks(np.abs(Y))[0][0]
+    assert ym == F1_vibrate

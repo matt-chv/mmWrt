@@ -163,7 +163,7 @@ def __retarded_TX_F__old(adc_times, radars, scatterers, receiver_radar):
     time_of_flight = total_distance/receiver_radar.v
     retarded_time = adc_times[:, None, None, None] - time_of_flight
     print(retarded_time.shape)
-    tx_freqs = receiver_radar.TX_freqs(retarded_time)
+    tx_freqs = receiver_radar.TX_freq(retarded_time)
     print(tx_freqs.shape)
 
     return tx_freqs
@@ -174,7 +174,7 @@ def __FIF__old(adc_times, radars, scatterers, receiver_radar):
     rx_freqs = retarded_TX_F(adc_times, radars, scatterers, receiver_radar)
     # the TX frequency is the TX frequency which is used at MIXER input
     # at the timestamps of the ADC samples
-    tx_freqs = receiver_radar.TX_freqs(adc_times)
+    tx_freqs = receiver_radar.TX_freq(adc_times)
     if_freqs = tx_freqs-rx_freqs
     return if_freqs
 
@@ -254,8 +254,8 @@ def sample_all_rays(adc_times,
         log.debug(f"time_of_flight: {time_of_flight[0,:,:,:]}")
 
         # for radar in radars:
-        # before f_rx = array([radar.TX_freqs(adc_times-time_of_flight) for radar in radars])
-        # f_rx = array([receiver_radar.TX_freqs(adc_times-time_of_flight) for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
+        # before f_rx = array([radar.TX_freq(adc_times-time_of_flight) for radar in radars])
+        # f_rx = array([receiver_radar.TX_freq(adc_times-time_of_flight) for receiver_radar.rx_antenna in receiver_radar.rx_antennas])
         # FIXME: before here ???? adc_times has to be (T,)
         # now has to be (T, TX, S, RX)
         timestamp_tensor = adc_times[:, None, None, None]
@@ -266,17 +266,21 @@ def sample_all_rays(adc_times,
 
         radar_tx_times = timestamp_tensor - time_of_flight
 
-        f_rx = radar.TX_freqs(radar_tx_times)
+        f_rx = radar.TX_freq(radar_tx_times)
         ph_rx = radar.TX_phases(radar_tx_times)
 
+        log.debug(f"f_rx:{f_rx[:,0,0,0]}")
         f_if = receiver_radar.mixer(adc_times, f_rx)
-        log.debug(f"fif:{f_if}")
+        log.debug(f"fif:{f_if[:,0,0,0]}")
         log.debug(f"adc_samples t=0, before incremental sums:{adc_samples[0:10,0]}")
-        adc_samples += receiver_radar.adc_sampling(f_if=f_if,
+
+        adc_sampled = receiver_radar.adc_sampling(f_if=f_if,
                                                    ph_rx=ph_rx,
                                                    adc_times=timestamp_tensor,
                                                    time_of_flight=time_of_flight,
                                                    datatype=datatype)
+
+        adc_samples += adc_sampled
         log.debug(f"adc_samples t=0, *after* incremental sums:{adc_samples[0:10,0]}")
 
     return adc_samples
@@ -745,7 +749,7 @@ def rt_points(radars, targets, receiver_radar,
     -------
     baseband: dict
         dictonnary with adc values and other parameters used later in analysis
-
+        adc_cube[frame_idx, chirp_idx, None, rx_idx, adc_idx]
     Raises
     ------
     ValueError
@@ -785,6 +789,7 @@ def rt_points(radars, targets, receiver_radar,
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = False
     from tqdm import tqdm
+
     for frame_idx in range(n_frames):
         for chirp_idx in tqdm(range(n_chirps),
                               total=n_chirps, desc=f"Processing Chirp from frame: {frame_idx}"):
@@ -795,6 +800,7 @@ def rt_points(radars, targets, receiver_radar,
                 chirp_idx * receiver_radar.chirp_period
             adc_times = arange(0, adc_samples_per_chirp*adc_sample_time,
                             adc_sample_time) + start_of_chirp
+
             adc_values = sample_all_rays(adc_times,
                                         radars,
                                         targets,
