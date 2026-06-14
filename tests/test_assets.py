@@ -113,7 +113,7 @@ tdm_2frames_2chirp_8adc = Transmitter(chirp_start_freq=f0_60G,
                                       chirp_period=chirp_period_vmax_3mps,
                                       chirp_slope=chirp_slope_tdm0,
                                       frame_period=frame_period_50ms,
-                                      frames_count=2)
+                                      frame_count=2)
 tdm_2chirp_8adc = Transmitter(chirp_start_freq=f0_60G,
                               chirp_end_time=chirp_end_time_8adc,
                               chirp_count=2,
@@ -169,7 +169,7 @@ receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      max_adc_buffer_size=1025,
                      adc_sample_count=adc_samples_count_1024)
 
-receiver_fs0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
+receiver_adc_sample_rate0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                               adc_sample_count=adc_samples_count_64)
 
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
@@ -195,7 +195,7 @@ receiver_ULA_64 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
 radar_tdm_1_chirp_8_adc = Radar(transmitter=tdm_1chirp_8adc,
                                 receiver=receiver0)
 radar_tdm_1_chirp_64_adc = Radar(transmitter=tdm_1chirp_64adc,
-                                 receiver=receiver_fs0_64adc)
+                                 receiver=receiver_adc_sample_rate0_64adc)
 radar_tdm_1_chirp_1024_adc = Radar(transmitter=tdm_1chirp_1024adc,
                                    receiver=receiver1)
 radar_tdm_2_chirp_8adc = Radar(transmitter=tdm_2chirp_8adc,
@@ -238,8 +238,8 @@ TIC = 1.2e-6
 TIF = 1.2e-3
 k = 10e12
 cet = 0.01e9*10/k  # 1e-6
-fs = 50e6
-ts = 1/fs
+adc_sample_rate = 50e6
+ts = 1/adc_sample_rate
 
 R_res = c/2/k/NA_vibrate/ts
 R_max = R_res*NA_vibrate
@@ -256,9 +256,9 @@ radar_vibrate = Radar(transmitter=Transmitter(chirp_start_freq=f0_60G,
                                               chirp_count=NC_vibrate,
                                               chirp_period=TIC,
                                               frame_period=TIF,
-                                              frames_count=NF_vibrate),
-                      receiver=Receiver(adc_sample_rate=fs,
-                                        max_fs=2e8,
+                                              frame_count=NF_vibrate),
+                      receiver=Receiver(adc_sample_rate=adc_sample_rate,
+                                        adc_sample_rate_max=2e8,
                                         adc_sample_count=NA_vibrate))
 F1_vibrate = 5
 scatterer_vibrate = Scatterer(xt=lambda t: A*sin(w*t)+rv)

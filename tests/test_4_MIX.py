@@ -28,10 +28,10 @@ def test_RX_eq_TX():
     radar = radar_tdm_1_chirp_8_adc
     chirp_start_freq = radar.transmitter.chirp_start_freq
     adc_sample_rate = radar.receiver.adc_sample_rate
-    timestamps = arange(0, radar.number_adc_samples, 1) * \
+    timestamps = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
-    number_adc_samples = radar.receiver.number_adc_samples
-    # f_rx = np.empty((number_adc_samples, 1))
+    adc_sample_count = radar.receiver.adc_sample_count
+    # f_rx = np.empty((adc_sample_count, 1))
     f_rx = array([chirp_start_freq + radar.transmitter.slope*t for t in timestamps])
     f_rx = f_rx[:, None, None, None]
 
@@ -39,7 +39,7 @@ def test_RX_eq_TX():
     # f_if will be zeros after mixer
     f_if = radar.mixer(timestamps=timestamps,
                        f_rx=f_rx)
-    f_if_expected = np.zeros(number_adc_samples)
+    f_if_expected = np.zeros(adc_sample_count)
     # since we are modelling 1TX, 1 Scatterer, 1 RX
     f_if_expected = f_if_expected[:, None, None, None]
 
@@ -53,7 +53,7 @@ def test_RX_freq_2():
     radar = radar_tdm_1_chirp_8_adc
     chirp_start_freq = radar.transmitter.chirp_start_freq
     adc_sample_rate = radar.receiver.adc_sample_rate
-    timestamps = arange(0, radar.number_adc_samples, 1) * \
+    timestamps = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
 
     logging.basicConfig(level=logging.DEBUG,
@@ -112,7 +112,7 @@ def test_interferer_no_mixing():
 
     radar = radar_tdm_1_chirp_8_adc
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_times = np.arange(0, radar.number_adc_samples, 1) * \
+    adc_times = np.arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
 
     # broadcast adc_times to match (T,TX,S,RX)

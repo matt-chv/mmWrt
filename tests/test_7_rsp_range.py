@@ -124,7 +124,7 @@ def __range__wrapper(scatterer_idxes=[0], radars_idxes=[0],
     adc_sample_rate = radar.receiver.adc_sample_rate
     chirp_slope = radar.transmitter.chirp_slope
     adc_sample_count = radar.receiver.adc_sample_count
-    adc_times = arange(0, radar.number_adc_samples, 1) * \
+    adc_times = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times, radar,
                              [scatterers[idx] for idx in scatterer_idxes],

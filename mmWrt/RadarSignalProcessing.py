@@ -670,11 +670,11 @@ def range_fft(adc_values: NDArray,
 
     chirp_bandwidth = baseband["chirp_slope"] * baseband["chirp_end_time"]
 
-    # baseband = {"fs":adc_sampling_rate}
+    # baseband = {"adc_sample_rate":adc_sampling_rate}
     delta_R = range_resolution(baseband["medium_velocity"], chirp_bandwidth)
     # D_max = c*f_if_max/(2*S)
-    # if complex FFT, f_if_max = fs
-    # if real FFT, f_if_max = fs/2 (for non-ambiguous)
+    # if complex FFT, f_if_max = adc_sample_rate
+    # if real FFT, f_if_max = adc_sample_rate/2 (for non-ambiguous)
     delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
         / (2 * len(FT) * baseband["chirp_slope"])
     Distances = [i * delta_R_FFT for i in range(len(FT))]
@@ -836,7 +836,7 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
 
     peaks = find_peaks(np_abs(range_fft[:len(range_fft)//2]),
                        height=fft_threshold)[0]
-    # d = i * fs*c/2/k/NA
+    # d = i * adc_sample_rate*c/2/k/NA
     # i2r = lambda idx: idx*adc_sample_rate * c / \
     #    (2*chirp_slope*adc_sample_count)
     # ranges = array([i2r(peak_idx) for peak_idx in peaks])
@@ -891,7 +891,7 @@ def ranges_dft_cfar(adc_values:NDArray,
                             train_cell_count=train_cell_count,
                             pfa=pfa)
     log.debug(f"peak_idxs: {peak_idxs}")
-    # d = i * fs*c/2/k/NA
+    # d = i * adc_sample_rate*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
         (2*chirp_slope*adc_sample_count)
     ranges = array([i2r(peak_idx) for peak_idx in peak_idxs])
@@ -909,7 +909,7 @@ def range_doppler(adc_values: NDArray,
     adc_values
         (chirp_count, adc_samples count)
     """
-    fs = adc_sample_rate
+    adc_sample_rate = adc_sample_rate
     na = adc_values.shape[1]
     k = chirp_slope
     l = wavelength
@@ -935,7 +935,7 @@ def range_doppler(adc_values: NDArray,
         doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
                                                  np_abs(Z_fft2[:, range_idx]))
         range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
-    detections = np.array([(range_to_meters(r, fs, na, k), doppler_to_mps(d, nc, l, tc)) for r, d in range_dopplers_idxes])
+    detections = np.array([(range_to_meters(r, adc_sample_rate, na, k), doppler_to_mps(d, nc, l, tc)) for r, d in range_dopplers_idxes])
     return detections
 
 

@@ -43,7 +43,7 @@ def __range__wrapper2(scatterers, radars,
     adc_sample_rate = radar.receiver.adc_sample_rate
     chirp_slope = radar.transmitter.chirp_slope
     adc_sample_count = radar.receiver.adc_sample_count
-    adc_times = arange(0, radar.number_adc_samples, 1) * \
+    adc_times = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times, radar,
                              scatterers,
@@ -218,7 +218,7 @@ def test_rsp_grouping_ex6():
 
 def tbd_test_FMCW_1j():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
     scatterer1 = Scatterer(5.1)
@@ -246,7 +246,7 @@ def tbd_test_FMCW_1j():
 
 def tbd_test_FMCW_radar_equation():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
     # adding RCS to ensure scatterers are detected ...
@@ -274,7 +274,7 @@ def tbd_test_FMCW_radar_equation():
 
 def tbd_test_FMCW_radar_equation_corner_reflector():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
     # adding RCS to ensure scatterers are detected ...
@@ -308,7 +308,7 @@ def tbd_test_FMCW_radar_equation_corner_reflector():
 
 def tbd_test_FMCW_real_adc_po2():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   adc_po2=True,
                   debug=True)
 
@@ -336,7 +336,7 @@ def tbd_test_FMCW_real_adc_po2():
 
 def tbd_test_FMCW_real_error():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
     scatterer1 = Scatterer(5.1)
@@ -368,24 +368,24 @@ def tbd_test_FMCW_no_scatterers_found_error():
     assert error == 15.1
 
 
-def tbd_test_FMCW_ADC_fs_vs_fs_max():
+def tbd_test_FMCW_ADC_adc_sample_rate_vs_adc_sample_rate_max():
     str_ex = ""
     try:
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=1e6,
-                                    max_fs=1e5,
+                  receiver=Receiver(adc_sample_rate=1e6,
+                                    adc_sample_rate_max=1e5,
                                     max_adc_buffer_size=2048, debug=True))
     except ValueError as ex:
         str_ex = str(ex)
-    assert str_ex == "ADC sampling value must stay below max_fs"
+    assert str_ex == "ADC sampling value must stay below adc_sample_rate_max"
 
 
 def tbd_test_TFFT_lte_TC():
     try:
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=1e4,
-                                    max_fs=1e5,
-                                    max_adc_buffer_size=2048*4, n_adc=2048*3,
+                  receiver=Receiver(adc_sample_rate=1e4,
+                                    adc_sample_rate_max=1e5,
+                                    max_adc_buffer_size=2048*4, adc_sample_count=2048*3,
                                     debug=True))
     except ValueError as ex:
         str_ex = str(ex)
@@ -394,7 +394,7 @@ def tbd_test_TFFT_lte_TC():
 
 def tbd_test_Nyquist():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=3e3, max_adc_buffer_size=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -416,7 +416,7 @@ def tbd_test_FMCW_ADC_buffer_size():
     str_ex = ""
     try:
         _ = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=1e6, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=1e6, max_adc_buffer_size=2048),
                   debug=False)
     except ValueError as ex:
         str_ex = str(ex)
@@ -426,7 +426,7 @@ def tbd_test_FMCW_ADC_buffer_size():
 
 def tbd_test_FMCW_range_chirp_N():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -445,7 +445,7 @@ def tbd_test_FMCW_range_chirp_N():
 
 def tbd_test_FMCW_cfar_names_ok():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -472,7 +472,7 @@ def tbd_test_FMCW_cfar_names_ok():
 
 def tbd_test_FMCW_cfar_names_nok():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)
@@ -493,7 +493,7 @@ def tbd_test_FMCW_cfar_names_nok():
 
 def tbd_test_if2d():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048),
                   debug=False)
     f2d = rsp.if2d(radar)
     assert f2d == 0.02142857142857143

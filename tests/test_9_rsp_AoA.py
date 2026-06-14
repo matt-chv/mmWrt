@@ -91,8 +91,8 @@ def tbd_SIMO_AoA():
     lambda0 = void.v/f0
     RXs = [Antenna(x=lambda0/2*i) for i in range(NR)]
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(fs=4e3, max_adc_buffer_size=2048,
-                                    n_adc=NA,
+                  receiver=Receiver(adc_sample_rate=4e3, max_adc_buffer_size=2048,
+                                    adc_sample_count=NA,
                                     antennas=RXs),
                   debug=False)
     scatterer1 = Scatterer(5.1, 0, 0)

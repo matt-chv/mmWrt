@@ -33,7 +33,7 @@ def plot_range_doppler(cube, radar, _d0=None,
     # FIXME: here call rsp.range_fft
     """
     c = 3e8
-    _fs = cfg["fs"]
+    _adc_sample_rate = cfg["adc_sample_rate"]
     _k = cfg["k"]
     _NA = cfg["NA"]
     _NC = cfg["NC"]
@@ -41,7 +41,7 @@ def plot_range_doppler(cube, radar, _d0=None,
     _f0_min = cfg["f0_min"]
     """
     c = radar.v
-    _fs = radar.adc_sample_rate  # adc_sample_frequency
+    _adc_sample_rate = radar.adc_sample_rate  # adc_sample_frequency
     _k = radar.chirp_slope
     _NA = radar.adc_sample_count
     _NC = radar.chirp_count
@@ -55,15 +55,15 @@ def plot_range_doppler(cube, radar, _d0=None,
         title = f"Range-Doppler  (d0, v0)={_d0}, {_v0:.2g}"
 
     if no_speed_shift:
-        ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
+        ranges = arange(0, _adc_sample_rate*c/2/_k, _adc_sample_rate*c/2/_k/_NA)
         speeds = arange(0, _L0M/2/_TIC,
                         _L0M/2/_TIC/_NC)
         rdop = abs(fft2(cube))
     else:
         # if ranges could be negative
-        # ranges = arange(-_fs*c/8/_k, _fs*c/8/_k, _fs*c/4/_k/_NA)
+        # ranges = arange(-_adc_sample_rate*c/8/_k, _adc_sample_rate*c/8/_k, _adc_sample_rate*c/4/_k/_NA)
         # but physics must prevail ...
-        ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
+        ranges = arange(0, _adc_sample_rate*c/2/_k, _adc_sample_rate*c/2/_k/_NA)
         speeds = arange(-_L0M/4/_TIC, _L0M/4/_TIC,
                         _L0M/2/_TIC/_NC)
         # frequency shift the doppler axes as distances cannot be negative
@@ -111,7 +111,7 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     Displays a Matplotlib figure window.
     """
     c = radar.v
-    _fs = radar.fs
+    _adc_sample_rate = radar.adc_sample_rate
     _k = radar.slope
     _NA = cube.shape[1]
     NR = cube.shape[0]
@@ -130,7 +130,7 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     angle_dft = fft(range_dft, axis=RX_antennas_axis)
     mag_dft = np.abs(angle_dft)  # type: ignore[reportCallIssue]
 
-    ranges = arange(0, _fs*c/2/_k, _fs*c/2/_k/_NA)
+    ranges = arange(0, _adc_sample_rate*c/2/_k, _adc_sample_rate*c/2/_k/_NA)
     angles = arange(-90, 90, 180/NR)
 
     no_labels_y = 5  # how many labels to see on axis x

@@ -47,7 +47,7 @@ def test_fft_peak_index(scatterer, tof, radar, datatype, index):
     #and scatterer_static_10p1m in 3rd bin
 
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_times = arange(0, radar.number_adc_samples, 1) * \
+    adc_times = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
     adc_times = adc_times[:, None, None, None]
 
@@ -81,7 +81,7 @@ def t0est0_adc_values(scatterer, radar, frequency_if, datatype):
     # a tone at the same frequency
 
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_times = arange(0, radar.number_adc_samples, 1) * \
+    adc_times = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times=adc_times,
                              receiver_radar=radar,
@@ -97,7 +97,7 @@ def t0est0_adc_values(scatterer, radar, frequency_if, datatype):
         assert peak_index == scatterer_10p1m_radar1_bin_3
     peak_energy = fft_values[peak_index].sum()
 
-    f_tone = np.array([frequency_if]*radar.number_adc_samples)
+    f_tone = np.array([frequency_if]*radar.adc_sample_count)
     tone_values = np.exp(2j*pi*f_tone*adc_times)
 
     if datatype in [np.float64, np.float32, np.float16]:
@@ -136,7 +136,7 @@ def t0est_tof(scatterer, radar, adc_skip, fault_injection):
     # first values of adc values are 0 for sampling time
     # for samples happening before full time of flight
     adc_sample_rate = radar.receiver.adc_sample_rate
-    adc_times = arange(0, radar.number_adc_samples, 1) * \
+    adc_times = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times, radar,
                              [scatterer],
@@ -242,7 +242,7 @@ def t0est0_MRE():
                                           chirp_slope=10e12,
                                           chirp_end_time=adc_samples_count*1/adc_sampling_frequency),
                   receiver=Receiver(adc_sample_rate=adc_sampling_frequency,
-                                    max_fs=100e6,
+                                    adc_sample_rate_max=100e6,
                                     adc_sample_count=adc_samples_count))
     n_samples = adc_samples_count
     ts = 1/adc_sampling_frequency
@@ -299,7 +299,7 @@ def t0est0_phase_delta_chirp_to_chirp():
     #dphase_dt = 4*pi*v/lambda_60G
     #given the number of DFT bins in the velocity dimension (doppler dimension), which is the number of chirps
     #the maximum error is 1 range bin:
-    #2*pi/chirp_period/number_adc_samples
+    #2*pi/chirp_period/adc_sample_count
     #
 
     from test_assets import radar_tdm_2_chirp_8adc, \
@@ -359,14 +359,14 @@ def t0est0_if_error_radar00_scatterer0_8_adc_samples():
     radar00 = radar_tdm_1_chirp_8_adc
     scatterer0 = scatterer_static_5p1m
 
-    adc_times = arange(0, radar00.number_adc_samples, 1)*(1/radar00.receiver.adc_sample_rate)
+    adc_times = arange(0, radar00.adc_sample_count, 1)*(1/radar00.receiver.adc_sample_rate)
     adc_values = adc_samples(adc_times, radar00, [scatterer0],
                              radars=[radar00])
     r_fft = abs(np.fft.fft(adc_values[0, :]))
     pks = find_peaks(r_fft, height=1)
     pk0 = pks[0][0]
-    result = radar00.receiver.fs*pk0/radar00.number_adc_samples
-    max_expected_error = radar00.receiver.fs/radar00.number_adc_samples
+    result = radar00.receiver.adc_sample_rate*pk0/radar00.adc_sample_count
+    max_expected_error = radar00.receiver.adc_sample_rate/radar00.adc_sample_count
     assert abs(result-fif00) < max_expected_error
 
 def t0est0_if_error_radar11_scatterer0_1024_adc_samples():
@@ -375,14 +375,14 @@ def t0est0_if_error_radar11_scatterer0_1024_adc_samples():
     radar11 = radar_tdm_1_chirp_1024_adc
     scatterer0 = scatterer_static_5p1m
 
-    adc_times = arange(0, radar11.number_adc_samples, 1)*(1/radar11.receiver.fs)
+    adc_times = arange(0, radar11.adc_sample_count, 1)*(1/radar11.receiver.adc_sample_rate)
     adc_values = adc_samples(adc_times, radar11, [scatterer0],
                              radars=[radar11])
     r_fft = abs(np.fft.fft(adc_values[0, :]))
     pk0 = find_peaks(r_fft, height=1)[0][0]
 
-    result = radar11.receiver.fs*pk0/radar11.number_adc_samples
-    max_expected_error = radar11.receiver.fs/radar11.number_adc_samples
+    result = radar11.receiver.adc_sample_rate*pk0/radar11.adc_sample_count
+    max_expected_error = radar11.receiver.adc_sample_rate/radar11.adc_sample_count
 
     assert abs(result-fif00) < max_expected_error
 
@@ -401,7 +401,7 @@ def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
     scatterer0 = scatterer_static_5p1m
     scatterer1 = scatterer_static_10p1m
 
-    adc_times = arange(0, radar11.number_adc_samples, 1)*(1/radar11.receiver.fs)
+    adc_times = arange(0, radar11.adc_sample_count, 1)*(1/radar11.receiver.adc_sample_rate)
     adc_values = adc_samples(adc_times, radar11, [scatterer0, scatterer1],
                              radars=[radar11])
 
@@ -412,9 +412,9 @@ def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
         pk1_old = pk1
         pk1 = pk0
         pk0 = pk1_old
-    result0 = radar11.receiver.fs*pk0/radar11.number_adc_samples
-    result1 = radar11.receiver.fs*pk1/radar11.number_adc_samples
-    max_expected_error = radar11.receiver.fs/radar11.number_adc_samples
+    result0 = radar11.receiver.adc_sample_rate*pk0/radar11.adc_sample_count
+    result1 = radar11.receiver.adc_sample_rate*pk1/radar11.adc_sample_count
+    max_expected_error = radar11.receiver.adc_sample_rate/radar11.adc_sample_count
 
     assert abs(result0-fif00) < max_expected_error
     assert abs(result1-fif01) < max_expected_error

@@ -54,8 +54,8 @@ def sample_all_rays(adc_times,
     """
     rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
     rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
-    number_adc_samples = adc_times.shape[0]
-    adc_samples = zeros((number_adc_samples,
+    adc_sample_count = adc_times.shape[0]
+    adc_samples = zeros((adc_sample_count,
                          len(receiver_radar.rx_antennas)))
 
     rx_antennas_positions = receiver_radar.position_rx_antennas(adc_times)
@@ -152,7 +152,7 @@ def rt_points(radars, scatterers, receiver_radar,
     ValueError
         if Nyquist rule is not upheld
     """
-    n_frames = receiver_radar.frames_count
+    n_frames = receiver_radar.frame_count
     # n_chirps is the # chirps each TX antenna sends per frame
     n_chirps = receiver_radar.chirp_count
     n_tx = len(receiver_radar.tx_antennas)
@@ -169,12 +169,12 @@ def rt_points(radars, scatterers, receiver_radar,
 
 
     baseband = {"adc_cube": adc_cube,
-                "frames_count": n_frames,
+                "frame_count": n_frames,
                 "chirp_count": receiver_radar.chirp_count,
                 "chirp_period": receiver_radar.chirp_period,
                 "n_tx": n_tx,
                 "n_rx": n_rx,
-                "n_adc": adc_sample_count,
+                "adc_sample_count": adc_sample_count,
                 "datatype": datatype,
                 "f0_min": f0_min,
                 "slope": slope,
@@ -182,7 +182,7 @@ def rt_points(radars, scatterers, receiver_radar,
                 "Tc": Tc,
                 "TFFT": adc_sample_count*adc_sample_time,
                 "T": T,
-                "fs": receiver_radar.fs, "v": receiver_radar.v}
+                "adc_sample_rate": receiver_radar.adc_sample_rate, "v": receiver_radar.v}
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = False
     from tqdm import tqdm

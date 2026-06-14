@@ -313,31 +313,31 @@ class Receiver():
                  adc_sample_rate=4e2,
                  antennas=(Antenna(),),
                  max_adc_buffer_size=1024,
-                 max_fs=25e6,
+                 adc_sample_rate_max=25e6,
                  adc_sample_count=0,
                  config=None,
                  debug=False):
         self._log = logging.getLogger(self.__class__.__qualname__)
-        fs = adc_sample_rate
-        self.fs = fs
-        self.adc_sampling_frequency = fs
+        adc_sample_rate = adc_sample_rate
+        self.adc_sample_rate = adc_sample_rate
+        # self.adc_sampling_frequency = adc_sample_rate
         self.adc_sample_rate = adc_sample_rate
         self.antennas = antennas
         self.max_adc_buffer_size = max_adc_buffer_size
+        # self.adc_sample_count = adc_sample_count
+        # self.adc_sample_count = adc_sample_count
+        adc_sample_count = adc_sample_count
+        # self.adc_sample_count = adc_sample_count
         self.adc_sample_count = adc_sample_count
-        self.n_adc = adc_sample_count
-        n_adc = adc_sample_count
-        self.number_adc_samples = n_adc
-        self.adc_sample_count = n_adc
         self.rx_high_pass_freq = 1e2
         self.rx_low_pass_freq = 1e8
 
         try:
-            assert fs < max_fs
+            assert adc_sample_rate < adc_sample_rate_max
         except AssertionError:
             if debug:
-                print(f"fs:{fs} > max_fs: {max_fs}")
-            raise ValueError("ADC sampling value must stay below max_fs")
+                print(f"adc_sample_rate:{adc_sample_rate} > adc_sample_rate_max: {adc_sample_rate_max}")
+            raise ValueError("ADC sampling value must stay below adc_sample_rate_max")
         return
 
 
@@ -352,7 +352,7 @@ class Transmitter():
         list of slopes for each chirp transmitted
     """
     chirp_count = 1
-    frames_count = 1
+    frame_count = 1
     tx_start_time = 0.0
     tx_on_times = []
     conf = {"multiplexing": "TDM"}
@@ -365,7 +365,7 @@ class Transmitter():
                  chirp_period=0.0,
                  chirp_count=1,
                  frame_period=50e-3,
-                 frames_count=1,
+                 frame_count=1,
                  **kwargs):
         """Transmitter class models a radar transmitter
 
@@ -388,7 +388,7 @@ class Transmitter():
             first chirp in frame N (offset on top of
             chirp_period). If t_interframe==0, then there will be a
             single chirp_period offset.
-        frames_count: int
+        frame_count: int
             The number of iterations where each TX antennas send chirp_count
         conf: dict
             additional optional parameters (reserved for future usage)
@@ -416,7 +416,7 @@ class Transmitter():
         else:
             assert frame_period >= chirp_period
             self.frame_period = frame_period
-        self.frames_count = frames_count
+        self.frame_count = frame_count
         self.bw = bw
         if bw is not None and chirp_end_time is None:
             log_msg = "DeprecationWarning: chirp defined with bw instead of ramp_end_time about to be removed !!!!"
@@ -437,7 +437,7 @@ class Transmitter():
             
         """if self.mimo_mode == "TDM":
             # compute the tx_on_times for each chirp
-            for frame_idx in range(frames_count):
+            for frame_idx in range(frame_count):
                 for chirp_idx in range(chirp_count):
                     chirp_start = self.chirp_t_start(frame_idx, chirp_idx)
                     chirp_end = chirp_start + ramp_end_time
@@ -574,7 +574,7 @@ class Transmitter():
             chirp_period = chirp_period
         frame_period = self.frame_period
         chirp_count = self.chirp_count
-        frame_count = self.frames_count
+        frame_count = self.frame_count
         antenna_count = len(self.antennas)
 
         if ((chirp_count > 1) or (antenna_count > 1)) and chirp_period == 0:
@@ -765,7 +765,7 @@ class TransmitterDDM(Transmitter):
                  chirp_period=0.0,
                  chirp_count=1,
                  frame_period=0.0,
-                 frames_count=1,
+                 frame_count=1,
                  **kwargs):
         conf={}
         conf["multiplexing"] = kwargs["conf"].get("multiplexing", "DDM")
@@ -777,7 +777,7 @@ class TransmitterDDM(Transmitter):
                          chirp_period,
                          chirp_count,
                          frame_period,
-                         frames_count,
+                         frame_count,
                          **conf)
         if "TX_phase_offset" in conf:
             raise ValueError("TX_phase_offset deprecated replaced by TX_phaser_slopes")
@@ -810,7 +810,7 @@ class TransmitterDDM(Transmitter):
         def _piecewise_chirp(t, tx_idx):
             conditions = []
             functions = []
-            for frame_idx in range(self.frames_count):
+            for frame_idx in range(self.frame_count):
                 for chirp_idx in range(self.chirp_count):
                     t_start_chirp = self.frame_period*frame_idx + self.chirp_period*chirp_idx
                     end_chirp = t_start_chirp + self.ramp_end_time
@@ -885,15 +885,11 @@ class Radar:
         self.tx_antennas = transmitter.antennas
         self.chirp_start_freq = transmitter.chirp_start_freq
 
-        self.frames_count = transmitter.frames_count
-        # issue #5 - frames_count renamed to total_number_frames
-        # chirp_count to total_number_chirps
-        self.total_number_frames = self.frames_count
+        self.frame_count = transmitter.frame_count
+        # issue #5 - frame_count renamed to total_number_frames
         self.chirp_count = transmitter.chirp_count
-        self.n_adc = receiver.n_adc
-        self.number_adc_samples = self.n_adc
-        self.adc_sample_count = self.n_adc
-        self.fs = receiver.fs
+        self.adc_sample_count = receiver.adc_sample_count
+        # self.adc_sample_rate = receiver.adc_sample_rate
         self.adc_sample_rate = self.receiver.adc_sample_rate
         self.chirp_slope = transmitter.chirp_slope
         self.chirp_period = transmitter.chirp_period
@@ -902,54 +898,53 @@ class Radar:
         # self.mimo_mode = transmitter.conf["mimo_mode"]
         self.TX_freq = transmitter.TX_freq
         self.TX_phases = transmitter.TX_phases
-        # FIXME: MCV 2026-05-22 removed this as did not seem needed anymore ?!?
         # self.chirp_t_start = transmitter.chirp_t_start
-        if self.n_adc == 0:
-            # self.n_adc = int(transmitter.bw * receiver.fs / transmitter.slope)
-            if self.n_adc == 0:  # pragma: no cover
+        if self.adc_sample_count == 0:
+            # self.adc_sample_count = int(transmitter.bw * receiver.adc_sample_rate / transmitter.slope)
+            if self.adc_sample_count == 0:  # pragma: no cover
                 log_msg = f"nadc updated to 0: {transmitter.bw:.2g}" +\
-                    f"{receiver.fs:.2g}= {transmitter.bw*receiver.fs:.2g}" +\
+                    f"{receiver.adc_sample_rate:.2g}= {transmitter.bw*receiver.adc_sample_rate:.2g}" +\
                     f" /  {transmitter.slope:.2g}"
-                # , transmitter.bw, receiver.fs, transmitter.slope
+                # , transmitter.bw, receiver.adc_sample_rate, transmitter.slope
 
             if debug:  # pragma: no cover
-                print("updating NADC from 0 to:", self.n_adc)
+                print("updating NADC from 0 to:", self.adc_sample_count)
                 raise ValueError(log_msg)
-        t_fft = receiver.n_adc / receiver.fs
+        t_fft = receiver.adc_sample_count / receiver.adc_sample_rate
         t_chirp = transmitter.ramp_end_time  # transmitter.bw / transmitter.slope
 
-        bw_adc = self.n_adc*transmitter.slope/receiver.fs
+        bw_adc = self.adc_sample_count*transmitter.slope/receiver.adc_sample_rate
 
         self._log.debug(f"Bandwidth in chirp: {transmitter.bw:.2g}")
         if bw_adc < 0.8 * transmitter.bw:  # pragma: no cover
             self._log.debug(f"! BW ADC: {bw_adc:.2g} << chirp: {transmitter.bw:.2g}")
         self._log.debug(f"Bandwidth in ADC buffers: {bw_adc:.2g}")
-        if self.n_adc < 8:  # pragma: no cover
-            print("!!!! ADC # low", self.n_adc)
+        if self.adc_sample_count < 8:  # pragma: no cover
+            print("!!!! ADC # low", self.adc_sample_count)
             print("BW", transmitter.bw)
             print("BW GHz", transmitter.bw/1e9)
             print("K", transmitter.slope)
             print("K/1e12", transmitter.slope/1e12)
             print("TC", transmitter.bw / transmitter.slope)
-            print("N_ADC", transmitter.bw / transmitter.slope * receiver.fs)
+            print("adc_sample_count", transmitter.bw / transmitter.slope * receiver.adc_sample_rate)
 
         if adc_po2:
-            self.n_adc = 2 ** int(log2(self.n_adc))
-            n_adc = self.n_adc
-            assert n_adc / receiver.fs * transmitter.slope < transmitter.bw
+            self.adc_sample_count = 2 ** int(log2(self.adc_sample_count))
+            adc_sample_count = self.adc_sample_count
+            assert adc_sample_count / receiver.adc_sample_rate * transmitter.slope < transmitter.bw
         self.f0_min = transmitter.f0_min
         self.slope = transmitter.slope
         self.chirp_period = transmitter.chirp_period
         self.chirp_count = transmitter.chirp_count
         self.frame_period = transmitter.frame_period
-        self.frames_count = transmitter.frames_count
+        self.frame_count = transmitter.frame_count
         self.v = medium.v
         self.medium = medium
         self.bw = transmitter.bw
         # FIXME: moves this to simulation level
         # __range_bin: deprecated as relies on c for compute
         # __c = 3e8
-        # self.range_bin_deprec = receiver.fs*__c/2/self.slope/self.n_adc
+        # self.range_bin_deprec = receiver.adc_sample_rate*__c/2/self.slope/self.adc_sample_count
 
         if all(self.rx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.rx_antennas):
@@ -974,12 +969,12 @@ class Radar:
                 raise ValueError(ERR_TFFT_lte_TC)
 
         try:
-            assert self.n_adc < receiver.max_adc_buffer_size
+            assert self.adc_sample_count < receiver.max_adc_buffer_size
         except AssertionError:
             if debug:  # pragma: no cover
-                print(f"buffer size: {self.n_adc} > " +
+                print(f"buffer size: {self.adc_sample_count} > " +
                       f"vs max buffer size: {receiver.max_adc_buffer_size}" +
-                      f"ratio: {self.n_adc/receiver.max_adc_buffer_size}")
+                      f"ratio: {self.adc_sample_count/receiver.max_adc_buffer_size}")
             raise ValueError("ADC buffer overflow")
         return
 
@@ -1044,7 +1039,7 @@ class Radar:
 
         f_if[~(if_filter)] = 0
         fif_max = np_max(f_if)
-        adc_sampling_frequency = self.fs
+        adc_sampling_frequency = self.adc_sample_rate
         if (fif_max * 2 > adc_sampling_frequency) and (fif_max <1e9):
             self._log.critical("some scatterers seem to be above Nyquist, they'll be filtered out")
             print(f_if)

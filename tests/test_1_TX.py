@@ -19,8 +19,8 @@ from test_assets import tdm_1chirp_8adc, radar_vibrate, scatterer_vibrate, tof_1
 
 
 
-"""number_adc_samples = 8
-NA = number_adc_samples
+"""adc_sample_count = 8
+NA = adc_sample_count
 NC = 1
 NF = 1
 TIF = 1.2e-3
@@ -30,15 +30,15 @@ chirp_slope = 5e12
 t_end = chirp_bw/chirp_slope
 phaser1_slope = 0.5
 adc_sampling_frequency = 5e5
-fs = adc_sampling_frequency"""
+adc_sample_rate = adc_sampling_frequency"""
 
 """tdm1 = Transmitter(f0_min=60e9,
-                   ramp_end_time=1.2*NA/fs,
+                   ramp_end_time=1.2*NA/adc_sample_rate,
                    slope=chirp_slope,
                    chirp_period=TIC,
                    chirp_count=NC,
                    frame_period=TIF,
-                   frames_count=NF)
+                   frame_count=NF)
 
 ddm1 = TransmitterDDM(f0_min=60e9,
                       bw=chirp_bw, slope=chirp_slope,
@@ -46,13 +46,13 @@ ddm1 = TransmitterDDM(f0_min=60e9,
                       antennas=[Antenna() for _ in range(2)],
                       chirp_count=NC,
                       frame_period=TIF,
-                      frames_count=NF,
+                      frame_count=NF,
                       conf={"TX_phaser_slopes": [0, phaser1_slope]})
 
 receiver1 = Receiver(antennas=[Antenna() for _ in range(1)],
-                     fs=adc_sampling_frequency,
-                     max_fs=110e6,
-                     n_adc=number_adc_samples)
+                     adc_sample_rate=adc_sampling_frequency,
+                     adc_sample_rate_max=110e6,
+                     adc_sample_count=adc_sample_count)
 scatterer1 = Scatterer(xt=lambda t: 5.1+0*t,
                  rcs_f=1.0)
 

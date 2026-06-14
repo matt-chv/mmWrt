@@ -47,7 +47,7 @@ def test_pcl():
     adc_cube = np.load(fp)
     print("adc_cube.shape", adc_cube.shape) # 1,1024,16,64
     print("fif_tdm0_15m", fif_tdm0_15m)
-    print("fs", radar.adc_sample_rate)
+    print("adc_sample_rate", radar.adc_sample_rate)
 
     assert radar.adc_sample_count == 64
     assert radar.chirp_count == 32*16
