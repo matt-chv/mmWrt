@@ -16,22 +16,22 @@ dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
-    Target, Transmitter  # noqa: E402
+    Scatterer, Transmitter  # noqa: E402
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_aoa, detection_xy  # noqa: E402
-from test_assets import radar_ula_64_RX, target_static_5p1m, \
-    target_static_10p1m, target_static_z_15p1m, radar_ula_64_TX_z  # noqa: E402
+from test_assets import radar_ula_64_RX, scatterer_static_5p1m, \
+    scatterer_static_10p1m, scatterer_static_z_15p1m, radar_ula_64_TX_z  # noqa: E402
 
 
 def test_SIMO_AoA_polar():
     import copy
     radar = radar_ula_64_RX
-    target3 = copy.deepcopy(target_static_5p1m)
-    target3.xt = lambda t: -2.1 + 0.0*t
+    scatterer3 = copy.deepcopy(scatterer_static_5p1m)
+    scatterer3.xt = lambda t: -2.1 + 0.0*t
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
     # logging.getLogger("Radar").setLevel(logging.DEBUG)
-    bb = rt_points([radar], [target_static_5p1m, target_static_10p1m, target3],
+    bb = rt_points([radar], [scatterer_static_5p1m, scatterer_static_10p1m, scatterer3],
                    radar)
 
     detection_list = range_aoa(bb["adc_cube"][0, 0, :, :], radar)
@@ -47,7 +47,7 @@ def test_SIMO_AoA_polar():
 
 def test_SIMO_AoA_cartesian():
     radar = radar_ula_64_RX
-    bb = rt_points([radar], [target_static_5p1m, target_static_10p1m],
+    bb = rt_points([radar], [scatterer_static_5p1m, scatterer_static_10p1m],
                    radar)
 
     detection_list = detection_xy(bb["adc_cube"][0, 0, :, :], radar)
@@ -64,8 +64,8 @@ def test_MISO_AoA_cartesian():
     # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
     radar = radar_ula_64_TX_z
     bb = rt_points([radar],
-                   [target_static_5p1m, target_static_10p1m,
-                    target_static_z_15p1m],
+                   [scatterer_static_5p1m, scatterer_static_10p1m,
+                    scatterer_static_z_15p1m],
                    radar)
     adc_cube = bb["adc_cube"][0, :, 0, :]
 
@@ -95,11 +95,11 @@ def tbd_SIMO_AoA():
                                     n_adc=NA,
                                     antennas=RXs),
                   debug=False)
-    target1 = Target(5.1, 0, 0)
-    target2 = Target(0, 10.1, 0)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1, 0, 0)
+    scatterer2 = Scatterer(0, 10.1, 0)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets,
+    bb = rt_points(radar, scatterers,
                    debug=False)
     cube = bb["adc_cube"]
     # Range FFT

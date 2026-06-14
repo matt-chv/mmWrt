@@ -12,21 +12,21 @@ dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import sample_all_rays
-from mmWrt.Scene import Target
-from tests.test_assets import target_static_0, target_static_5p1m, radar_tdm_1_chirp_8_adc, \
-    fif00, target_static_10p1m, fif01, adc_sampling_frequency_0, adc_8_values_complex_fif00, \
-    adc_sampling_times_8_samples, target_5p1m_radar1_bin_1, target_10p1m_radar1_bin_3
+from mmWrt.Scene import Scatterer
+from tests.test_assets import scatterer_static_0, scatterer_static_5p1m, radar_tdm_1_chirp_8_adc, \
+    fif00, scatterer_static_10p1m, fif01, adc_sampling_frequency_0, adc_8_values_complex_fif00, \
+    adc_sampling_times_8_samples, scatterer_5p1m_radar1_bin_1, scatterer_10p1m_radar1_bin_3
 from numpy import complex64, allclose
 
 
 def test_adc_simple():
-    # test that given a given target, we get expected adc value
+    # test that given a given scatterer, we get expected adc value
     from test_assets import adc_sampling_times_8_samples, adc_8_values_complex_fif00
     # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
 
     adc_values = sample_all_rays(adc_sampling_times_8_samples,
                                  [radar_tdm_1_chirp_8_adc],
-                                 [target_static_5p1m],
+                                 [scatterer_static_5p1m],
                                  radar_tdm_1_chirp_8_adc)
     adc0 = adc_values[:, 0]
     expected = np.real(adc_8_values_complex_fif00)
@@ -35,16 +35,16 @@ def test_adc_simple():
     assert np.allclose(adc0, expected, atol=1e-2), f"adc0:{adc0} vs expected: {expected}"
 
 """
-@pytest.mark.parametrize("target, radar, datatype, index", [
-    (target_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.complex64, target_5p1m_radar1_bin_1),
-    # (target_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.float64, target_5p1m_radar1_bin_1),
-    # (target_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.complex64, 3),
-    # (target_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.float64, 3),
+@pytest.mark.parametrize("scatterer, radar, datatype, index", [
+    (scatterer_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.complex64, scatterer_5p1m_radar1_bin_1),
+    # (scatterer_static_5p1m, tof_5p1m, radar_tdm_1_chirp_8_adc, np.float64, scatterer_5p1m_radar1_bin_1),
+    # (scatterer_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.complex64, 3),
+    # (scatterer_static_10p1m, tof_10p1m, radar_tdm_1_chirp_8_adc, np.float64, 3),
 ])
-def test_fft_peak_index(target, tof, radar, datatype, index):
+def test_fft_peak_index(scatterer, tof, radar, datatype, index):
     # check that adc values yield a peak in the expect bin
-    #with radar_tdm_1_chirp_8_adc target_static_5p1m in 1st bin
-    #and target_static_10p1m in 3rd bin
+    #with radar_tdm_1_chirp_8_adc scatterer_static_5p1m in 1st bin
+    #and scatterer_static_10p1m in 3rd bin
 
     adc_sample_rate = radar.receiver.adc_sample_rate
     adc_times = arange(0, radar.number_adc_samples, 1) * \
@@ -69,13 +69,13 @@ def test_fft_peak_index(target, tof, radar, datatype, index):
     assert peak_index == index
 
 
-@pytest.mark.parametrize("target, radar, frequency_if, datatype", [
-    (target_static_5p1m, radar_tdm_1_chirp_8_adc, fif00, np.complex64),
-    (target_static_5p1m, radar_tdm_1_chirp_8_adc, fif00, np.float64),
-    (target_static_10p1m, radar_tdm_1_chirp_8_adc, fif01, np.complex64),
-    (target_static_10p1m, radar_tdm_1_chirp_8_adc, fif01, np.float64),
+@pytest.mark.parametrize("scatterer, radar, frequency_if, datatype", [
+    (scatterer_static_5p1m, radar_tdm_1_chirp_8_adc, fif00, np.complex64),
+    (scatterer_static_5p1m, radar_tdm_1_chirp_8_adc, fif00, np.float64),
+    (scatterer_static_10p1m, radar_tdm_1_chirp_8_adc, fif01, np.complex64),
+    (scatterer_static_10p1m, radar_tdm_1_chirp_8_adc, fif01, np.float64),
 ])
-def t0est0_adc_values(target, radar, frequency_if, datatype):
+def t0est0_adc_values(scatterer, radar, frequency_if, datatype):
     # check that adc values yield a peak in the expect bin
     # and with the expected magnitude by comparing with
     # a tone at the same frequency
@@ -85,16 +85,16 @@ def t0est0_adc_values(target, radar, frequency_if, datatype):
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times=adc_times,
                              receiver_radar=radar,
-                             targets=[target],
+                             scatterers=[scatterer],
                              radars=[radar],
                              datatype=datatype,
                              debug=True)
     fft_values = np.abs(np.fft.fft(adc_values[0, :]))
     peak_index = np.argmax(fft_values)
     if frequency_if == fif00:
-        assert peak_index == target_5p1m_radar1_bin_1
+        assert peak_index == scatterer_5p1m_radar1_bin_1
     else:
-        assert peak_index == target_10p1m_radar1_bin_3
+        assert peak_index == scatterer_10p1m_radar1_bin_3
     peak_energy = fft_values[peak_index].sum()
 
     f_tone = np.array([frequency_if]*radar.number_adc_samples)
@@ -113,33 +113,33 @@ def t0est0_adc_values(target, radar, frequency_if, datatype):
 
 
 def fixme_if_dc():
-    # check that if target in in range bin 0 we have the right DC component
+    # check that if scatterer in in range bin 0 we have the right DC component
     # FIXME:does not work yet as returned values are [0,1,1,1,1,1] with current code
     radar = radar_tdm_1_chirp_8_adc
-    target = target_static_0
+    scatterer = scatterer_static_0
     adc_times = arange(0, 8/adc_sampling_frequency_0,
                        1/adc_sampling_frequency_0)
     adc_values = adc_samples(adc_times, radar,
-                             [target],
+                             [scatterer],
                              [radar])
     assert allclose(adc_values, np.zeros(8))
 
 
-@pytest.mark.parametrize("target, radar, adc_skip, fault_injection", [
-    (Target(xt=lambda t: 148 + 0.0*t), radar_tdm_1_chirp_8_adc, 1, "ok"),
-    (Target(xt=lambda t: 148 + 0.0*t), radar_tdm_1_chirp_8_adc, 2, "nok"),
-    (Target(xt=lambda t: 149 + 0.0*t), radar_tdm_1_chirp_8_adc, 2, "ok"),
-    (Target(xt=lambda t: 149 + 0.0*t), radar_tdm_1_chirp_8_adc, 3, "nok"),
+@pytest.mark.parametrize("scatterer, radar, adc_skip, fault_injection", [
+    (Scatterer(xt=lambda t: 148 + 0.0*t), radar_tdm_1_chirp_8_adc, 1, "ok"),
+    (Scatterer(xt=lambda t: 148 + 0.0*t), radar_tdm_1_chirp_8_adc, 2, "nok"),
+    (Scatterer(xt=lambda t: 149 + 0.0*t), radar_tdm_1_chirp_8_adc, 2, "ok"),
+    (Scatterer(xt=lambda t: 149 + 0.0*t), radar_tdm_1_chirp_8_adc, 3, "nok"),
 ])
-def t0est_tof(target, radar, adc_skip, fault_injection):
-    # check that if target far away,
+def t0est_tof(scatterer, radar, adc_skip, fault_injection):
+    # check that if scatterer far away,
     # first values of adc values are 0 for sampling time
     # for samples happening before full time of flight
     adc_sample_rate = radar.receiver.adc_sample_rate
     adc_times = arange(0, radar.number_adc_samples, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times, radar,
-                             [target],
+                             [scatterer],
                              [radar])
     print("ADC values", adc_values)
     try:
@@ -210,16 +210,16 @@ def t0est0_adc_frame(chirp_idx, frame_idx, adc_values_expected):
     #    par chirp idx
     #    par frame idx
     #
-    from test_assets import radar_tdm_2_frames_2_chirps_8adc, t_inter_chirp_vmax_3mps, \
-        t_inter_frame_50ms
+    from test_assets import radar_tdm_2_frames_2_chirps_8adc, chirp_period_vmax_3mps, \
+        frame_period_50ms
     radar = radar_tdm_2_frames_2_chirps_8adc
-    target = target_static_5p1m
+    scatterer = scatterer_static_5p1m
     adc_times = arange(0, 8/adc_sampling_frequency_0,
                        1/adc_sampling_frequency_0) + \
-        t_inter_chirp_vmax_3mps*chirp_idx + \
-        t_inter_frame_50ms * frame_idx
+        chirp_period_vmax_3mps*chirp_idx + \
+        frame_period_50ms * frame_idx
     adc_values = adc_samples(adc_times, radar,
-                             [target],
+                             [scatterer],
                              [radar],
                              datatype=complex64)
     print("adc values",chirp_idx, frame_idx, adc_values, adc_values_expected)
@@ -243,7 +243,7 @@ def t0est0_MRE():
                                           chirp_end_time=adc_samples_count*1/adc_sampling_frequency),
                   receiver=Receiver(adc_sample_rate=adc_sampling_frequency,
                                     max_fs=100e6,
-                                    adc_samples_per_chirp=adc_samples_count))
+                                    adc_sample_count=adc_samples_count))
     n_samples = adc_samples_count
     ts = 1/adc_sampling_frequency
     T = arange(0, n_samples*ts+ts, ts)
@@ -255,17 +255,17 @@ def t0est0_MRE():
     print("vals", val)
     # print(adc_times)
     t_chirp_to_chirp = 1.2e-6
-    target0 = Target(xt= lambda t: 10+0*t)
+    scatterer0 = Scatterer(xt= lambda t: 10+0*t)
     adc0 = adc_samples(adc_times,
                        radar,
-                       [target0],
+                       [scatterer0],
                        radars=[radar],
                        datatype=float32)
     print(adc0[0, :10])
-    target1 = Target(xt=lambda t: 10 + v*t_chirp_to_chirp+0*t)
+    scatterer1 = Scatterer(xt=lambda t: 10 + v*t_chirp_to_chirp+0*t)
     adc1 = adc_samples(adc_times,
                        radar,
-                       [target1],
+                       [scatterer1],
                        radars=[radar],
                        datatype=float32)
     print("adc1", adc1[0, :10])
@@ -291,34 +291,34 @@ def t0est0_MRE():
 
 
 def t0est0_phase_delta_chirp_to_chirp():
-    # test the phase change in the target range bin change from one
+    # test the phase change in the scatterer range bin change from one
     # chirp to another chirp is within the expected error range
     # 
-    # for DFT, the d(phase)/dt = [phase(DFT[idx_peak_1st_chirp])-phase(DFT[idx_peak_2nd_chirp]) ] / (t_inter_chirp)
-    #the expected change of phase from chirp to chirp is for a target moving at velocity v (assuming no range bin change)
+    # for DFT, the d(phase)/dt = [phase(DFT[idx_peak_1st_chirp])-phase(DFT[idx_peak_2nd_chirp]) ] / (chirp_period)
+    #the expected change of phase from chirp to chirp is for a scatterer moving at velocity v (assuming no range bin change)
     #dphase_dt = 4*pi*v/lambda_60G
     #given the number of DFT bins in the velocity dimension (doppler dimension), which is the number of chirps
     #the maximum error is 1 range bin:
-    #2*pi/t_inter_chirp/number_adc_samples
+    #2*pi/chirp_period/number_adc_samples
     #
 
     from test_assets import radar_tdm_2_chirp_8adc, \
-        target_linear_speed_5p1m_1mps, \
-        dphase_dt_1mps, t_inter_chirp_vmax_3mps
+        scatterer_linear_speed_5p1m_1mps, \
+        dphase_dt_1mps, chirp_period_vmax_3mps
 
     radar = radar_tdm_2_chirp_8adc
-    number_chirps = radar.transmitter.chirps_count
+    number_chirps = radar.transmitter.chirp_count
 
     adc_times0 = adc_sampling_times_8_samples
 
     adc_values_first_chirp = adc_samples(adc_times0,
                              radar,
-                             [target_linear_speed_5p1m_1mps],
+                             [scatterer_linear_speed_5p1m_1mps],
                              radars=[radar],
                             datatype=complex64,
                              debug=True)
 
-    adc_times1 = adc_sampling_times_8_samples + t_inter_chirp_vmax_3mps
+    adc_times1 = adc_sampling_times_8_samples + chirp_period_vmax_3mps
     expected_adc_values = np.array([[ 0.        +        0.j,  0.52017745 + 0.85405821j,
                                      -0.4907899 +0.87127795j,
                                      -0.99999746-0.00225504j, -0.48685503 - 0.87348279j,
@@ -328,7 +328,7 @@ def t0est0_phase_delta_chirp_to_chirp():
 
     adc_values_second_chirp = adc_samples(adc_times1,
                                           radar,
-                                          [target_linear_speed_5p1m_1mps],
+                                          [scatterer_linear_speed_5p1m_1mps],
                                           radars=[radar],
                                           datatype=complex64,
                                           debug=True)
@@ -342,25 +342,25 @@ def t0est0_phase_delta_chirp_to_chirp():
 
     peak_1st_chirp = find_peaks(abs(r_fft_1st_chirp), height=1)[0][0]
     peak_2nd_chirp = find_peaks(abs(r_fft_2nd_chirp), height=1)[0][0]
-    assert peak_1st_chirp == target_5p1m_radar1_bin_1
-    assert peak_2nd_chirp == target_5p1m_radar1_bin_1
+    assert peak_1st_chirp == scatterer_5p1m_radar1_bin_1
+    assert peak_2nd_chirp == scatterer_5p1m_radar1_bin_1
     phase_peak_1st_chirp = np.angle(r_fft_1st_chirp[peak_1st_chirp])
     phase_peak_2nd_chirp = np.angle(r_fft_2nd_chirp[peak_2nd_chirp])
-    dphase_dt = (phase_peak_1st_chirp-phase_peak_2nd_chirp)/t_inter_chirp_vmax_3mps
+    dphase_dt = (phase_peak_1st_chirp-phase_peak_2nd_chirp)/chirp_period_vmax_3mps
     assert dphase_dt == -2514.0893436956576
 
-    max_expected_dphase_dt_error = 2*pi/t_inter_chirp_vmax_3mps/number_chirps
+    max_expected_dphase_dt_error = 2*pi/chirp_period_vmax_3mps/number_chirps
     assert abs(dphase_dt-dphase_dt_1mps) < max_expected_dphase_dt_error
 
 
-def t0est0_if_error_radar00_target0_8_adc_samples():
+def t0est0_if_error_radar00_scatterer0_8_adc_samples():
 
-    from test_assets import radar_tdm_1_chirp_8_adc, fif00, target_static_5p1m
+    from test_assets import radar_tdm_1_chirp_8_adc, fif00, scatterer_static_5p1m
     radar00 = radar_tdm_1_chirp_8_adc
-    target0 = target_static_5p1m
+    scatterer0 = scatterer_static_5p1m
 
     adc_times = arange(0, radar00.number_adc_samples, 1)*(1/radar00.receiver.adc_sample_rate)
-    adc_values = adc_samples(adc_times, radar00, [target0],
+    adc_values = adc_samples(adc_times, radar00, [scatterer0],
                              radars=[radar00])
     r_fft = abs(np.fft.fft(adc_values[0, :]))
     pks = find_peaks(r_fft, height=1)
@@ -369,14 +369,14 @@ def t0est0_if_error_radar00_target0_8_adc_samples():
     max_expected_error = radar00.receiver.fs/radar00.number_adc_samples
     assert abs(result-fif00) < max_expected_error
 
-def t0est0_if_error_radar11_target0_1024_adc_samples():
+def t0est0_if_error_radar11_scatterer0_1024_adc_samples():
 
-    from test_assets import radar_tdm_1_chirp_1024_adc, target_static_5p1m, fif00
+    from test_assets import radar_tdm_1_chirp_1024_adc, scatterer_static_5p1m, fif00
     radar11 = radar_tdm_1_chirp_1024_adc
-    target0 = target_static_5p1m
+    scatterer0 = scatterer_static_5p1m
 
     adc_times = arange(0, radar11.number_adc_samples, 1)*(1/radar11.receiver.fs)
-    adc_values = adc_samples(adc_times, radar11, [target0],
+    adc_values = adc_samples(adc_times, radar11, [scatterer0],
                              radars=[radar11])
     r_fft = abs(np.fft.fft(adc_values[0, :]))
     pk0 = find_peaks(r_fft, height=1)[0][0]
@@ -387,22 +387,22 @@ def t0est0_if_error_radar11_target0_1024_adc_samples():
     assert abs(result-fif00) < max_expected_error
 
 
-def t0est0_if_error_radar11_target0_target1_1024_adc_samples():
+def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
     # Test the presence of 2 tones at the right positions
-    # when two targets are introduced
+    # when two scatterers are introduced
     # 
     # in case of algorithmic changes, first checks for the
     # tone to be within the range resolution then checks
     # the indexes against known good values
     #
 
-    from test_assets import radar_tdm_1_chirp_1024_adc, target_static_5p1m, target_static_10p1m, fif00, fif01
+    from test_assets import radar_tdm_1_chirp_1024_adc, scatterer_static_5p1m, scatterer_static_10p1m, fif00, fif01
     radar11 = radar_tdm_1_chirp_1024_adc
-    target0 = target_static_5p1m
-    target1 = target_static_10p1m
+    scatterer0 = scatterer_static_5p1m
+    scatterer1 = scatterer_static_10p1m
 
     adc_times = arange(0, radar11.number_adc_samples, 1)*(1/radar11.receiver.fs)
-    adc_values = adc_samples(adc_times, radar11, [target0, target1],
+    adc_values = adc_samples(adc_times, radar11, [scatterer0, scatterer1],
                              radars=[radar11])
 
     r_fft = abs(np.fft.fft(adc_values[0, :]))

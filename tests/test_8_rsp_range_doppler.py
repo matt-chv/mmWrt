@@ -19,26 +19,26 @@ sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_doppler
-# from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
-from test_assets import radar_dmax_25m_vmax_2mps, target_static_5p1m, \
-    target_linear_speed_10p1m_1mps, radar_vibrate, target_vibrate
+# from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer  # noqa: E402
+from test_assets import radar_dmax_25m_vmax_2mps, scatterer_static_5p1m, \
+    scatterer_linear_speed_10p1m_1mps, radar_vibrate, scatterer_vibrate
 
 
 def test_rsp_range_doppler():
     radar = radar_dmax_25m_vmax_2mps
-    targets = [target_static_5p1m, target_linear_speed_10p1m_1mps]
+    scatterers = [scatterer_static_5p1m, scatterer_linear_speed_10p1m_1mps]
 
     # logging.basicConfig(level=logging.WARNING,
     #                    format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     # logging.getLogger("Transmitter").setLevel(logging.WARNING)
     # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
 
-    bb = rt_points([radar], targets, radar)
+    bb = rt_points([radar], scatterers, radar)
     rd = range_doppler(bb["adc_cube"][0,:,0,:],
                        adc_sample_rate=radar.adc_sample_rate,
                        chirp_slope=radar.chirp_slope,
                        wavelength=3e8/radar.chirp_start_freq,
-                       chirp_period=radar.t_inter_chirp)
+                       chirp_period=radar.chirp_period)
     print("detections", rd)
     assert rd.shape == (2,2)
     assert np.allclose(rd, np.array([[ 4.734375, 0.],
@@ -54,13 +54,13 @@ def test_FMCW_vibration():
 
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     radar = radar_vibrate
-    target = target_vibrate
+    scatterer = scatterer_vibrate
     fn = "adc_cube_vibrate.npy"
     fp = abspath(join(__file__, pardir, fn))
 
     run = False
     if run:
-        bb = rt_points([radar], [target], radar)
+        bb = rt_points([radar], [scatterer], radar)
         adc_cube = bb["adc_cube"]
         np.save(fp, adc_cube)
     else:

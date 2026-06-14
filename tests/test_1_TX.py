@@ -15,7 +15,7 @@ sys.path.insert(0, dp)
 # from mmWrt.Raytracing import BB_IF
 from mmWrt.Scene import Antenna  # noqa: E402
 from test_assets import ddm_4chirps_0_half_pi, phase_slope_half_pi
-from test_assets import tdm_1chirp_8adc, radar_vibrate, target_vibrate, tof_10p1m
+from test_assets import tdm_1chirp_8adc, radar_vibrate, scatterer_vibrate, tof_10p1m
 
 
 
@@ -35,17 +35,17 @@ fs = adc_sampling_frequency"""
 """tdm1 = Transmitter(f0_min=60e9,
                    ramp_end_time=1.2*NA/fs,
                    slope=chirp_slope,
-                   t_inter_chirp=TIC,
-                   chirps_count=NC,
-                   t_inter_frame=TIF,
+                   chirp_period=TIC,
+                   chirp_count=NC,
+                   frame_period=TIF,
                    frames_count=NF)
 
 ddm1 = TransmitterDDM(f0_min=60e9,
                       bw=chirp_bw, slope=chirp_slope,
-                      t_inter_chirp=TIC,
+                      chirp_period=TIC,
                       antennas=[Antenna() for _ in range(2)],
-                      chirps_count=NC,
-                      t_inter_frame=TIF,
+                      chirp_count=NC,
+                      frame_period=TIF,
                       frames_count=NF,
                       conf={"TX_phaser_slopes": [0, phaser1_slope]})
 
@@ -53,7 +53,7 @@ receiver1 = Receiver(antennas=[Antenna() for _ in range(1)],
                      fs=adc_sampling_frequency,
                      max_fs=110e6,
                      n_adc=number_adc_samples)
-target1 = Target(xt=lambda t: 5.1+0*t,
+scatterer1 = Scatterer(xt=lambda t: 5.1+0*t,
                  rcs_f=1.0)
 
 # radar1 = Radar(transmitter=tdm1, receiver=receiver1)
@@ -96,8 +96,8 @@ def tbd_tx_frequency_ramp_2_tx_tdm0():
     radar = copy.deepcopy(tdm_1chirp_8adc)
     ramp_end_time = radar.ramp_end_time
     radar.antennas = array([Antenna(), Antenna()])
-    radar.chirps_count = 1
-    radar.t_inter_chirp = ramp_end_time * 2
+    radar.chirp_count = 1
+    radar.chirp_period = ramp_end_time * 2
     # times is:
     # times = linspace(0, ramp_end_time, 4)
     # since test is for 2TX, 1 Scatterer, 1 RX
@@ -134,8 +134,8 @@ def test_tx_frequency_ramp_2_tx_tdm1():
     radar = copy.deepcopy(tdm_1chirp_8adc)
     ramp_end_time = radar.ramp_end_time
     radar.antennas = array([Antenna(), Antenna()])
-    radar.chirps_count = 1
-    radar.t_inter_chirp = ramp_end_time * 2 # ~1.18e-5*2
+    radar.chirp_count = 1
+    radar.chirp_period = ramp_end_time * 2 # ~1.18e-5*2
     print("ramp_end_time", ramp_end_time)
     print("linspace(0, ramp_end_time*2, 4)", arange(0, ramp_end_time*4, ramp_end_time))
     # times is:
@@ -229,7 +229,7 @@ def test_transmitterTDM_phase():
 @pytest.mark.parametrize("start_time, offset, tx_idx, phase", [
     (0, ddm_4chirps_0_half_pi.ramp_end_time, 0, 0),
     (0, ddm_4chirps_0_half_pi.ramp_end_time, 1, 0),
-    (ddm_4chirps_0_half_pi.t_inter_chirp, ddm_4chirps_0_half_pi.ramp_end_time, 1, phase_slope_half_pi)
+    (ddm_4chirps_0_half_pi.chirp_period, ddm_4chirps_0_half_pi.ramp_end_time, 1, phase_slope_half_pi)
     ])
 def test_transmitterDDM_phaser0_chirp0(start_time, offset, tx_idx, phase):
     # test that the phase first antenna is always 0 for chirp idx 0
@@ -259,7 +259,7 @@ def tbd_TX_Freqs_64TX_64loops():
 
 def test_tx_freq_frames():
     """ basic test on TX_Freq when frame_idx > 0"""
-    radar, _ = radar_vibrate, target_vibrate
+    radar, _ = radar_vibrate, scatterer_vibrate
 
     """    frameidx 0
     chirpidx 1
@@ -276,8 +276,8 @@ def test_tx_freq_frames():
     for frame_idx in [0,1]:
         chirp_idx = 1
         adc_sample_count = radar.adc_sample_count
-        # adc_samples_per_chirp = radar.adc_samples_per_chirp
-        start_of_chirp = frame_idx * radar.t_inter_frame + \
+        # adc_sample_count = radar.adc_sample_count
+        start_of_chirp = frame_idx * radar.frame_period + \
             chirp_idx * radar.chirp_period
         adc_sample_time = 1/radar.adc_sample_rate
 

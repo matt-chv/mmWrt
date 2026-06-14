@@ -1,7 +1,7 @@
 from numpy import cos, sqrt, pi
 
 
-def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target, v=3e8):
+def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, scatterer, v=3e8):
     """ This function implements the mathematical IF defined in latex as
     y_{IF} = cos(2 \\pi [f_0\\delta + s * \\delta * t - s* \\delta^2])
     into following python code
@@ -19,7 +19,7 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target, v=3e8):
         x, y, z coordinates
     antenna_rx : tuple of floats
         x, y, z coordinates
-    target : tuple of floats
+    scatterer : tuple of floats
         x, y, z coordinates
     v : float
         speed of light in considered medium
@@ -31,7 +31,7 @@ def BB_IF(f0_min, slope, T, antenna_tx, antenna_rx, target, v=3e8):
     """
     tx_x, tx_y, tx_z = antenna_tx
     rx_x, rx_y, rx_z = antenna_rx
-    t_x, t_y, t_z = target
+    t_x, t_y, t_z = scatterer
     distance = sqrt((tx_x - t_x)**2 + (tx_y - t_y)**2 + (tx_z - t_z)**2)
     distance += sqrt((rx_x - t_x)**2 + (rx_y - t_y)**2 + (rx_z - t_z)**2)
     delta = distance / v

@@ -17,15 +17,15 @@ dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
-from mmWrt.Scene import Radar, Transmitter, Receiver, Target  # noqa: E402
+from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer  # noqa: E402
 from mmWrt.Scene import ERR_TARGET_T0, ERR_TFFT_lte_TC  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 from mmWrt.RadarSignalProcessing import cfar_ca, cfar_alpha, ERR_CFAR_CELL_COUNT
 
 # from test_1_range_point import __range__wrapper  # noqa: E402
-from test_assets import target_static_5p1m, radar_tdm_1_chirp_8_adc, d_5p1m
+from test_assets import scatterer_static_5p1m, radar_tdm_1_chirp_8_adc, d_5p1m
 
-def __range__wrapper2(targets, radars,
+def __range__wrapper2(scatterers, radars,
                       distances,
                       cfar_peak_detect=False,
                       data_type=float32,
@@ -38,15 +38,15 @@ def __range__wrapper2(targets, radars,
 
     adc_sample_rate = radar.receiver.adc_sample_rate
     chirp_slope = radar.transmitter.chirp_slope
-    adc_samples_per_chirp = radar.receiver.adc_samples_per_chirp
+    adc_sample_count = radar.receiver.adc_sample_count
 
     adc_sample_rate = radar.receiver.adc_sample_rate
     chirp_slope = radar.transmitter.chirp_slope
-    adc_samples_per_chirp = radar.receiver.adc_samples_per_chirp
+    adc_sample_count = radar.receiver.adc_sample_count
     adc_times = arange(0, radar.number_adc_samples, 1) * \
         (1/adc_sample_rate)
     adc_values = adc_samples(adc_times, radar,
-                             targets,
+                             scatterers,
                              radars=radars)
     if cfar_peak_detect:
         ranges = rsp.ranges_dft_cfar(adc_values[0, :],
@@ -61,7 +61,7 @@ def __range__wrapper2(targets, radars,
                                         fft_threshold=peak_threshold)
     
     range_bin_width = adc_sample_rate * c / \
-        (2*chirp_slope*adc_samples_per_chirp)
+        (2*chirp_slope*adc_sample_count)
 
     for idx, _ in enumerate(distances):
         error = abs(ranges[idx]-distances[idx])
@@ -71,21 +71,21 @@ def __range__wrapper2(targets, radars,
             raise ValueError("Error too large")
 
 
-def tbd_tdm_8adc_target0():
-    __range__wrapper(target_idxes=[0], radars_idxes=[0],
+def tbd_tdm_8adc_scatterer0():
+    __range__wrapper(scatterer_idxes=[0], radars_idxes=[0],
                      distance_idxes=[0],
                      cfar_peak_detect=True)
 
-@pytest.mark.parametrize("targets, radars, distances, cfar_peak_detect", [
-    ([target_static_5p1m], [radar_tdm_1_chirp_8_adc], [d_5p1m], True),
+@pytest.mark.parametrize("scatterers, radars, distances, cfar_peak_detect", [
+    ([scatterer_static_5p1m], [radar_tdm_1_chirp_8_adc], [d_5p1m], True),
 ])
-def tbd_tdm_8adc_range0m(targets, radars,
+def tbd_tdm_8adc_range0m(scatterers, radars,
                      distances,
                      cfar_peak_detect):
     """ Test CFAR on range bin 0 as np.find_peaks does not work on range bin 0, 
     currently also broken with CFAR needs debug
     so we need to ensure CFAR can handle it. """
-    __range__wrapper2(targets, radars,
+    __range__wrapper2(scatterers, radars,
                       distances,
                       cfar_peak_detect)
 
@@ -221,10 +221,10 @@ def tbd_test_FMCW_1j():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
-    bb = rt_points(radar, targets,
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
+    bb = rt_points(radar, scatterers,
                    datatype=complex,
                    debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
@@ -234,13 +234,13 @@ def tbd_test_FMCW_1j():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(scatterers, found_scatterers)
     assert error < 3
 
 
@@ -249,12 +249,12 @@ def tbd_test_FMCW_radar_equation():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
-    # adding RCS to ensure targets are detected ...
-    target1 = Target(5.1, rcs_f=lambda f: 10824)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10, rcs_f=lambda f: 43000)
-    targets = [target1, target2]
+    # adding RCS to ensure scatterers are detected ...
+    scatterer1 = Scatterer(5.1, rcs_f=lambda f: 10824)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10, rcs_f=lambda f: 43000)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, radar_equation=True, debug=False)
+    bb = rt_points(radar, scatterers, radar_equation=True, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_ca_1d(range_profile)
@@ -262,13 +262,13 @@ def tbd_test_FMCW_radar_equation():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(scatterers, found_scatterers)
     assert error < 3
 
 
@@ -277,13 +277,13 @@ def tbd_test_FMCW_radar_equation_corner_reflector():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
-    # adding RCS to ensure targets are detected ...
-    target1 = Target(5.1, rcs_f=lambda f: 10824,
-                     target_type="corner_reflector")
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10, rcs_f=lambda f: 43000)
-    targets = [target1, target2]
+    # adding RCS to ensure scatterers are detected ...
+    scatterer1 = Scatterer(5.1, rcs_f=lambda f: 10824,
+                     scatterer_type="corner_reflector")
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10, rcs_f=lambda f: 43000)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, radar_equation=True, debug=False)
+    bb = rt_points(radar, scatterers, radar_equation=True, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_ca_1d(range_profile)
@@ -291,18 +291,18 @@ def tbd_test_FMCW_radar_equation_corner_reflector():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(scatterers, found_scatterers)
     try:
         assert error < 3
     except Exception as ex:  # pragma: no cover
-        print("found targets", [str(t) for t in found_targets])
-        print("expected targets", [str(t) for t in targets])
+        print("found scatterers", [str(t) for t in found_scatterers])
+        print("expected scatterers", [str(t) for t in scatterers])
         raise Exception(str(ex))
 
 
@@ -312,11 +312,11 @@ def tbd_test_FMCW_real_adc_po2():
                   adc_po2=True,
                   debug=True)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, scatterers, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_ca_1d(range_profile)
@@ -324,13 +324,13 @@ def tbd_test_FMCW_real_adc_po2():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(scatterers, found_scatterers)
     assert error < 3
 
 
@@ -339,11 +339,11 @@ def tbd_test_FMCW_real_error():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=True)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, scatterers, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_ca_1d(range_profile)
@@ -351,20 +351,20 @@ def tbd_test_FMCW_real_error():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error(targets, found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error(scatterers, found_scatterers)
     assert error < 3
 
 
-def tbd_test_FMCW_no_targets_found_error():
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    error = rsp.error([target2, target1], [])
+def tbd_test_FMCW_no_scatterers_found_error():
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    error = rsp.error([scatterer2, scatterer1], [])
     assert error == 15.1
 
 
@@ -397,13 +397,13 @@ def tbd_test_Nyquist():
                   receiver=Receiver(fs=3e3, max_adc_buffer_size=2048),
                   debug=False)
 
-    target1 = Target(5.1)
-    target2 = Target(100, 0, 0, xt=lambda t: 2*t+100)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(100, 0, 0, xt=lambda t: 2*t+100)
+    scatterers = [scatterer1, scatterer2]
 
     str_ex = ""
     try:
-        _ = rt_points(radar, targets, debug=True)
+        _ = rt_points(radar, scatterers, debug=True)
     except ValueError as ex:
         str_ex = str(ex)
 
@@ -429,11 +429,11 @@ def tbd_test_FMCW_range_chirp_N():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, scatterers, debug=False)
     str_ex = ""
 
     try:
@@ -448,11 +448,11 @@ def tbd_test_FMCW_cfar_names_ok():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, scatterers, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     ca_cfar = rsp.cfar_1d(cfar_type="CA", FT=range_profile)
@@ -460,13 +460,13 @@ def tbd_test_FMCW_cfar_names_ok():
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
-    target_filter = ((mag_r > mag_c) & (mag_r > 5))
+    scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
-    index_peaks = where(target_filter)[0]
+    index_peaks = where(scatterer_filter)[0]
     grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-    found_targets = [Target(Distances[i]) for i in grouped_peaks]
-    error = rsp.error([target2, target1], found_targets)
+    found_scatterers = [Scatterer(Distances[i]) for i in grouped_peaks]
+    error = rsp.error([scatterer2, scatterer1], found_scatterers)
     assert error < 3
 
 
@@ -475,11 +475,11 @@ def tbd_test_FMCW_cfar_names_nok():
                   receiver=Receiver(fs=4e3, max_adc_buffer_size=2048),
                   debug=False)
 
-    target1 = Target(5.1)
-    target2 = Target(10, 0, 0, xt=lambda t: 2*t+10)
-    targets = [target1, target2]
+    scatterer1 = Scatterer(5.1)
+    scatterer2 = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
+    scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, targets, debug=False)
+    bb = rt_points(radar, scatterers, debug=False)
     # data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(bb)
     str_ex = ""
@@ -499,24 +499,24 @@ def tbd_test_if2d():
     assert f2d == 0.02142857142857143
 
 
-def tbd_test_target_def():
-    """ Ensures code for target default values logic remains
+def tbd_test_scatterer_def():
+    """ Ensures code for scatterer default values logic remains
     constant in time"""
-    _ = Target(10, 0, 0, xt=lambda t: 2*t+10)
+    _ = Scatterer(10, 0, 0, xt=lambda t: 2*t+10)
     try:
-        _ = Target(20, xt=lambda t: 2*t+10)
+        _ = Scatterer(20, xt=lambda t: 2*t+10)
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 
-    _ = Target(0, 10, 0, yt=lambda t: 2*t+10)
+    _ = Scatterer(0, 10, 0, yt=lambda t: 2*t+10)
     try:
-        _ = Target(0, 20, 0, yt=lambda t: 2*t+10)
+        _ = Scatterer(0, 20, 0, yt=lambda t: 2*t+10)
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 
-    _ = Target(0, 0, 10, zt=lambda t: 2*t+10)
+    _ = Scatterer(0, 0, 10, zt=lambda t: 2*t+10)
     try:
-        _ = Target(0, 0, 20, zt=lambda t: 2*t+10)
+        _ = Scatterer(0, 0, 20, zt=lambda t: 2*t+10)
     except Exception as ex:
         assert str(ex) == ERR_TARGET_T0
 

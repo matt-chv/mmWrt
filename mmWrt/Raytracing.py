@@ -1,5 +1,5 @@
 """ This is where the raytracing happens
-rt_points - main function to perform raytracing with point targets
+rt_points - main function to perform raytracing with point scatterers
 BB_IF - function to compute the BaseBand Intermediate Frequency
 
 BB_IF is called by rt_points to compute each respective scatterer's IF contribution
@@ -115,7 +115,7 @@ def sample_all_rays(adc_times,
     return adc_samples
 
 
-def rt_points(radars, targets, receiver_radar,
+def rt_points(radars, scatterers, receiver_radar,
               radar_equation=False,
               datatype=float32, debug=False,
               **raytracing_opt):
@@ -126,8 +126,8 @@ def rt_points(radars, targets, receiver_radar,
     receiver_radar: Radar
         instance of Radar for which the BB cube is computed. One of the radars in the scene.
         (renamed in 0.0.10 from radar)
-    targets: List[Target]
-        list of targets in the Scene
+    scatterers: List[Scatterer]
+        list of scatterers in the Scene
     radar_equation: bool
         if True includes the radar equation when computing the IF signal
         else ignores radar equation
@@ -154,14 +154,14 @@ def rt_points(radars, targets, receiver_radar,
     """
     n_frames = receiver_radar.frames_count
     # n_chirps is the # chirps each TX antenna sends per frame
-    n_chirps = receiver_radar.chirps_count
+    n_chirps = receiver_radar.chirp_count
     n_tx = len(receiver_radar.tx_antennas)
     n_rx = len(receiver_radar.rx_antennas)
-    adc_samples_per_chirp = receiver_radar.receiver.adc_samples_per_chirp
+    adc_sample_count = receiver_radar.receiver.adc_sample_count
     adc_sample_rate = receiver_radar.receiver.adc_sample_rate
     adc_sample_time = 1/adc_sample_rate
     bw = receiver_radar.bw
-    adc_cube = zeros((n_frames, n_chirps, n_rx, adc_samples_per_chirp)).astype(datatype)
+    adc_cube = zeros((n_frames, n_chirps, n_rx, adc_sample_count)).astype(datatype)
     f0_min, slope, Tc, T = 0, 0, 0, 0
 
     if radars is None:
@@ -170,17 +170,17 @@ def rt_points(radars, targets, receiver_radar,
 
     baseband = {"adc_cube": adc_cube,
                 "frames_count": n_frames,
-                "chirps_count": receiver_radar.chirps_count,
-                "t_inter_chirp": receiver_radar.t_inter_chirp,
+                "chirp_count": receiver_radar.chirp_count,
+                "chirp_period": receiver_radar.chirp_period,
                 "n_tx": n_tx,
                 "n_rx": n_rx,
-                "n_adc": adc_samples_per_chirp,
+                "n_adc": adc_sample_count,
                 "datatype": datatype,
                 "f0_min": f0_min,
                 "slope": slope,
                 "bw": bw,
                 "Tc": Tc,
-                "TFFT": adc_samples_per_chirp*adc_sample_time,
+                "TFFT": adc_sample_count*adc_sample_time,
                 "T": T,
                 "fs": receiver_radar.fs, "v": receiver_radar.v}
     if "compute" not in raytracing_opt:
@@ -193,14 +193,14 @@ def rt_points(radars, targets, receiver_radar,
             # TODO: need to make this code more flexibile to handle
             # cases where the chirp_start_time, chirp_slope and chirp_end_time
             # vary on chirp per chirp
-            start_of_chirp = frame_idx * receiver_radar.t_inter_frame + \
+            start_of_chirp = frame_idx * receiver_radar.frame_period + \
                 chirp_idx * receiver_radar.chirp_period
-            adc_times = arange(0, adc_samples_per_chirp*adc_sample_time,
+            adc_times = arange(0, adc_sample_count*adc_sample_time,
                             adc_sample_time) + start_of_chirp
 
             adc_values = sample_all_rays(adc_times,
                                         radars,
-                                        targets,
+                                        scatterers,
                                         receiver_radar,
                                         datatype=datatype)
             # switch axis as now timestamps becomes dimension -1

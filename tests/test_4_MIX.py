@@ -5,7 +5,7 @@ import logging
 from os.path import abspath, join, pardir
 import sys
 from test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc, d_5p1m, \
-    target_static_10p1m, target_static_5p1m, fif00, fif01, \
+    scatterer_static_10p1m, scatterer_static_5p1m, fif00, fif01, \
     chirp_slope_tdm0, adc_8_values_complex_fif00, \
     adc_sampling_times_8_samples, tof_5p1m, f0_60G
 import numpy as np
@@ -63,7 +63,7 @@ def test_RX_freq_2():
     f_rx = array([chirp_start_freq + radar.transmitter.slope*t for t in timestamps])
     f_rx = f_rx[:, None, None, None]
 
-    # remove the if for target at 5.1 m
+    # remove the if for scatterer at 5.1 m
     # since the tx will be if ahead than rx
     f_rx -= fif00
 

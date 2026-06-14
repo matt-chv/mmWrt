@@ -5,7 +5,7 @@ import sys
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
-from mmWrt.Scene import Antenna, Radar, Transmitter, TransmitterDDM, Receiver, Target  # noqa E402
+from mmWrt.Scene import Antenna, Radar, Transmitter, TransmitterDDM, Receiver, Scatterer  # noqa E402
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -37,17 +37,17 @@ vmax_2mps = 2.19 * v_1mps
 vmax_3mps = 3
 dphase_dt_1mps = 4*pi*v_1mps/lambda_60G
 # vmax = lambda_0/2/time_inter_chirp
-# => t_inter_chirp_vmax_2mps = lambda_60G/2/vmax
-t_inter_chirp_vmax_2mps = lambda_60G/4/vmax_2mps
-# t_inter_chirp_vmax_3mps = \
+# => chirp_period_vmax_2mps = lambda_60G/2/vmax
+chirp_period_vmax_2mps = lambda_60G/4/vmax_2mps
+# chirp_period_vmax_3mps = \
 # 0.0004166666666666667 ~ 4.16e-4 = 461us
-t_inter_chirp_vmax_3mps = lambda_60G/4/vmax_3mps  # 461us
+chirp_period_vmax_3mps = lambda_60G/4/vmax_3mps  # 461us
 tof_5p1m = d_5p1m/3e8
 tof_10p1m = d_10p1m/3e8
 fif00 = 2*chirp_slope_tdm0*d_5p1m/3e8  # 170 kHz
 fif01 = 2*chirp_slope_tdm0*d_10p1m/3e8
 fif_tdm0_15m = 2*chirp_slope_tdm0*d_15p1m/3e8
-t_inter_frame_50ms = 50e-3
+frame_period_50ms = 50e-3
 
 
 # for DDM, means +pi/2 at every chirp
@@ -104,93 +104,93 @@ tdm_1chirp_8adc = Transmitter(chirp_end_time=chirp_end_time_8adc,
                               chirp_slope=chirp_slope_tdm0)
 tdm_2chirp_8adc = Transmitter(chirp_start_freq=f0_60G,
                               chirp_end_time=chirp_end_time_8adc,
-                              chirps_count=2,
-                              t_inter_chirp=t_inter_chirp_vmax_3mps,
+                              chirp_count=2,
+                              chirp_period=chirp_period_vmax_3mps,
                               chirp_slope=chirp_slope_tdm0)
 tdm_2frames_2chirp_8adc = Transmitter(chirp_start_freq=f0_60G,
                                       chirp_end_time=chirp_end_time_8adc,
-                                      chirps_count=2,
-                                      t_inter_chirp=t_inter_chirp_vmax_3mps,
+                                      chirp_count=2,
+                                      chirp_period=chirp_period_vmax_3mps,
                                       chirp_slope=chirp_slope_tdm0,
-                                      t_inter_frame=t_inter_frame_50ms,
+                                      frame_period=frame_period_50ms,
                                       frames_count=2)
 tdm_2chirp_8adc = Transmitter(chirp_start_freq=f0_60G,
                               chirp_end_time=chirp_end_time_8adc,
-                              chirps_count=2,
-                              t_inter_chirp=t_inter_chirp_vmax_3mps,
+                              chirp_count=2,
+                              chirp_period=chirp_period_vmax_3mps,
                               chirp_slope=chirp_slope_tdm0)
 tdm_1chirp_1024adc = Transmitter(chirp_end_time=chirp_end_time_1024adc,
                                  chirp_slope=chirp_slope_tdm0)
 tdm_2chirp_1024adc = Transmitter(chirp_end_time=chirp_end_time_1024adc,
-                                 chirps_count=2,
-                                 t_inter_chirp=t_inter_chirp_vmax_3mps,
+                                 chirp_count=2,
+                                 chirp_period=chirp_period_vmax_3mps,
                                  chirp_slope=chirp_slope_tdm0)
 
 tdm_1chirp_64adc = Transmitter(chirp_start_freq=f0_60G,
                                chirp_slope=chirp_slope_tdm0,
                                chirp_end_time=chirp_end_time_64adc,
-                               chirps_count=64,
-                               t_inter_chirp=t_inter_chirp_vmax_3mps)
+                               chirp_count=64,
+                               chirp_period=chirp_period_vmax_3mps)
 
 tdm_1loop_64chirp_ulat_64tx_z_1024adc = \
     Transmitter(chirp_start_freq=f0_60G,
                 chirp_slope=chirp_slope_tdm0,
                 chirp_end_time=chirp_end_time_1024adc,
                 antennas=antennas_ULA_z_64_60G,
-                chirps_count=64,
-                t_inter_chirp=t_inter_chirp_vmax_3mps)
+                chirp_count=64,
+                chirp_period=chirp_period_vmax_3mps)
 
 tdm_32loop_16Tz_64adc = \
     Transmitter(chirp_start_freq=f0_60G,
                 chirp_slope=chirp_slope_tdm0,
                 chirp_end_time=chirp_end_time_64adc,
                 antennas=antennas_ULA_z_16_60G,
-                chirps_count=32*16,
-                t_inter_chirp=t_inter_chirp_vmax_3mps)
+                chirp_count=32*16,
+                chirp_period=chirp_period_vmax_3mps)
 
 tdm_vmax_2mps = Transmitter(chirp_start_freq=f0_60G,
-                            chirp_end_time=t_inter_chirp_vmax_2mps/3,
-                            t_inter_chirp=t_inter_chirp_vmax_2mps,
-                            chirps_count=32)
+                            chirp_end_time=chirp_period_vmax_2mps/3,
+                            chirp_period=chirp_period_vmax_2mps,
+                            chirp_count=32)
 
 ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                        chirp_slope=chirp_slope_tdm0,
                                        chirp_end_time=chirp_end_time_8adc,
-                                       t_inter_chirp=1.1*chirp_end_time_8adc,
+                                       chirp_period=1.1*chirp_end_time_8adc,
                                        antennas=[Antenna() for _ in range(2)],
-                                       chirps_count=4,
+                                       chirp_count=4,
                                        conf={"TX_phaser_slopes":
                                              [0, phase_slope_half_pi]})
 
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                     adc_samples_per_chirp=adc_samples_count_8)
+                     adc_sample_count=adc_samples_count_8)
 
 receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      max_adc_buffer_size=1025,
-                     adc_samples_per_chirp=adc_samples_count_1024)
+                     adc_sample_count=adc_samples_count_1024)
 
 receiver_fs0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                              adc_samples_per_chirp=adc_samples_count_64)
+                              adc_sample_count=adc_samples_count_64)
 
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
-                             adc_samples_per_chirp=adc_samples_count_64)
+                             adc_sample_count=adc_samples_count_64)
 
 receiver_dmax_50m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              max_adc_buffer_size=1025,
-                             adc_samples_per_chirp=64)
+                             adc_sample_count=64)
 
 receiver_dmax_100m = Receiver(adc_sample_rate=adc_sampling_frequency_0*4.1/3,
                               max_adc_buffer_size=1025,
-                              adc_samples_per_chirp=64)
+                              adc_sample_count=64)
 
 receiver_ULA_16R_64adc_dmax_15m = \
     Receiver(adc_sample_rate=adc_sampling_frequency_tdm0_dmax_15m,
              antennas=antennas_ULA_x_16_60G,
-             adc_samples_per_chirp=adc_samples_count_64)
+             adc_sample_count=adc_samples_count_64)
 
 receiver_ULA_64 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                            antennas=antennas_ULA_x_64_60G,
-                           adc_samples_per_chirp=adc_samples_count_64)
+                           adc_sample_count=adc_samples_count_64)
 
 radar_tdm_1_chirp_8_adc = Radar(transmitter=tdm_1chirp_8adc,
                                 receiver=receiver0)
@@ -221,12 +221,12 @@ radar_ula_64_TX_z = Radar(transmitter=tdm_1loop_64chirp_ulat_64tx_z_1024adc,
 radar_tdm_32loop_16T16R_64adc = Radar(transmitter=tdm_32loop_16Tz_64adc,
                                       receiver=receiver_ULA_16R_64adc_dmax_15m)
 
-target_static_0 = Target(xt=lambda t: d_0m+0*t)
-target_static_5p1m = Target(xt=lambda t: d_5p1m+0*t)
-target_static_10p1m = Target(yt=lambda t: d_10p1m+0*t)
-target_static_z_15p1m = Target(zt=lambda t: 15.1+0*t)
-target_linear_speed_5p1m_1mps = Target(xt=lambda t: d_5p1m + v_1mps*t)
-target_linear_speed_10p1m_1mps = Target(xt=lambda t: d_10p1m + v_1mps*t)
+scatterer_static_0 = Scatterer(xt=lambda t: d_0m+0*t)
+scatterer_static_5p1m = Scatterer(xt=lambda t: d_5p1m+0*t)
+scatterer_static_10p1m = Scatterer(yt=lambda t: d_10p1m+0*t)
+scatterer_static_z_15p1m = Scatterer(zt=lambda t: 15.1+0*t)
+scatterer_linear_speed_5p1m_1mps = Scatterer(xt=lambda t: d_5p1m + v_1mps*t)
+scatterer_linear_speed_10p1m_1mps = Scatterer(xt=lambda t: d_10p1m + v_1mps*t)
 
 # vibrate assets
 
@@ -253,20 +253,20 @@ w = v_max/A/5*2
 radar_vibrate = Radar(transmitter=Transmitter(chirp_start_freq=f0_60G,
                                               chirp_slope=k,
                                               chirp_end_time=cet,
-                                              chirps_count=NC_vibrate,
-                                              t_inter_chirp=TIC,
-                                              t_inter_frame=TIF,
+                                              chirp_count=NC_vibrate,
+                                              chirp_period=TIC,
+                                              frame_period=TIF,
                                               frames_count=NF_vibrate),
                       receiver=Receiver(adc_sample_rate=fs,
                                         max_fs=2e8,
-                                        adc_samples_per_chirp=NA_vibrate))
+                                        adc_sample_count=NA_vibrate))
 F1_vibrate = 5
-target_vibrate = Target(xt=lambda t: A*sin(w*t)+rv)
+scatterer_vibrate = Scatterer(xt=lambda t: A*sin(w*t)+rv)
 
-target_5p1m_radar1_bin_1 = 1
-target_10p1m_radar1_bin_3 = 3
+scatterer_5p1m_radar1_bin_1 = 1
+scatterer_10p1m_radar1_bin_3 = 3
 
-targets = [target_static_5p1m, target_static_10p1m,
-           target_linear_speed_5p1m_1mps, target_linear_speed_10p1m_1mps,
-           target_static_0]
+scatterers = [scatterer_static_5p1m, scatterer_static_10p1m,
+           scatterer_linear_speed_5p1m_1mps, scatterer_linear_speed_10p1m_1mps,
+           scatterer_static_0]
 distances = [d_5p1m, d_10p1m, d_5p05m, d_0m, d_0m]

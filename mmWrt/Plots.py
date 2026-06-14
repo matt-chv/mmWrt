@@ -19,9 +19,9 @@ def plot_range_doppler(cube, radar, _d0=None,
     radar: Radar instance
         contains configuration values for displaying the range doppler
     _d0: optional
-        if is not None, will be used in title for target pos
+        if is not None, will be used in title for scatterer pos
     _v0: optional
-        if is not None, will be used in title as target speed
+        if is not None, will be used in title as scatterer speed
     no_speed_shift: bool
         if True does not do fftshift on the speeds
 
@@ -44,7 +44,7 @@ def plot_range_doppler(cube, radar, _d0=None,
     _fs = radar.adc_sample_rate  # adc_sample_frequency
     _k = radar.chirp_slope
     _NA = radar.adc_sample_count
-    _NC = radar.chirps_count
+    _NC = radar.chirp_count
     _TIC = radar.chirp_period
     _f0_min = radar.f0_min
     _L0M = c/_f0_min
@@ -115,8 +115,8 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     _k = radar.slope
     _NA = cube.shape[1]
     NR = cube.shape[0]
-    _NC = radar.chirps_count
-    _TIC = radar.t_inter_chirp
+    _NC = radar.chirp_count
+    _TIC = radar.chirp_period
     _f0_min = radar.f0_min
     _L0M = c/_f0_min
 

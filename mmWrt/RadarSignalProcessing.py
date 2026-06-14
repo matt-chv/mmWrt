@@ -22,11 +22,11 @@ ch.setFormatter(formatter)
 module_logger.addHandler(ch)
 
 def range_to_meters(idx: NDArray, adc_sample_rate,
-                    adc_samples_per_chirp,
+                    adc_sample_count,
                     chirp_slope) -> NDArray:
     c = 3e8
     return (idx*adc_sample_rate * c /
-        (2*chirp_slope*adc_samples_per_chirp))
+        (2*chirp_slope*adc_sample_count))
 
 
 def doppler_to_mps(idx: NDArray, chirp_count,
@@ -39,46 +39,46 @@ def bin_to_deg(idx: NDArray, ula_element_count):
     return np.rad2deg(np.arcsin(2 * idx / ula_element_count))  #-np.pi/2)
 
 
-def error(targets_synthetics, targets_f):
-    """ Computes the error in the targets position estimation
+def error(scatterers_synthetics, scatterers_f):
+    """ Computes the error in the scatterers position estimation
 
     Parameters
     ----------
-    targets_synthetics: list[Targets]
-        list of synthetic targets (as defined intially)
-    targets_f: list[Targets]
-        list of targets as computed by rt and rsp
+    scatterers_synthetics: list[Scatterers]
+        list of synthetic scatterers (as defined intially)
+    scatterers_f: list[Scatterers]
+        list of scatterers as computed by rt and rsp
 
     Returns
     -------
     total_error: float
-        sum of distances between each closest targets
+        sum of distances between each closest scatterers
     """
     total_error = 0
     # create a local copy to avoid modifying the initial list
-    targets_i = targets_synthetics.copy()
-    if len(targets_f) > 0:
-        for t in targets_f:
-            err0 = t.distance(targets_i[0])
+    scatterers_i = scatterers_synthetics.copy()
+    if len(scatterers_f) > 0:
+        for t in scatterers_f:
+            err0 = t.distance(scatterers_i[0])
             idx0 = 0
-            for idx, ti in enumerate(targets_i):
+            for idx, ti in enumerate(scatterers_i):
                 err = t.distance(ti)
                 if err < err0:
                     err0 = err
                     idx0 = idx
             total_error += err0
-            targets_i.pop(idx0)
-            if len(targets_i) == 0:
+            scatterers_i.pop(idx0)
+            if len(scatterers_i) == 0:
                 break
 
-    # if less targets found than inserted
+    # if less scatterers found than inserted
     # add the remaining ones to the error
-    for t in targets_i:
+    for t in scatterers_i:
         # d = t.distance()
         total_error += t.distance()
 
-    # FIXME: add here code in case missing targets or
-    # excessive targets in the found target list
+    # FIXME: add here code in case missing scatterers or
+    # excessive scatterers in the found scatterer list
 
     return total_error
 
@@ -566,7 +566,7 @@ def if2d(radar):
     !!! important
 
         the ratio is 1/2 of the d2f as the IF frequency results from the wave
-        traveling to the target and back. Whereas if2d gives the distance
+        traveling to the scatterer and back. Whereas if2d gives the distance
         between the radar and the scatterer which is 1/2 the distance
         travelled by the radar EM wave.
 
@@ -585,7 +585,7 @@ def if2d(radar):
     -----
     f2d = if2d(radar)
     # assuming f_if is an IF frequency
-    # then d will be the distsance to the target
+    # then d will be the distsance to the scatterer
     d = f2d * f_if
     """
 
@@ -807,14 +807,14 @@ def frequency_estimator(FFT, idxs, estimator_name="fft"):
 
 def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
           adc_sample_rate:float,fft_threshold:float) -> NDArray:
-    """ returns a NDArray of ranges using a simple fft threshold for target 
+    """ returns a NDArray of ranges using a simple fft threshold for scatterer 
     detection, used for simple examples.
     Not recommended in most cases, cfar peak detection recommended 
 
     Parameters
     ----------
     adc_values: NDArray
-        the ADC values for a given chirp. assumed to be a 1D (adc_samples_per_chirp,) shape
+        the ADC values for a given chirp. assumed to be a 1D (adc_sample_count,) shape
     chirp_slope: float
         the chirp slope in Hz/s
     adc_sample_rate: float
@@ -831,18 +831,18 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
 
     """
     c = 3e8  # speed of light in m/s
-    adc_samples_per_chirp = adc_values.shape[0]
+    adc_sample_count = adc_values.shape[0]
     range_fft = fft(adc_values)
 
     peaks = find_peaks(np_abs(range_fft[:len(range_fft)//2]),
                        height=fft_threshold)[0]
     # d = i * fs*c/2/k/NA
     # i2r = lambda idx: idx*adc_sample_rate * c / \
-    #    (2*chirp_slope*adc_samples_per_chirp)
+    #    (2*chirp_slope*adc_sample_count)
     # ranges = array([i2r(peak_idx) for peak_idx in peaks])
     ranges = array([range_to_meters(peak_idx,
                                     adc_sample_rate,
-                                    adc_samples_per_chirp,
+                                    adc_sample_count,
                                     chirp_slope) for peak_idx in peaks])
     return ranges
 
@@ -870,12 +870,12 @@ def ranges_dft_cfar(adc_values:NDArray,
                     chirp_slope:float,
                     pfa:float,
                     log=None) -> NDArray:
-    """ returns a NDArray of ranges using a simple fft threshold for target
+    """ returns a NDArray of ranges using a simple fft threshold for scatterer
     if adc_values are real, will return half the range bins
     """
-    adc_samples_per_chirp = adc_values.shape[0]
+    adc_sample_count = adc_values.shape[0]
     c = 3e8  # speed of light in m/s
-    adc_samples_per_chirp = adc_values.shape[0]
+    adc_sample_count = adc_values.shape[0]
     fft_mag = np_abs(fft(adc_values))
 
 
@@ -893,7 +893,7 @@ def ranges_dft_cfar(adc_values:NDArray,
     log.debug(f"peak_idxs: {peak_idxs}")
     # d = i * fs*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
-        (2*chirp_slope*adc_samples_per_chirp)
+        (2*chirp_slope*adc_sample_count)
     ranges = array([i2r(peak_idx) for peak_idx in peak_idxs])
     return ranges
 
@@ -940,18 +940,18 @@ def range_doppler(adc_values: NDArray,
 
 
 def range_aoa(adc_values: NDArray, radar: Radar):
-    """ returns a list of (range, angle) for each target detected in the given adc values
+    """ returns a list of (range, angle) for each scatterer detected in the given adc values
 
     Parameters
     ----------
     adc_values:
-        (rx_count, adc_samples count) - i.e. 2D array of shape (rx_count, adc_samples_per_chirp)
+        (rx_count, adc_samples count) - i.e. 2D array of shape (rx_count, adc_sample_count)
     radar: Radar
         the RX radar
     Returns
     -------
     detection_list: NDArray
-        1D array of (range, angle) for each target detected in the given adc values
+        1D array of (range, angle) for each scatterer detected in the given adc values
     """
 
     range_axis = 1
@@ -983,10 +983,10 @@ def range_aoa(adc_values: NDArray, radar: Radar):
     detection_list = []
     for idx, range_idx in enumerate(range_idxes_grouped):
         # NOTE:
-        # no need for CFAR here as we are already in a range bin where we know there is a target,
+        # no need for CFAR here as we are already in a range bin where we know there is a scatterer,
         # we just need to find the angle of arrival
         # if we have a large antenna will need to have a CFAR + grouping to allow multiple
-        # targets in teh same range bin
+        # scatterers in teh same range bin
         peak_index = np.argmax(np.abs(range_aoa_dft[:, range_idx]))
         degrees = bin_to_deg(peak_index,
                              range_aoa_dft.shape[0])

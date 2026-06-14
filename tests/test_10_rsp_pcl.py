@@ -7,7 +7,7 @@ v0.0.11: 0
 import logging  # noqa: F401
 import numpy as np
 from os.path import abspath, join, pardir
-from test_assets import radar_tdm_32loop_16T16R_64adc, target_static_5p1m, target_static_10p1m, target_static_z_15p1m, fif_tdm0_15m
+from test_assets import radar_tdm_32loop_16T16R_64adc, scatterer_static_5p1m, scatterer_static_10p1m, scatterer_static_z_15p1m, fif_tdm0_15m
 from mmWrt.Raytracing import rt_points
 from mmWrt.RadarSignalProcessing import pcl
 
@@ -15,17 +15,17 @@ from mmWrt.RadarSignalProcessing import pcl
 def test_pcl():
     radar = radar_tdm_32loop_16T16R_64adc
     run = False
-    scatterers = [target_static_5p1m,
-                        target_static_10p1m,
-                        target_static_z_15p1m]
+    scatterers = [scatterer_static_5p1m,
+                        scatterer_static_10p1m,
+                        scatterer_static_z_15p1m]
     if run:
         import time
 
         start = time.time()     
         bb = rt_points([radar],
-                       [target_static_5p1m,
-                        target_static_10p1m,
-                        target_static_z_15p1m],
+                       [scatterer_static_5p1m,
+                        scatterer_static_10p1m,
+                        scatterer_static_z_15p1m],
                        radar)
         end = time.time()
         print("total time", end-start) #10 s
@@ -71,7 +71,7 @@ def test_pcl():
                                radar.adc_sample_rate,
                                radar.chirp_slope,
                                wavelength=3e8/radar.chirp_start_freq,
-                               chirp_period=radar.t_inter_chirp)
+                               chirp_period=radar.chirp_period)
     expected_rd = np.array([[ 4.9546875,0.       ],
                             [ 9.909375, 0.       ],
                             [14.8640625, 0.       ]])
