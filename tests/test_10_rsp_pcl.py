@@ -9,10 +9,11 @@ import numpy as np
 from os.path import abspath, join, pardir
 from test_assets import radar_tdm_32loop_16T16R_64adc, scatterer_static_5p1m, scatterer_static_10p1m, scatterer_static_z_15p1m, fif_tdm0_15m
 from mmWrt.Raytracing import rt_points
-from mmWrt.RadarSignalProcessing import pcl
+from mmWrt.RadarSignalProcessing import pcl_xyz, pcl
 
 
-def test_pcl():
+def test_pcl_xyz():
+    """ simpler test to check that 3D coordinates are generated correctly"""
     radar = radar_tdm_32loop_16T16R_64adc
     run = False
     scatterers = [scatterer_static_5p1m,
@@ -79,9 +80,13 @@ def test_pcl():
     
     # print("XZ", detection_list_xz)
 
-    detections_xyz = pcl(fctra_cube, radar)  # np.array(detections_xyz)
+    detections_xyz = pcl_xyz(fctra_cube, radar)  # np.array(detections_xyz)
     expected_xyz = np.array([[4.9546875, 0, 0],
                              [0., 9.909375, 0.],
                              [0., 0., 14.8640625]])
 
     assert np.allclose(detections_xyz, expected_xyz)
+
+def tbd_pcl():
+    """ more complete test for full point cloud detection list"""
+    pass

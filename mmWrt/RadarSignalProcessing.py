@@ -1005,7 +1005,8 @@ def detection_xy(adc_values: NDArray, radar: Radar):
     detection_list_cartesian = np.array(detection_list_cartesian)
     return detection_list_cartesian
 
-def pcl(adc_values: NDArray, radar) -> NDArray:
+
+def pcl_xyz(adc_values: NDArray, radar) -> NDArray:
     """ returns array of 3D pcl
 
     Parameters
@@ -1015,8 +1016,8 @@ def pcl(adc_values: NDArray, radar) -> NDArray:
 
     Returns
     -------
-    pcl
-        (x, y, z, vr, mag) detections
+    detections_xyz
+        (number_detections, 3): (x, y, z) detections
     """
     # 1. get Range-Doppler Detections
     # 2. get Azimuth
@@ -1039,3 +1040,40 @@ def pcl(adc_values: NDArray, radar) -> NDArray:
         detections_xyz.append([x, y, z])
     detections_xyz = np.array(detections_xyz)
     return detections_xyz
+
+
+def pcl(adc_values: NDArray, radar) -> NDArray:
+    """ returns array of 3D pcl
+
+    Parameters
+    ----------
+    adc_values
+        (z virtual antennas, x virtual antennas, chirps, adc)
+
+    Returns
+    -------
+    pcl
+        (x, y, z, vr, mag) detections
+    """
+    # 1. get Range-Doppler Detections
+    # FIXME: below is a shortcut merging (range, azimuth) and (range, elevation)
+    # 2. get Azimuth
+    detection_list_r_theta = range_aoa(adc_values[0,0,0,:,:], radar)
+    # 3. get Elevation
+    detection_list_r_phi = range_aoa(adc_values[0,0,:,0,:], radar)
+    # 4. merge
+    detections = []
+    for idx in range(3):
+        r1 = detection_list_r_theta[idx][0]
+        r2 = detection_list_r_phi[idx][0]
+        r = (r1+r2)/2
+        theta = detection_list_r_theta[idx][1]
+        phi = detection_list_r_phi[idx][1]
+        theta, phi = theta*np.pi/180, phi*np.pi/180
+
+        x = r * np.cos(theta) * np.sin(phi)
+        y = r * np.sin(theta) * np.sin(phi)
+        z = r * np.sin(theta) * np.cos(phi)
+        detections_xyz.append([x, y, z])
+    detections = np.array(detections_xyz)
+    return detections
