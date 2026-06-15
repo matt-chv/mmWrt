@@ -127,20 +127,22 @@ def test_rsp__cfar_ca__threshold():
 def test_rsp_cfar_ex1():
     # Example 1: Peak at first range bin
     fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 0, 0])
-    threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
-    magnitude = np.abs(fft)
-    peak_idx = np.argmax(magnitude)
-    assert peak_idx == np.where(magnitude > threshold)[0][0]
+    fft_mag = np.abs(fft)
+    threshold = cfar_ca(fft_mag, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    # magnitude = np.abs(fft)
+    peak_idx = np.argmax(fft_mag)
+    assert peak_idx == np.where(fft_mag > threshold)[0][0]
 
 
 def test_rsp_cfar_ex2():
     from mmWrt.RadarSignalProcessing import cfar_ca
     # Example 2: Peak in the middle
     fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 0, 0])
-    threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
-    magnitude = np.abs(fft)
-    peak_idx = np.argmax(magnitude)
-    assert peak_idx == np.where(magnitude > threshold)[0][0]
+    fft_mag = np.abs(fft)
+    threshold = cfar_ca(fft_mag, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    # magnitude = np.abs(fft)
+    peak_idx = np.argmax(fft_mag)
+    assert peak_idx == np.where(fft_mag > threshold)[0][0]
 
 
 def test_noise_floor_calibration():
@@ -167,9 +169,10 @@ def test_rsp_cfar_ex3(peak_idx: int):
     time_values = np.arange(0, 1, 1/adc_count)
     adc_values = np.exp(2 * 1j * np.pi * peak_idx * time_values)
     fft_values = np.fft.fft(adc_values)
-    threshold = cfar_ca(fft_values, guard_cell_count=1, train_cell_count=3,
+    fft_mag = np.abs(fft_values)
+    threshold = cfar_ca(fft_mag, guard_cell_count=1, train_cell_count=3,
                         pfa=1e-6)
-    magnitude = np.abs(fft_values)
+    magnitude = fft_mag  # np.abs(fft_values)
 
     assert np.where((magnitude > threshold + 1e-10))[0].size > 0, f"no peaks detected but should have been at idx: {peak_idx}"
     if np.where((magnitude > threshold + 1e-10))[0].size > 0:

@@ -362,7 +362,7 @@ class Transmitter():
                  chirp_slope: float = 1e12,
                  chirp_end_time: float = 1e-6,
                  antennas=[Antenna()],
-                 chirp_period=0.0,
+                 chirp_period=1e-6,
                  chirp_count=1,
                  frame_period=50e-3,
                  frame_count=1,
@@ -443,104 +443,6 @@ class Transmitter():
                     chirp_end = chirp_start + ramp_end_time
                     self.tx_on_times.append((chirp_start, chirp_end))
                 return"""
-
-    def TX_freqs_oom(self, timestamps: NDArray) -> NDArray:
-        """ FIXME: this functions' description only describes the ToF use case, not LO use case
-        
-        Returns for each TX->Scatterer->RX path the TX frequency
-        at which the chirps was sent when it is received by the mixer
-
-        Parameters
-        ----------
-        timestamps
-            (timestamps, TX antenna count, Scatterer count, RX antenna count)
-            the timestamp at which ADC are sampling, the TX freq is then
-            computed as timestamp-time_of_flight
-        Returns
-        --------
-        tx_frequencies
-            (timestamps, TX antenna count, Scatterer count, RX antenna count)
-            values at each timestampe of the TX freq for antenna
-            which can then be used to compute the tones on each RX antenna
-            before mixing with LO to generate all the IF tones
-        """
-        import numpy as np
-        chirp_start_freq = self.chirp_start_freq
-        chirp_slope = self.chirp_slope
-        chirp_end_time = self.chirp_end_time
-        chirp_period = self.chirp_period
-        chirp_count = self.chirp_count  # number chirps per antenna
-        antenna_count = len(self.antennas)  # number antennas
-        if ((chirp_count > 1) or (antenna_count > 1)) and self.chirp_period == 0:
-            self._log.error("self.chirp_period = 0")
-        chirp_indexes = np.arange(chirp_count)
-        antenna_indexes = np.arange(antenna_count)
-        self._log.debug(f"antenna_count: {antenna_count}")
-        self._log.debug(f"chirp_count: {chirp_count}")
-        assert antenna_count == timestamps.shape[1], f"timestamps shape {timestamps.shape} does not match antenna count {antenna_count}"
-
-
-        # Absolute chirp index for transmitter k on its nth chirp
-        # is a function of the multiplexing
-        multiplexing = self.multiplexing
-        if multiplexing == "TDM":
-            """
-            [[ 0  3  6  9 12 15 18 21 24 27]
-            [ 1  4  7 10 13 16 19 22 25 28]
-            [ 2  5  8 11 14 17 20 23 26 29]]
-            """
-            # [antenna_count, chirp_count]
-            chirp_index = antenna_indexes[:, None] + chirp_indexes[None, :] * antenna_count
-        elif multiplexing == "DDM":
-            """ DDM allows 10 chirps per antenna to be sent over only 10 chirps 
-            in total being in effect antenna_count faster than TDM
-            (at some compromises)
-            [[0 1 2 3 4 5 6 7 8 9]
-            [0 1 2 3 4 5 6 7 8 9]
-            [0 1 2 3 4 5 6 7 8 9]]
-            """
-            # [antenna_count, chirp_count]
-            chirp_index = antenna_indexes[:, None]*0 + chirp_indexes[None, :]
-        self._log.debug(f"chirp_index: {chirp_index}")
-
-        # [1, antenna_count, 1, 1, chirp_count]
-        chirp_start = chirp_index[None, :, None, None, :] * chirp_period
-        chirp_end = chirp_start + chirp_end_time
-        self._log.debug(f"chirp_start: {chirp_start}")
-        self._log.debug(f"chirp_start TX0: {chirp_start[:, 0, ...]}")
-        self._log.debug(f"chirp_index: {chirp_end}")
-
-        timestamps = timestamps[..., None]  #[:, None, None, None]  # [timestamp_count, 1, 1] T/TX/S/RX
-        # Broadcasting: NumPy aligns axes from the right and expands size-1 axes too match.
-        #
-        # times       : (timestamp_count, TX, S, RX,     1          )  < 1s expand rightward
-        # chirp_start : (1, antenna_count, 1, 1, chirp_count        )  < 1 expands leftward
-        # result      : (timestamp_count, TX, S, RX,     chirp_count)
-        #
-        # Each timestamp is compared against every (antenna, chirp) pair — no loops needed.
-        # [timestamp_count, antenna_count, chirp_count]
-        active = (timestamps >= chirp_start) & (timestamps <= chirp_end)
-
-        # now compute the frequency as a function of chirp_index
-        # [timestamp_count, antenna_count, chirp_count]
-
-        freq = chirp_start_freq + chirp_slope * (timestamps - chirp_start)
-
-        """NOTE: Boolean-float multiplication as a zero-mask
-        # ──────────────────────────────────────────────────
-        # NumPy handles booleans as integers (True=1, False=0).
-        # Multiplying a boolean array by a float array promotes bool→float,
-        # making this equivalent to np.where(active, freq, 0.0) but without
-        # an extra temporary array allocation.
-        #
-        #   active * freq  →  1.0 * freq  (active chirp   — keeps frequency)
-        #                     0.0 * freq  (inactive chirp  — zeroes out)
-        #
-        # Safe to sum over the chirp axis because TDM guarantees at most one
-        # True entry per timestamp for all chirps per antenna."""
-        # [timestamp_count, antenna_count]
-        tx_frequencies = (active * freq).sum(axis=4)
-        return tx_frequencies
 
     def TX_freq(self, timestamps: NDArray) -> NDArray:
         """FIXME: this functions' description only describes the ToF use case, not LO use case

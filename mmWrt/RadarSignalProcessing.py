@@ -9,7 +9,7 @@ from scipy.signal import find_peaks
 from numpy import angle
 
 from .Scene import Radar
-from .mylogs import auto_log
+from .mylogs import auto_log, default_formatter
 
 ERR_CFAR_CELL_COUNT = "Too few cells in to have train cells and guard cells"
 
@@ -17,7 +17,7 @@ ERR_CFAR_CELL_COUNT = "Too few cells in to have train cells and guard cells"
 module_logger = logging.getLogger(__name__)
 module_logger.setLevel(logging.ERROR)  # Default module level
 ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = default_formatter  # 
 ch.setFormatter(formatter)
 module_logger.addHandler(ch)
 
@@ -81,6 +81,7 @@ def error(scatterers_synthetics, scatterers_f):
     # excessive scatterers in the found scatterer list
 
     return total_error
+
 
 def cfar_1D_convolve(X, num_training_cells = 10,
                      num_guard_cells=2, Pfa=0.1,
@@ -315,7 +316,7 @@ def cfar_alpha(train_cell_count: int, pfa: float) -> float:
     return alpha
 
 @auto_log
-def _cfar_ca(magnitude: np.ndarray,
+def _cfar_ca(magnitude: NDArray[float],
             guard_cell_count: int,
             train_cell_count: int,
             threshold_factor: float,
@@ -330,7 +331,7 @@ def _cfar_ca(magnitude: np.ndarray,
     Parameters
     ----------
     magnitude
-        Complex FFT values (1D array).
+        magnitude FFT values (1D array).
     guard_cell_count
         Number of guard cells on each side of the cell under test.
     train_cell_count
@@ -396,7 +397,7 @@ def _cfar_ca(magnitude: np.ndarray,
     try:
         assert 2 * train_cell_count + 2 * guard_cell_count +1 < n_bins  #, "Training + guard cells + 1 (CuT) must be more than total cells count" 
     except:
-        print(2 * train_cell_count + 2 * guard_cell_count +1, n_bins)
+        print(f"bin count: {n_bins} vs train+guard: {2 * train_cell_count + 2 * guard_cell_count +1}")
         raise ValueError(ERR_CFAR_CELL_COUNT)
     # assert train_cell_count > guard_cell_count, "Training cells must be more than guard cells" 
     # threshold_factor = -np.log(pfa) / num_train_cells
@@ -414,6 +415,7 @@ def _cfar_ca(magnitude: np.ndarray,
         training_magnitude = np.concatenate((rolled_magnitude[n_bins//2-train_cell_count-1:n_bins//2-guard_cell_count],
                                             rolled_magnitude[n_bins//2+guard_cell_count+1:n_bins//2+train_cell_count+1]))
         mean_noise = np.mean(training_magnitude)
+
         cfar_threshold[idx] = mean_noise * threshold_factor
         if log.level == 10 and idx == 11:
             print("rolled_magnitude", rolled_magnitude)
@@ -441,9 +443,10 @@ def cfar_ca(fft_values: np.ndarray,
             debug: bool = False) -> np.ndarray:
 
     threshold_factor = cfar_alpha(train_cell_count, pfa)
-    
+
     return _cfar_ca(fft_values, guard_cell_count, train_cell_count,
                     threshold_factor, debug)
+
 
 def peak_grouping_1d(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
     """groups adjacent idx from cfar by first putting adjacent one in clusters
@@ -898,6 +901,30 @@ def ranges_dft_cfar(adc_values:NDArray,
     return ranges
 
 
+def range_doppler_index_grouped(range_doppler_fft: NDArray,
+                                range_cfar_train_cell=6,
+                                doppler_cfar_train_cell=10):
+    """
+    """
+
+    fft_1d = np.sum(range_doppler_fft, axis=0)
+
+    range_idxes = dft_cfr_idx(np_abs(fft_1d),
+                              train_cell_count=range_cfar_train_cell,
+                              pfa=0.1)
+    range_idxes_grouped = peak_grouping_1d(range_idxes, np_abs(fft_1d))
+    range_dopplers_idxes = []
+
+    for range_idx in range_idxes_grouped:
+        doppler_idxes = dft_cfr_idx(np_abs(range_doppler_fft[:, range_idx]),
+                                    train_cell_count=doppler_cfar_train_cell,
+                                    pfa=0.001)
+        doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
+                                                 np_abs(range_doppler_fft[:, range_idx]))
+        range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
+    return range_dopplers_idxes
+
+
 def range_doppler(adc_values: NDArray,
                   adc_sample_rate:float,
                   chirp_slope: float,
@@ -915,27 +942,17 @@ def range_doppler(adc_values: NDArray,
     l = wavelength
     tc = chirp_period
     nc = adc_values.shape[0]
+    adc_sample_count = adc_values.shape[-1]
 
-    Z_fft2 = abs(np.fft.fftshift(np.fft.fft2(adc_values), axes=0))[:, :na // 2]
+    range_doppler_fft = np.fft.fftshift(np.fft.fft2(adc_values), axes=0)
+    if np.isrealobj(adc_values):
+        range_doppler_fft = range_doppler_fft[..., :adc_sample_count//2]
 
-    fft_1d_mag = np_abs(np.sum(Z_fft2, axis=0))
+    range_doppler_idx = range_doppler_index_grouped(range_doppler_fft)
 
-    range_idxes = dft_cfr_idx(fft_1d_mag,
-                              train_cell_count=6,
-                              pfa=0.1)
-    range_idxes_grouped = peak_grouping_1d(range_idxes, fft_1d_mag)
-    # FIXME: make this vectored
-    range_dopplers_idxes = []
-    # range_idxes_grouped = [range_idxes_grouped[0]]
-
-    for range_idx in range_idxes_grouped:
-        doppler_idxes = dft_cfr_idx(np_abs(Z_fft2[:, range_idx]),
-                                    train_cell_count=10,
-                                    pfa=0.001)
-        doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
-                                                 np_abs(Z_fft2[:, range_idx]))
-        range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
-    detections = np.array([(range_to_meters(r, adc_sample_rate, na, k), doppler_to_mps(d, nc, l, tc)) for r, d in range_dopplers_idxes])
+    detections = np.array([(range_to_meters(r, adc_sample_rate, na, k),
+                            doppler_to_mps(d, nc, l, tc))
+                          for r, d in range_doppler_idx])
     return detections
 
 
@@ -1019,7 +1036,7 @@ def pcl_xyz(adc_values: NDArray, radar) -> NDArray:
     detections_xyz
         (number_detections, 3): (x, y, z) detections
     """
-    # 1. get Range-Doppler Detections
+
     # 2. get Azimuth
     detection_list_r_theta = range_aoa(adc_values[0,0,0,:,:], radar)
     # 3. get Elevation
@@ -1048,32 +1065,47 @@ def pcl(adc_values: NDArray, radar) -> NDArray:
     Parameters
     ----------
     adc_values
-        (z virtual antennas, x virtual antennas, chirps, adc)
+        (chirps, z virtual antennas, x virtual antennas, adc)
 
     Returns
     -------
     pcl
         (x, y, z, vr, mag) detections
     """
-    # 1. get Range-Doppler Detections
-    # FIXME: below is a shortcut merging (range, azimuth) and (range, elevation)
+    # 1. get Range-Doppler Detections index
+    range_doppler_fft = np.fft.fftshift(np.fft.fft2(adc_values, axes=[0, -1]),
+                                        axes=0)
+    if np.isrealobj(adc_values):
+        range_doppler_fft = range_doppler_fft[..., :adc_values.shape[-1]//2]
+    range_doppler_idx = range_doppler_index_grouped(range_doppler_fft[:, 0, 0, :])
+
     # 2. get Azimuth
-    detection_list_r_theta = range_aoa(adc_values[0,0,0,:,:], radar)
+    detection_list_r_theta = []
+    detection_list_r_phi = []
+    detections_xyzd = []
+    for r, d in range_doppler_idx:
+        azimut_fft = np.fft.fft(range_doppler_fft[d, 0, :, r])
+        azimut_fft = np.fft.fftshift(np.fft.fft(range_doppler_fft[d, 0, :, r]))
+        detection_list_r_theta.append(np.argmax(np.abs(azimut_fft)))  # range_aoa(adc_values[0,0,0,:,:], radar)
+
     # 3. get Elevation
-    detection_list_r_phi = range_aoa(adc_values[0,0,:,0,:], radar)
+    for r, d in range_doppler_idx:
+        detection_list_r_phi.append(np.argmax(np.abs(np.fft.fftshift(np.fft.fft(range_doppler_fft[d, :, 0, r])))))  # range_aoa(adc_values[0,0,0,:,:], radar)
+
     # 4. merge
-    detections = []
-    for idx in range(3):
-        r1 = detection_list_r_theta[idx][0]
-        r2 = detection_list_r_phi[idx][0]
-        r = (r1+r2)/2
-        theta = detection_list_r_theta[idx][1]
-        phi = detection_list_r_phi[idx][1]
-        theta, phi = theta*np.pi/180, phi*np.pi/180
+    for idx, (r, d) in enumerate(range_doppler_idx):
+        r = range_to_meters(r, radar.adc_sample_rate, radar.adc_sample_count, radar.chirp_slope)
+        d = doppler_to_mps(d, adc_values.shape[0], 3e8/radar.chirp_start_freq, radar.chirp_period)
+        theta = detection_list_r_theta[idx]
+        theta_deg = bin_to_deg(theta, adc_values.shape[2])
+        phi = detection_list_r_phi[idx]
+        phi_deg = bin_to_deg(phi, adc_values.shape[1])
+
+        theta, phi = theta_deg*np.pi/180, phi_deg*np.pi/180
 
         x = r * np.cos(theta) * np.sin(phi)
         y = r * np.sin(theta) * np.sin(phi)
         z = r * np.sin(theta) * np.cos(phi)
-        detections_xyz.append([x, y, z])
-    detections = np.array(detections_xyz)
+        detections_xyzd.append([x, y, z, d])
+    detections = np.array(detections_xyzd)
     return detections

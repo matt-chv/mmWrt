@@ -2,7 +2,7 @@
 Covers:
  - TDM mode
 (not written DDM, SFMCW)
-v0.0.11: 0
+v0.0.11: 2
 """
 import logging  # noqa: F401
 import numpy as np
@@ -17,23 +17,18 @@ def test_pcl_xyz():
     radar = radar_tdm_32loop_16T16R_64adc
     run = False
     scatterers = [scatterer_static_5p1m,
-                        scatterer_static_10p1m,
-                        scatterer_static_z_15p1m]
+                  scatterer_static_10p1m,
+                  scatterer_static_z_15p1m]
     if run:
         import time
 
         start = time.time()     
         bb = rt_points([radar],
-                       [scatterer_static_5p1m,
-                        scatterer_static_10p1m,
-                        scatterer_static_z_15p1m],
+                       scatterers,
                        radar)
         end = time.time()
-        print("total time", end-start) #10 s
+        print("total time", end-start)  # 10 s
         np.save("adc_cube_pcl.npy", adc_cube)
-        #-> TX * RX = 16x16
-        # loops = 64 
-        # ADC: 64
 
         adc_cube = bb["adc_cube"]
     # NumPy fills in row-major (C) order by default,
@@ -77,8 +72,6 @@ def test_pcl_xyz():
                             [ 9.909375, 0.       ],
                             [14.8640625, 0.       ]])
     assert np.allclose(detections, expected_rd)
-    
-    # print("XZ", detection_list_xz)
 
     detections_xyz = pcl_xyz(fctra_cube, radar)  # np.array(detections_xyz)
     expected_xyz = np.array([[4.9546875, 0, 0],
@@ -87,6 +80,31 @@ def test_pcl_xyz():
 
     assert np.allclose(detections_xyz, expected_xyz)
 
-def tbd_pcl():
+def test_pcl():
     """ more complete test for full point cloud detection list"""
-    pass
+
+    logging.basicConfig(level=logging.WARNING)
+    radar = radar_tdm_32loop_16T16R_64adc
+    scatterers = [scatterer_static_5p1m,
+                  scatterer_static_10p1m,
+                  scatterer_static_z_15p1m]
+    fn = "adc_cube_pcl.npy"
+    fp = abspath(join(__file__, pardir, fn))
+
+    run = False
+    if run:
+        bb = rt_points([radar],
+                       scatterers,
+                       radar)
+        adc_cube = bb["adc_cube"]
+        np.save(fp, adc_cube)
+    else:
+        adc_cube = np.load(fp)
+    fctra_cube = adc_cube.reshape(1, 32, 16, 16, 64)
+
+    detections_pcl = pcl(fctra_cube[0, ...], radar)
+    expected_xyzv = np.array([[4.9546875, 0, 0, 0.],
+                             [0., 9.909375, 0., 0.],
+                             [0., 0., 14.8640625, 0.]])
+
+    assert np.allclose(detections_pcl, expected_xyzv)
