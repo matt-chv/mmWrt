@@ -1,5 +1,5 @@
 """ testing sample_all_rays to ensure ADC values are correct
-v0.0.11: 1
+v0.0.11: 2
 """
 from numpy import arange, pi, real
 import numpy as np
@@ -422,3 +422,60 @@ def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
     assert pk0 == 172
     assert pk1 == 341
 """
+
+def tbd_adc_interferer1():
+    """ highly interfered one"""
+
+    from test_assets import radar_dmax_25m_vmax_2mps, adc_sampling_times_64_samples
+    import logging
+    logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    radar = radar_dmax_25m_vmax_2mps
+    import copy
+    interferer = copy.deepcopy(radar_dmax_25m_vmax_2mps)
+    interferer.transmitter.chirp_start_freq = 59.9e9
+    interferer.transmitter.chirp_slope *= 1.3
+    print(f"{interferer.transmitter.chirp_slope*adc_sampling_times_64_samples[-1]:.2g}")
+    print("-"*20)
+    print(f"{radar.transmitter.chirp_slope*adc_sampling_times_64_samples[-1]:.2g}")
+    print(f"{radar.adc_sample_rate:.2g}")
+    #exit()
+
+    # adc_sampling_times_64_samples
+    adc_values = sample_all_rays(adc_sampling_times_64_samples,
+                                 [radar, interferer],
+                                 [scatterer_static_5p1m],
+                                 radar)
+    from matplotlib import pyplot as plt
+    plt.plot(adc_values)
+    plt.show()
+
+
+def test_adc_interferer():
+
+    from test_assets import radar_dmax_25m_vmax_2mps, adc_sampling_times_64_samples
+    # import logging
+    # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    radar = radar_dmax_25m_vmax_2mps
+    import copy
+    interferer = copy.deepcopy(radar_dmax_25m_vmax_2mps)
+    interferer.transmitter.chirp_start_freq = 59.5e9
+    interferer.transmitter.chirp_slope *= 20
+
+    adc_values_ok = sample_all_rays(adc_sampling_times_64_samples,
+                                    [radar],
+                                    [scatterer_static_5p1m],
+                                    radar)
+
+    adc_values_interfered = sample_all_rays(adc_sampling_times_64_samples,
+                                    [radar, interferer],
+                                    [scatterer_static_5p1m],
+                                    radar)
+
+    """from matplotlib import pyplot as plt
+    plt.plot(adc_values_interfered)
+    plt.show()"""
+
+    inteference_abs = np.abs(adc_values_interfered-adc_values_ok)
+    count_interferences = np.count_nonzero(inteference_abs)
+    assert count_interferences == 10, f"failed: {count_interferences} vs 10"
+    assert np.sum(inteference_abs) > 5
