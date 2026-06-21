@@ -14,6 +14,7 @@ from numpy import complex64
 from numpy.linalg import norm as euclidian_distance
 from numpy import tile, sum
 import numpy as np
+from typing import TypeVar
 
 from time import perf_counter
 from .mylogs import auto_log
@@ -29,6 +30,8 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 module_logger.addHandler(ch)
+
+ADCType = TypeVar("ADCType", complex64, float32, float64)
 
 
 @auto_log

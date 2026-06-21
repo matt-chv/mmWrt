@@ -1,25 +1,10 @@
 """ testing the mixer logic
 v 0.0.11 - 5 passed
 """
-import logging
-from os.path import abspath, join, pardir
-import sys
-from test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc, d_5p1m, \
-    scatterer_static_10p1m, scatterer_static_5p1m, fif00, fif01, \
-    chirp_slope_tdm0, adc_8_values_complex_fif00, \
-    adc_sampling_times_8_samples, tof_5p1m, f0_60G
+import logging  # noqa 401
 import numpy as np
-import pytest
 from numpy import allclose, array, arange
-
-from os.path import abspath, join, pardir
-import pytest
-import sys
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
-
-# from mmWrt.Raytracing import BB_IF
-# from mmWrt.Scene import scene_distance
+from test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc, fif00
 
 
 def test_RX_eq_TX():
@@ -32,7 +17,8 @@ def test_RX_eq_TX():
         (1/adc_sample_rate)
     adc_sample_count = radar.receiver.adc_sample_count
     # f_rx = np.empty((adc_sample_count, 1))
-    f_rx = array([chirp_start_freq + radar.transmitter.slope*t for t in timestamps])
+    f_rx = array([chirp_start_freq + radar.transmitter.slope*t
+                  for t in timestamps])
     f_rx = f_rx[:, None, None, None]
 
     # inject f_rx which is the same as f_tx
@@ -56,11 +42,10 @@ def test_RX_freq_2():
     timestamps = arange(0, radar.adc_sample_count, 1) * \
         (1/adc_sample_rate)
 
-    logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
-    logging.getLogger("Radar").setLevel(logging.DEBUG)
+    # logging.getLogger("Radar").setLevel(logging.DEBUG)
 
-    f_rx = array([chirp_start_freq + radar.transmitter.slope*t for t in timestamps])
+    f_rx = array([chirp_start_freq + radar.transmitter.slope*t
+                  for t in timestamps])
     f_rx = f_rx[:, None, None, None]
 
     # remove the if for scatterer at 5.1 m
@@ -68,9 +53,9 @@ def test_RX_freq_2():
     f_rx -= fif00
 
     f_if = radar.mixer(timestamps=timestamps,
-                                         f_rx=f_rx)
+                       f_rx=f_rx)
 
-    f_if_expected = np.ones((8,1,1,1))*fif00
+    f_if_expected = np.ones((8, 1, 1, 1))*fif00
 
     assert f_if.shape == f_if_expected.shape
     assert allclose(f_if, f_if_expected, atol=1e-8)
@@ -95,11 +80,9 @@ def test_no_mixing():
     # to simulate no mixing, we define a radar without transmission
     # receiving a frequency and without filters, we get the same frequency
     # at the output of the mixer as at the input
-    from tests.test_assets import radar_tx_off, radar_tdm_1_chirp_8_adc
-    from numpy import abs as np_abs
 
     adc_times = np.array([1]*7)
-    f_rx = np.arange(57e9, 64e9, 1e9)[:,None, None, None]
+    f_rx = np.arange(57e9, 64e9, 1e9)[:, None, None, None]
 
     if_frequencies = radar_tx_off.mixer(adc_times,
                                         f_rx=f_rx)

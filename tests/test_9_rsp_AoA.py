@@ -6,21 +6,11 @@ v0.0.11: 3
 """
 import logging  # noqa: F401
 import numpy as np
-from os.path import abspath, join, pardir
-import sys
-from scipy.fft import fft
-from scipy.signal import find_peaks
-from numpy import zeros
 
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
-
-from mmWrt.Scene import Antenna, Medium, Radar, Receiver, \
-    Scatterer, Transmitter  # noqa: E402
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_aoa, detection_xy  # noqa: E402
 from test_assets import radar_ula_64_RX, scatterer_static_5p1m, \
-    scatterer_static_10p1m, scatterer_static_z_15p1m, radar_ula_64_TX_z  # noqa: E402
+    scatterer_static_10p1m, scatterer_static_z_15p1m, radar_ula_64_TX_z
 
 
 def test_SIMO_AoA_polar():
@@ -31,7 +21,8 @@ def test_SIMO_AoA_polar():
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     # logging.getLogger("mmWrt.RadarSignalProcessing._cfar_ca").setLevel(logging.DEBUG)
     # logging.getLogger("Radar").setLevel(logging.DEBUG)
-    bb = rt_points([radar], [scatterer_static_5p1m, scatterer_static_10p1m, scatterer3],
+    bb = rt_points([radar], [scatterer_static_5p1m, scatterer_static_10p1m,
+                             scatterer3],
                    radar)
 
     detection_list = range_aoa(bb["adc_cube"][0, 0, :, :], radar)
@@ -79,6 +70,7 @@ def test_MISO_AoA_cartesian():
     assert detection_list.shape == expected_detections.shape
 
 
+"""
 # @pytest.mark.skipif(__version__.find("rc") >= 0, reason="only for release")
 def tbd_SIMO_AoA():
     f0 = 62e9
@@ -91,7 +83,8 @@ def tbd_SIMO_AoA():
     lambda0 = void.v/f0
     RXs = [Antenna(x=lambda0/2*i) for i in range(NR)]
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048,
+                  receiver=Receiver(adc_sample_rate=4e3,
+                                    adc_sample_count_max=2048,
                                     adc_sample_count=NA,
                                     antennas=RXs),
                   debug=False)
@@ -99,7 +92,7 @@ def tbd_SIMO_AoA():
     scatterer2 = Scatterer(0, 10.1, 0)
     scatterers = [scatterer1, scatterer2]
 
-    bb = rt_points(radar, scatterers,
+    bb = rt_points([radar], scatterers, radar,
                    debug=False)
     cube = bb["adc_cube"]
     # Range FFT
@@ -129,4 +122,4 @@ def tbd_SIMO_AoA():
     # plt.plot(abs(A_FFT[0,0,0,:,4]))
     # plt.savefig("AoA FFT B4.png")
     # plt.savefig("AoA FFT A8_3.png")
-
+"""

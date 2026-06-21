@@ -643,7 +643,7 @@ class Transmitter():
             k  = np.clip(k, 0, chirp_count - 1)
             cs = k * chirp_period
 
-            phase_slope = np.asarray(self.conf["TX_phaser_slopes"])  # (TX,)
+            phase_slope = np.asarray(self.TX_phaser_slopes)  # (TX,)
             ps  = phase_slope[None, :, None, None]                   # (1, TX, 1, 1)
             phase = k * ps                                           # (ts, TX, S, RX)
 
@@ -687,14 +687,14 @@ class TransmitterDDM(Transmitter):
         assert len(conf["TX_phaser_slopes"]) == len(antennas)
         self.TX_phaser_slopes = conf["TX_phaser_slopes"]
         
-    def TX_freq(self, times: NDArray, tx_idx=-1) -> NDArray[float64]:
-        """ Default implementation for DDM"""
-        # if tx_idx==-1: return VCO chirp (used for any RX )
-        # if tx_idx >= 0: return the TX antenna one (used for specific TX antenna phase)
-        tx_phases = zeros(times.shape)
-        return tx_phases
+    # def TX_freq(self, times: NDArray, tx_idx=-1) -> NDArray[float64]:
+    #    """ Default implementation for DDM"""
+    #    # if tx_idx==-1: return VCO chirp (used for any RX )
+    #    # if tx_idx >= 0: return the TX antenna one (used for specific TX antenna phase)
+    #    tx_phases = zeros(times.shape)
+    #    return tx_phases
 
-    def TX_phases(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
+    def __TX_phases__(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
         """ Default implementation for DDM
 
         Parameters

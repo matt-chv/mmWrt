@@ -9,24 +9,14 @@ v0.0.11: 1
 """
 import logging
 import numpy as np
-from os.path import abspath, join, pardir
-import sys
-from numpy import arange, where, float32, complex64, complex128
-from numpy.fft import fft
-from scipy.signal import find_peaks
-from time import perf_counter
-
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import sample_all_rays
-# from mmWrt.Raytracing_old import rt_points
-from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold, ranges_dft_cfar
-#from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer
+from mmWrt.RadarSignalProcessing import ranges_from_fft_threshold, \
+    ranges_dft_cfar
 
-from test_assets import adc_sampling_times_8_samples, adc_sampling_times_64_samples, radar_tdm_1_chirp_8_adc, \
-    scatterer_static_5p1m, radar_tdm_1_chirp_1024_adc, adc_sampling_times_1024_samples, \
-    radar_tdm_1_chirp_64_adc
+from test_assets import adc_sampling_times_8_samples, \
+    adc_sampling_times_64_samples, radar_tdm_1_chirp_8_adc, \
+    scatterer_static_5p1m, radar_tdm_1_chirp_64_adc
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -39,7 +29,8 @@ def test_rsp_range_with_peak_find():
     radar = radar_tdm_1_chirp_8_adc
     chirp_slope = radar.transmitter.chirp_slope
     adc_sample_rate = radar.receiver.adc_sample_rate
-    logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    logging.getLogger("mmWrt.Raytracing.sample_all_rays")\
+        .setLevel(logging.DEBUG)
 
     adc_values = sample_all_rays(adc_sampling_times_8_samples,
                                  [radar],
@@ -52,7 +43,9 @@ def test_rsp_range_with_peak_find():
                                        adc_sample_rate=adc_sample_rate,
                                        fft_threshold=1)
     assert ranges.shape == (1,), "only one value should be reported"
-    assert np.allclose(ranges, [3.7875]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
+    assert np.allclose(ranges, [3.7875]), \
+        "computed range with default setup should 3.7875 \
+         (RMSE within one range bin)"
 
 
 def tbd_rsp_range_with_cfar():
@@ -71,16 +64,23 @@ def tbd_rsp_range_with_cfar():
                                  [scatterer_static_5p1m],
                                  radar)
     adc0 = adc_values[:, 0]
-    # NOTE: if setting pfa=1e-6 below the CFAR threshold will reject the main lobe
+    # NOTE: if setting pfa=1e-6 below the CFAR threshold
+    # will reject the main lobe
     # to be highlighted in examples
     ranges = ranges_dft_cfar(adc0,
                              chirp_slope=chirp_slope,
                              adc_sample_rate=adc_sample_rate,
                              pfa=0.01)
 
-    assert ranges.shape == (1,), f"only one value should be reported, 1 b/o real sampling and no grouping anything else is regression. Got: {ranges.shape}"
-    assert np.allclose(ranges[0], [5.2078125]), f"computed range with default setup should 3.7875 (RMSE within one range bin)"
+    assert ranges.shape == (1,), \
+        f"only one value should be reported, 1 b/o real sampling \
+          and no grouping anything else is regression. Got: {ranges.shape}"
+    assert np.allclose(ranges[0], [5.2078125]), \
+        "computed range with default setup should \
+            3.7875 (RMSE within one range bin)"
 
+
+# FIXME: turn below back into unit test
 
 """
 def __range__wrapper(scatterer_idxes=[0], radars_idxes=[0],
@@ -150,19 +150,15 @@ def __range__wrapper(scatterer_idxes=[0], radars_idxes=[0],
             assert  error < range_bin_width
         except Exception as ex:
             raise ValueError("Error too large")
-"""
+
 
 def tbd_if_error_radar_tdm_1_chirp_8_adc_scatterer_static_5p1m():
-    """
-    Test that in TDM mode the range estimation is within one range bin width
-    Given a 8 ADC samples per chirp
-    """
-    # __range__wrapper(scatterer_idxes=[0], radars_idxes=[0], distance_idxes=[0])
-    from test_assets import adc_sampling_times_8_samples
-    from mmWrt.Scene import Radar, Transmitter, Receiver, Antenna
-    radar = radars[0]
+    # Test that in TDM mode the range estimation is within one range bin width
+    # Given a 8 ADC samples per chirp
+
+    radar = radar_tdm_1_chirp_8_adc
     adc_times = adc_sampling_times_8_samples
-    scatterer = scatterers[0]
+    scatterer = scatterer_static_5p1m
     radar.tx_antennas = [Antenna() for _ in range(2)]
     radar.rx_antennas = [Antenna() for _ in range(2)]
     adc_values = adc_samples(adc_times, radar,
@@ -171,7 +167,7 @@ def tbd_if_error_radar_tdm_1_chirp_8_adc_scatterer_static_5p1m():
     print(adc_values.shape)
     assert False
 
-"""
+
 def test_if_error_radar_tdm_1_chirp_8_adc_scatterer_static_5p1m_cfar():
     "" "
     Test that in TDM mode the range estimation is within one range bin width
@@ -293,7 +289,4 @@ def test_cfar_error():
     else:
         raise ValueError("Error not raised")
 
-"""
-
-if __name__ == "__main__":
-    tbd_rsp_range_with_cfar()
+"""  # noqa 501

@@ -1,27 +1,15 @@
 """ testing sample_all_rays to ensure ADC values are correct
 v0.0.11: 2
 """
-from numpy import arange, pi, real
 import numpy as np
-from scipy.signal import find_peaks
-import pytest
-
-import sys
-from os.path import abspath, join, pardir
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
-
 from mmWrt.Raytracing import sample_all_rays
-from mmWrt.Scene import Scatterer
-from tests.test_assets import scatterer_static_0, scatterer_static_5p1m, radar_tdm_1_chirp_8_adc, \
-    fif00, scatterer_static_10p1m, fif01, adc_sampling_frequency_0, adc_8_values_complex_fif00, \
-    adc_sampling_times_8_samples, scatterer_5p1m_radar1_bin_1, scatterer_10p1m_radar1_bin_3
-from numpy import complex64, allclose
+from tests.test_assets import scatterer_static_5p1m, radar_tdm_1_chirp_8_adc
 
 
 def test_adc_simple():
     # test that given a given scatterer, we get expected adc value
-    from test_assets import adc_sampling_times_8_samples, adc_8_values_complex_fif00
+    from test_assets import adc_sampling_times_8_samples, \
+        adc_8_values_complex_fif00
     # timesamples = adc_sampling_times_8_samples  # [:, None, None, None]
 
     adc_values = sample_all_rays(adc_sampling_times_8_samples,
@@ -32,7 +20,9 @@ def test_adc_simple():
     expected = np.real(adc_8_values_complex_fif00)
 
     assert adc0.shape == adc_8_values_complex_fif00.shape, "shapes don't match"
-    assert np.allclose(adc0, expected, atol=1e-2), f"adc0:{adc0} vs expected: {expected}"
+    assert np.allclose(adc0, expected, atol=1e-2), \
+        f"adc0:{adc0} vs expected: {expected}"
+
 
 """
 @pytest.mark.parametrize("scatterer, radar, datatype, index", [
@@ -390,7 +380,7 @@ def t0est0_if_error_radar11_scatterer0_1024_adc_samples():
 def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
     # Test the presence of 2 tones at the right positions
     # when two scatterers are introduced
-    # 
+    #
     # in case of algorithmic changes, first checks for the
     # tone to be within the range resolution then checks
     # the indexes against known good values
@@ -421,26 +411,22 @@ def t0est0_if_error_radar11_scatterer0_scatterer1_1024_adc_samples():
 
     assert pk0 == 172
     assert pk1 == 341
-"""
+"""  # noqa 401
+
 
 def tbd_adc_interferer1():
     """ highly interfered one"""
 
-    from test_assets import radar_dmax_25m_vmax_2mps, adc_sampling_times_64_samples
+    from test_assets import radar_dmax_25m_vmax_2mps, \
+        adc_sampling_times_64_samples
     import logging
-    logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
+    logging.getLogger("mmWrt.Raytracing.sample_all_rays")\
+        .setLevel(logging.DEBUG)
     radar = radar_dmax_25m_vmax_2mps
     import copy
     interferer = copy.deepcopy(radar_dmax_25m_vmax_2mps)
     interferer.transmitter.chirp_start_freq = 59.9e9
     interferer.transmitter.chirp_slope *= 1.3
-    print(f"{interferer.transmitter.chirp_slope*adc_sampling_times_64_samples[-1]:.2g}")
-    print("-"*20)
-    print(f"{radar.transmitter.chirp_slope*adc_sampling_times_64_samples[-1]:.2g}")
-    print(f"{radar.adc_sample_rate:.2g}")
-    #exit()
-
-    # adc_sampling_times_64_samples
     adc_values = sample_all_rays(adc_sampling_times_64_samples,
                                  [radar, interferer],
                                  [scatterer_static_5p1m],
@@ -452,7 +438,8 @@ def tbd_adc_interferer1():
 
 def test_adc_interferer():
 
-    from test_assets import radar_dmax_25m_vmax_2mps, adc_sampling_times_64_samples
+    from test_assets import radar_dmax_25m_vmax_2mps, \
+        adc_sampling_times_64_samples
     # import logging
     # logging.getLogger("mmWrt.Raytracing.sample_all_rays").setLevel(logging.DEBUG)
     radar = radar_dmax_25m_vmax_2mps
@@ -467,9 +454,9 @@ def test_adc_interferer():
                                     radar)
 
     adc_values_interfered = sample_all_rays(adc_sampling_times_64_samples,
-                                    [radar, interferer],
-                                    [scatterer_static_5p1m],
-                                    radar)
+                                            [radar, interferer],
+                                            [scatterer_static_5p1m],
+                                            radar)
 
     """from matplotlib import pyplot as plt
     plt.plot(adc_values_interfered)
