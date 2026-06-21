@@ -4,6 +4,7 @@ from functools import wraps
 
 default_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+default_logger = logging.getLogger("default")
 
 def auto_log(func):
     # wrapper to easily add hiearichal logging down to class methods

@@ -33,7 +33,7 @@ def test_distance_5p1m_t_1000(time):
     # (from antenna to scatterer and back to antenna), 5.1*2
     tpos = scatterer_static_5p1m.pos_t1(t=np.array([time]))
     tpos = tpos[:, None, :]
-    apos = antenna_origin_static.position_in_time(t=np.array([time]))
+    apos = antenna_origin_static.position_in_time(timestamp=np.array([time]))
     apos = apos[:, None, :]
     print(tpos.shape)
     print(apos.shape)
@@ -56,7 +56,7 @@ def test_distance_5p1m_times():
 
     antenna_positions = np.empty((10, 1, 3))
     antenna_positions[:, 0, :] = \
-        antenna_origin_static.position_in_time(t=times)
+        antenna_origin_static.position_in_time(timestamp=times)
 
     d0 = two_way_range(antenna_positions, scatterers_positions,
                        antenna_positions)
@@ -72,7 +72,7 @@ def test_distance_multiple_antennas():
     from test_assets import antennas_ULA_64_60G
     times = np.array([0])
     antenna_positions = np.empty((8, 1, 3))
-    antenna_positions[:, :, :] = [a.position_in_time(t=times) for
+    antenna_positions[:, :, :] = [a.position_in_time(timestamp=times) for
                                   a in antennas_ULA_64_60G[0:8]]
     scatterers_positions = np.empty((1, 1, 3))
     scatterers_positions[:, 0, :] = scatterer_static_5p1m.pos_t1(t=times)

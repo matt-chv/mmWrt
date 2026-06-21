@@ -20,7 +20,6 @@ sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_doppler
-from mmWrt.Plots import plot_range_doppler
 
 from test_assets import radar_dmax_25m_vmax_2mps, scatterer_static_5p1m, \
     scatterer_linear_speed_10p1m_1mps, radar_vibrate, scatterer_vibrate, \
@@ -104,7 +103,6 @@ def test_rsp_range_doppler_DDM():
     radar = radar_ddm_dmax_25m_vmax_2mps_2_tx
     scatterers = [scatterer_static_5p1m, scatterer_static_10p1m,
                   scatterer_static_z_15p1m]
-    from matplotlib import pyplot as plt
 
     print("d_max", radar.d_max)
     # (1, 32, 1, 64)
@@ -116,7 +114,7 @@ def test_rsp_range_doppler_DDM():
                        chirp_slope=radar.chirp_slope,
                        wavelength=3e8/radar.chirp_start_freq,
                        chirp_period=radar.chirp_period)
-    expected_rd = np.array([[5.17625, -1.095],[5.17625, 0.],
+    expected_rd = np.array([[5.17625, -1.095], [5.17625, 0.],
                             [10.3525, -1.095], [10.3525, 0.],
                             [14.88171875, -1.095], [14.88171875, 0.]])
     assert np.allclose(rd, expected_rd)
