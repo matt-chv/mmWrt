@@ -1,6 +1,6 @@
 """ testing the RX side of the system.
 combination of TX_Freq and ToF
-f_rx = receiver_radar.TX_freq(adc_times-time_of_flight)
+f_rx = receiver_radar.LO_freq(adc_times-time_of_flight)
 v0.0.11: 1 passed
 """
 
@@ -17,6 +17,6 @@ def test_0_tof():
     timestamps = timestamps[:, None, None, None]
     f_tx_expected = np.array([chirp_start_freq +
                               radar.transmitter.slope*t for t in timestamps])
-    f_tx = radar.TX_freq(timestamps=timestamps)
+    f_tx = radar.LO_freq(timestamps=timestamps)
     assert f_tx_expected.shape == f_tx.shape
     assert np.allclose(f_tx_expected, f_tx, atol=1e-3)

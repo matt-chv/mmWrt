@@ -117,7 +117,7 @@ def cfar_ca_1d(X, num_training_cells=10,
                num_guard_cells=2,
                Pfa=1e-2,
                mode="same",
-               debug=True):
+               debug=False):
     """ Retuns indexs of peaks found via CA-CFAR
     i.e Cell Averaging Constant False Alarm Rate algorithm
 
@@ -607,7 +607,7 @@ def range_fft(adc_values: NDArray,
     Parameters
     ----------
     adc_values: NDArray
-        the IF ADC signals of shape(N,) - i.e. 1D array
+        (N,) the IF ADC signals of shape (N,) - i.e. 1D array
     baseband: dict
     chirp_index: int
         (obsolete) index of the chirp in the data matrix

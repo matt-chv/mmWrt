@@ -22,10 +22,11 @@ def TX_Freq(timestamps: NDArray, multiplexing: Literal["TDM", "DDM"] = "TDM") ->
         tx antenna at each timestamp. when a timestamp is out of a chirp
         for the given antenna the value returned is 0
     """
+
     chirp_start_freq = 60
     chirp_slope = 1
     chirp_end_time = 0.5
-    t_inter_chirp = 1
+    chirp_period = 1
     chirp_count = 3  # number chirps per antenna
     antenna_count = 2  # number antennas
     chirp_indexes = np.arange(chirp_count)
@@ -55,7 +56,7 @@ def TX_Freq(timestamps: NDArray, multiplexing: Literal["TDM", "DDM"] = "TDM") ->
         chirp_index = antenna_indexes[:, None]*0 + chirp_indexes[None, :]
 
     # [1, antenna_count, 1, 1, chirp_count]
-    chirp_start = chirp_index[None, :, None, None, :] * t_inter_chirp
+    chirp_start = chirp_index[None, :, None, None, :] * chirp_period
     print("chirp_start", chirp_start)
     chirp_end = chirp_start + chirp_end_time
 

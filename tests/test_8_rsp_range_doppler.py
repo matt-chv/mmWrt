@@ -104,7 +104,7 @@ def test_rsp_range_doppler_DDM():
     scatterers = [scatterer_static_5p1m, scatterer_static_10p1m,
                   scatterer_static_z_15p1m]
 
-    print("d_max", radar.d_max)
+    print("range_max", radar.range_max)
     # (1, 32, 1, 64)
     bb = rt_points([radar], scatterers, radar,
                    datatype=complex)

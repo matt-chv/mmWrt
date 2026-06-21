@@ -107,10 +107,10 @@ def sample_all_rays(adc_times,
         # by the transmitting radar
         # at sampling time - time_of_flight
         # which is why, only f_rx is passed to mixer
-        # as in the mixer, the receiver_radar TX_freq is called
+        # as in the mixer, the receiver_radar LO_freq is called
         # with `0` delay since
         # it is the local oscillator
-        f_rx = radar.TX_freq(radar_tx_times)
+        f_rx = radar.LO_freq(radar_tx_times)
 
         ph_rx = radar.TX_phases(radar_tx_times)
 
@@ -135,6 +135,7 @@ def sample_all_rays(adc_times,
 def rt_points(radars, scatterers, receiver_radar,
               radar_equation=False,
               datatype=float32, debug=False,
+              disable_tqdm: bool = True,
               log: Logger = default_logger,
               **raytracing_opt):
     """ raytracing with points
@@ -156,6 +157,8 @@ def rt_points(radars, scatterers, receiver_radar,
         type of data to be generate by rt: float16, float32, ... or complex
     debug: bool
         if True prints log messages
+    disable_tqdm: bool
+        if True disables the tqdm output (for .ipynb cells)
     raytracing_opt: dict
         compute: bool
             if True computes raytracing (use False for radar statistics tuning)
@@ -192,20 +195,21 @@ def rt_points(radars, scatterers, receiver_radar,
 
     baseband = {"adc_cube": adc_cube,
                 "frame_count": n_frames,
+                "chirp_slope": receiver_radar.chirp_slope,
                 "chirp_count": receiver_radar.chirp_count,
                 "chirp_period": receiver_radar.chirp_period,
+                "chirp_end_time": receiver_radar.chirp_end_time,
                 "n_tx": n_tx,
                 "n_rx": n_rx,
                 "adc_sample_count": adc_sample_count,
                 "datatype": datatype,
                 "f0_min": f0_min,
-                "slope": slope,
                 "bw": bw,
                 "Tc": Tc,
                 "TFFT": adc_sample_count*adc_sample_time,
                 "T": T,
                 "adc_sample_rate": receiver_radar.adc_sample_rate,
-                "v": receiver_radar.v}
+                "medium_velocity": receiver_radar.v}
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = False
     from tqdm import tqdm
@@ -213,7 +217,8 @@ def rt_points(radars, scatterers, receiver_radar,
     for frame_idx in range(n_frames):
         for chirp_idx in tqdm(range(n_chirps),
                               total=n_chirps,
-                              desc=f"Chirp from frame: {frame_idx}"):
+                              desc=f"Chirp from frame: {frame_idx}",
+                              disable=disable_tqdm):
             # TODO: need to make this code more flexibile to handle
             # cases where the chirp_start_time, chirp_slope and chirp_end_time
             # vary on chirp per chirp

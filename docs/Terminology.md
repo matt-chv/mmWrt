@@ -40,3 +40,16 @@ Reciprocally the `Output` of the medium will be the RX antenna(s).
 
 * FMCW: Frequency Modulated Continuous Wave
 
+##
+
+primary:
+  chirp_start_freq (startFreqConst)
+  chirp_slope (freqSlopeConst)
+  chirp_end_time (rampEndTime)
+
+  adc_start_offset (adcStartTime)
+  adc_samples_per_chirp (numAdcSamples)
+  adc_sample_rate (digOutSampleRate)
+
+secondary
+  chirp_bandwidth

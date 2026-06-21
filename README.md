@@ -65,10 +65,24 @@ v0.0.11:
     * pre.2
         - TODO
             - renaming:
-                - tx_frequencies -> vco_frequency
+                - ~~tx_frequencies -> lo_frequency~~
                 - align pre.1 renaming convention with .ipynb
+                    - ~~Target -> Scatterer~~
+                    - fs -> adc_sample_rate
+                        - ~~Receiver(fs= -> Receiver(adc_sample_rate=~~
+                    - max_adc_buffer_size= -> adc_sample_count_max=
+                    - bw -> chirp_end_time = bw/chirp_slope0
+                    - ~~ n_adc= -> adc_sample_count= ~~
+                    - ~~slope= -> chirp_slope=~~
+                    - ~~chirps_count -> chirp_count~~
+                    - ~~target -> scatterer~
+                    - ~~t_inter_chirp -> chirp_period~~
+                    - TX_phase_offsets
             - run pytest --ignore=tests\test_nb.py --ignore=tests\test_docs.py
             - if all ok -> release
+        - FIXME:
+            - MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.
+            - FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility)
 
 
 *v0.0.10:

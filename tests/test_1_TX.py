@@ -1,4 +1,4 @@
-""" This is mostly to test the TX_freq and phases
+""" This is mostly to test the LO_freq and phases
 covers TDM and DDM, SFMCW not included
 v0.0.11: 8 passed
 """
@@ -68,7 +68,7 @@ def test_tx_frequency_ramp_1_tx():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
 
     assert txfs.shape == (4, 1, 1, 1)
     # change shape for easier validation
@@ -105,7 +105,7 @@ def tbd_tx_frequency_ramp_2_tx_tdm0():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
 
     # change shape for easier validation
     tx0 = txfs[:, 0, 0, 0]
@@ -146,7 +146,7 @@ def test_tx_frequency_ramp_2_tx_tdm1():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
 
     # change shape for easier validation
     tx0 = txfs[:, 0, 0, 0]
@@ -177,7 +177,7 @@ def test_tx_frequency_ramp_2_tx_ddm():
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     radar.multiplexing = "DDM"
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
 
     tx0 = txfs[:, 0, 0, 0]
     tx1 = txfs[:, 1, 0, 0]
@@ -203,7 +203,7 @@ def test_tx_frequency_out_of_ramp():
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
     tx0 = txfs[:, 0, 0, 0]
     tx0_expected = array([0, 0, 6.00594059e+10, 0])
     assert allclose(tx0, tx0_expected, atol=1e-8), "antenna TX0 frequencies does not match expected"
@@ -239,7 +239,7 @@ def test_transmitterDDM_phaser0_chirp0(start_time, offset, tx_idx, phase):
     assert allclose(tx_phis, expected, atol=1e-8)"""
 
 
-def tbd_TX_Freqs_64TX_64loops():
+def tbd_LO_freq_64TX_64loops():
     # v0.0.11-rc1 fix
     # times(64,64,3,64) -> freq is (64, 64, 3, 64, 4096) which is 24GiB
     # which crashes simulation
@@ -249,7 +249,7 @@ def tbd_TX_Freqs_64TX_64loops():
     times = np.zeros((1,64,1,64))  # (64, 64, 3, 64)
     times = np.zeros((64, 64, 3, 64))
     # (1, 64, 1, 64)
-    txfs = radar.TX_freq(times)
+    txfs = radar.LO_freq(times)
     print(txfs.shape)
 
 
@@ -285,9 +285,9 @@ def test_tx_freq_frames():
         timestamp_tensor = np.repeat(timestamp_tensor,
                                     1, axis=3)
 
-        tx_freq = radar.TX_freq(timestamp_tensor)
+        tx_freq = radar.LO_freq(timestamp_tensor)
         print("fTX", tx_freq.T)
-        rx_freq = radar.TX_freq(timestamp_tensor-tof_10p1m)
+        rx_freq = radar.LO_freq(timestamp_tensor-tof_10p1m)
         print("fTX", tx_freq.T)
         f_mix = radar.mixer(adc_times, rx_freq)
         print("f_mix", f_mix.T)
@@ -308,7 +308,7 @@ def test_DDM_LO_TX_Freq():
     timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
     timestamp_tensor = np.repeat(timestamp_tensor,
                                 1, axis=3)
-    tx_freq = ddm_transmitter.TX_freq(timestamp_tensor)
+    tx_freq = ddm_transmitter.LO_freq(timestamp_tensor)
 
     expected_tx_freq = np.array([[[[6.00000000e+10]], [[6.00000000e+10]]],
                                  [[[6.00594059e+10]],[[6.00594059e+10]]],

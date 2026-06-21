@@ -459,7 +459,7 @@ class Transmitter():
                     self.tx_on_times.append((chirp_start, chirp_end))
                 return"""
 
-    def TX_freq(self, timestamps: NDArray) -> NDArray:
+    def LO_freq(self, timestamps: NDArray) -> NDArray:
         """FIXME: this functions' description only describes the ToF use case,
         not LO use case
 
@@ -561,7 +561,7 @@ class Transmitter():
                   phaser: bool = True) -> NDArray:
         """Returns for each TX->Scatterer->RX path the TX phase
         at which the chirps was sent when it is received by the mixer.
-        For code logic and documentation refer to TX_freqs
+        For code logic and documentation refer to LO_freqs
 
         Parameters
         ----------
@@ -713,20 +713,23 @@ class Radar:
         self.receiver = receiver
         self.rx_antennas = receiver.antennas
         self.tx_antennas = transmitter.antennas
-        self.chirp_start_freq = transmitter.chirp_start_freq
 
-        self.frame_count = transmitter.frame_count
-        # issue #5 - frame_count renamed to total_number_frames
-        self.chirp_count = transmitter.chirp_count
-        self.adc_sample_count = receiver.adc_sample_count
-        # self.adc_sample_rate = receiver.adc_sample_rate
-        self.adc_sample_rate = self.receiver.adc_sample_rate
+        self.chirp_start_freq = transmitter.chirp_start_freq
         self.chirp_slope = transmitter.chirp_slope
+        self.chirp_end_time = transmitter.chirp_end_time
         self.chirp_period = transmitter.chirp_period
+        self.chirp_count = transmitter.chirp_count
+        self.frame_count = transmitter.frame_count
+        self.frame_period = transmitter.frame_period
+
+
+        self.adc_sample_count = receiver.adc_sample_count
+        self.adc_sample_rate = self.receiver.adc_sample_rate
+
         self.bw = transmitter.bw
         self.tx_conf = transmitter.conf
         # self.mimo_mode = transmitter.conf["mimo_mode"]
-        self.TX_freq = transmitter.TX_freq
+        self.LO_freq = transmitter.LO_freq
         self.TX_phases = transmitter.TX_phases
         # self.chirp_t_start = transmitter.chirp_t_start
         if self.adc_sample_count == 0:
@@ -770,15 +773,16 @@ class Radar:
         self.slope = transmitter.slope
         self.chirp_period = transmitter.chirp_period
         self.chirp_count = transmitter.chirp_count
-        self.frame_period = transmitter.frame_period
         self.frame_count = transmitter.frame_count
         self.v = medium.v
         self.medium = medium
         self.bw = transmitter.bw
         if self.chirp_slope > 0 and self.t_fft > 0:
-            self.d_max = 3e8/2/(self.chirp_slope*self.t_fft)
+            self.range_max = 3e8/2/(self.chirp_slope*self.t_fft)*self.adc_sample_count
+            self.range_resolution = 3e8/2/(self.chirp_slope*self.t_fft)
         else:
-            self.d_max = None
+            self.range_max = None
+            self.range_resolution = None
 
         if all(self.rx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.rx_antennas):
@@ -840,7 +844,7 @@ class Radar:
         timestamps_rx = np.broadcast_to(timestamps[:, None, None, None],
                                         scatterer_shape)
 
-        f_tx = self.TX_freq(timestamps_rx)
+        f_tx = self.LO_freq(timestamps_rx)
         f_if = f_tx - f_rx
 
         return f_if

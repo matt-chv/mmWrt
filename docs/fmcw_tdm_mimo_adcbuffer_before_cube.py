@@ -203,7 +203,7 @@ def _draw_grid(
     Parameters
     ----------
     ax :
-        Target axes.
+        Scatterer axes.
     num_adc_samples :
         Number of ADC samples (x-axis extent).
     num_chirps :
