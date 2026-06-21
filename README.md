@@ -20,15 +20,56 @@ for install for developpers:
 
 ### Released
 
+v0.0.12:
+    * move to the new artefacts (away from setup.py)
+    - TODO: planning for S-FMCW add a chirp ramp start delay (when the TX ramp starts vs chirp start)
+            renaming chirp_end_time to chirp_ramp_end_time
+            adding chirp_ramp_start_time=0
+            adding check that chirp_ramp_start_time + chirp_ramp_end_time < chirp_period
+            adding adc_sampling_start_time=0
+            add ditherring support
+    * define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
+    - TODO: add a ADC start delay (and check that it does not end after ramp-end or warning)
+    - TODO: add pcl (x,y,z,v,A,noise)
+
 v0.0.11:
     * pre.1: WiP (adding interfer radars)
-        - TODO: run all unit test pass : 100% (except performances)
-        - renaming all variables to be explicit
-        - range TDM DDM
-        - 2D with URA
-        - 3D compute
-        - issues: DC estimate does not work.
-        - issues: need to add a ADC start delay
+        - ~~TODO: run all unit test pass : 100% (except performances)~~
+        - ~~renaming all variables to be explicit in .py~~
+            ~~adc_samples_per_chirp -> adc_sample_count~~
+            ~~max_adc_sample_rate -> adc_sample_rate_max~~
+            ~~max_adc_buffer_size -> adc_sample_count_max~~
+            ~~ n_adc -> adc_sample_count ~~
+            ~~ number_adc_samples -> adc_sample_count ~~
+            ~~chirps_count -> chirp_count~~
+            ~~t_inter_chirp -> chirp_period~~
+            ~~t_inter_frame -> frame_period~~
+            ~~total_number_frames -> frame_count~~
+            ~~frames_count -> frame_count~~
+            ~~target -> scatterer~~
+        - ~~FIXME: complex signal chain seems broken~~
+        - ~~range TDM~~
+        - ~~2D with URA~~
+        - ~~3D compute~~
+        - ~~FIXME: need to split the TX_Freq per transmitter radar~~
+        - ~~refactor rt_points, but kept the interface untouched (still returns a dict, adc values still a tensor with )~~
+        - ~~removed warnings in pytest~~
+        - ~~add pcl from (x,y,z)~~ 
+        - ~~TODO: add test_interference~~
+        - ~~TODO: add test_rsp_interference_mitigation: zero, ramp, IFFT~~
+        - ~~TODO: add range DDM and disambiguation~~
+        - ~~run pytest --ignore=tests\test_nb.py --ignore=tests\test_docs.py~~
+        - done 60 test 100% pass
+        - uploaded on https://test.pypi.org/project/mmwrt/0.0.11rc1/
+
+    * pre.2
+        - TODO
+            - renaming:
+                - tx_frequencies -> vco_frequency
+                - align pre.1 renaming convention with .ipynb
+            - run pytest --ignore=tests\test_nb.py --ignore=tests\test_docs.py
+            - if all ok -> release
+
 
 *v0.0.10:
 
@@ -130,6 +171,11 @@ should yield 0 warnings or errors
 should yield 100% pass
 
 > pytest
+
+for intermediate releases, excluding some tests can be done with 
+
+> pytest --ignore=tests\test_docs.py --ignore=tests\test_nb.py
+
 
 4. run coverage
 
