@@ -598,7 +598,8 @@ class Transmitter():
         tx_phases = (active * phase).sum(axis=4)
         return tx_phases
 
-    def TX_phases(self, timestamps: NDArray) -> NDArray:
+    def TX_phases(self, timestamps: NDArray,
+                  phaser: bool = True) -> NDArray:
         """Returns for each TX->Scatterer->RX path the TX phase
         at which the chirps was sent when it is received by the mixer.
         For code logic and documentation refer to TX_freqs
@@ -607,6 +608,10 @@ class Transmitter():
         ----------
         timestamps
             (T, TX, Scatterer, RX)
+        phaser
+            if True, returns the phase at the phaser level
+            (include LO phase noise + phaser)
+            if False, only return the LO phase
         Returns
         --------
         tx_phases
@@ -643,8 +648,11 @@ class Transmitter():
             k  = np.clip(k, 0, chirp_count - 1)
             cs = k * chirp_period
 
-            phase_slope = np.asarray(self.TX_phaser_slopes)  # (TX,)
-            ps  = phase_slope[None, :, None, None]                   # (1, TX, 1, 1)
+            if phaser:
+                phase_slope = np.asarray(self.TX_phaser_slopes)  # (TX,)
+            else:
+                phase_slope = np.zeros(antenna_count) 
+            ps = phase_slope[None, :, None, None]                   # (1, TX, 1, 1)
             phase = k * ps                                           # (ts, TX, S, RX)
 
         else:
@@ -686,50 +694,6 @@ class TransmitterDDM(Transmitter):
         assert "TX_phaser_slopes" in conf
         assert len(conf["TX_phaser_slopes"]) == len(antennas)
         self.TX_phaser_slopes = conf["TX_phaser_slopes"]
-        
-    # def TX_freq(self, times: NDArray, tx_idx=-1) -> NDArray[float64]:
-    #    """ Default implementation for DDM"""
-    #    # if tx_idx==-1: return VCO chirp (used for any RX )
-    #    # if tx_idx >= 0: return the TX antenna one (used for specific TX antenna phase)
-    #    tx_phases = zeros(times.shape)
-    #    return tx_phases
-
-    def __TX_phases__(self, times: NDArray, tx_idx: int = -1) -> NDArray[float64]:
-        """ Default implementation for DDM
-
-        Parameters
-        ----------
-        times: NDArray
-            the time stamps at which the TX phaser has to be evaluated
-        tx_idx: int
-            the index of the antenna
-        Returns
-        -------
-        Example
-        -------
-        """
-        tx_phases = zeros(len(times))
-        def _piecewise_chirp(t, tx_idx):
-            conditions = []
-            functions = []
-            for frame_idx in range(self.frame_count):
-                for chirp_idx in range(self.chirp_count):
-                    t_start_chirp = self.frame_period*frame_idx + self.chirp_period*chirp_idx
-                    end_chirp = t_start_chirp + self.ramp_end_time
-                    conditions.append(((t >= t_start_chirp) & (t <= end_chirp)))
-                    tx_phase = lambda t_adc, chirp_idx=chirp_idx: pi*self.TX_phaser_slopes[tx_idx]*chirp_idx
-                    functions.append(tx_phase)
-            chirp_phases = select(conditions,
-                                  [f(t) for f in functions],
-                                  default=0)
-            return chirp_phases
-        if (tx_idx >= 0) and (tx_idx < len(self.antennas)):
-            tx_phases = _piecewise_chirp(times, tx_idx)
-        elif tx_idx == -1:
-            # provision for the VCO phase to be modelled in more refined models
-            pass
-            #return tx_phases
-        return tx_phases
 
 
 class Medium:
@@ -812,8 +776,8 @@ class Radar:
             if debug:  # pragma: no cover
                 print("updating NADC from 0 to:", self.adc_sample_count)
                 raise ValueError(log_msg)
-        t_fft = receiver.adc_sample_count / receiver.adc_sample_rate
-        t_chirp = transmitter.ramp_end_time  # transmitter.bw / transmitter.slope
+        self.t_fft = receiver.adc_sample_count / receiver.adc_sample_rate
+        self.t_chirp = transmitter.ramp_end_time  # transmitter.bw / transmitter.slope
 
         bw_adc = self.adc_sample_count*transmitter.slope/receiver.adc_sample_rate
 
@@ -843,6 +807,10 @@ class Radar:
         self.v = medium.v
         self.medium = medium
         self.bw = transmitter.bw
+        if self.chirp_slope > 0 and self.t_fft>0:
+            self.d_max = 3e8/2/(self.chirp_slope*self.t_fft)
+        else:
+            self.d_max = None
         # FIXME: moves this to simulation level
         # __range_bin: deprecated as relies on c for compute
         # __c = 3e8
@@ -863,11 +831,11 @@ class Radar:
 
         self._log.debug(f"tx fmin:{self.tx_antennas[idx].f_min_GHz}")
         self._log.debug(f"tx fmax:{self.tx_antennas[idx].f_max_GHz}")
-        if t_fft > t_chirp:
+        if self.t_fft > self.t_chirp:
             if debug:  # pragma: no cover
-                self._log.warning(f"T_FFT: {t_fft:.2g} > T_C: {t_chirp:.2g}")
+                self._log.warning(f"T_FFT: {self.t_fft:.2g} > T_C: {self.t_chirp:.2g}")
             else:
-                self._log.error(f"T_FFT: {t_fft:.2g} > T_C: {t_chirp:.2g}")
+                self._log.error(f"T_FFT: {self.t_fft:.2g} > T_C: {self.t_chirp:.2g}")
                 raise ValueError(ERR_TFFT_lte_TC)
 
         try:
@@ -929,7 +897,7 @@ class Radar:
         YIF
             (timestamps, rx_antenna_count)
         """
-        ph_tx = self.TX_phases(adc_times)
+        phase_lo = self.TX_phases(adc_times, phaser=False)
         rx_high_pass_freq = self.receiver.rx_high_pass_freq
         rx_low_pass_freq = self.receiver.rx_low_pass_freq
 
@@ -959,14 +927,15 @@ class Radar:
             # YIF += BB_IF(chirp_rx, chirp_tx, T, antenna_tx, antenna_rx, scatterer, medium)
 
             # adc_samples = BB_IF_v2(tr_chirp, fif, rx_high_pass_freq, rx_low_pass_freq,
-            #                       ph_tx, debug=debug)
+            #                       phase_lo, debug=debug)
             Tc = adc_times - adc_times[0]
             # print("Tc = adc_times-adc_times[0]", Tc)
             #IF_filter = ((rx_high_pass_freq <= np_abs(f_if)) &
             #            (np_abs(f_if) <= rx_low_pass_freq))
+            print()
             YIF = where(if_filter,
                         exp(2 * pi * 1j * (f_if) * Tc +
-                            1j*(ph_tx-ph_rx) +
+                            1j*(phase_lo-ph_rx) +
                             2 * pi * 1j * time_of_flight*self.transmitter.chirp_start_freq -  # this is the important term for speed measure
                             1 * pi * 1j * self.transmitter.chirp_slope*time_of_flight**2),
                         YIF)

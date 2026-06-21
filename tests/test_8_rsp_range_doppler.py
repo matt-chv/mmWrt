@@ -1,23 +1,31 @@
 """ testing RSP.range_doppler
 Covers:
- - TDM mode
-(not written DDM, SFMCW)
-v0.0.11: 2
+ - TDM, DDM mode
+(not written: SFMCW)
+v0.0.11: 3
 """
 import logging  # noqa 401
 from os.path import abspath, join, pardir
 import numpy as np
+from numpy import complex128 as complex
 
 from numpy import zeros
 from numpy.fft import fft
 from scipy.signal import find_peaks
 
+# keeping it here for when calling test files with python at dev times
+import sys
+dp = abspath(join(__file__, pardir, pardir))
+sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_doppler
+from mmWrt.Plots import plot_range_doppler
 
 from test_assets import radar_dmax_25m_vmax_2mps, scatterer_static_5p1m, \
-    scatterer_linear_speed_10p1m_1mps, radar_vibrate, scatterer_vibrate
+    scatterer_linear_speed_10p1m_1mps, radar_vibrate, scatterer_vibrate, \
+    scatterer_static_10p1m, scatterer_static_z_15p1m, \
+    radar_ddm_dmax_25m_vmax_2mps_2_tx
 
 
 def test_rsp_range_doppler():
@@ -88,3 +96,28 @@ def test_FMCW_vibration():
     Y = fft(dops - np.mean(dops))
     ym = find_peaks(np.abs(Y))[0][0]
     assert ym == F1_vibrate
+
+
+def test_rsp_range_doppler_DDM():
+    """ simple test to ensure that we detect 2x the scatterers
+    each with 0 speed as expected and a ddma added speed"""
+    radar = radar_ddm_dmax_25m_vmax_2mps_2_tx
+    scatterers = [scatterer_static_5p1m, scatterer_static_10p1m,
+                  scatterer_static_z_15p1m]
+    from matplotlib import pyplot as plt
+
+    print("d_max", radar.d_max)
+    # (1, 32, 1, 64)
+    bb = rt_points([radar], scatterers, radar,
+                   datatype=complex)
+
+    rd = range_doppler(bb["adc_cube"][0, :, 0, :],
+                       adc_sample_rate=radar.adc_sample_rate,
+                       chirp_slope=radar.chirp_slope,
+                       wavelength=3e8/radar.chirp_start_freq,
+                       chirp_period=radar.chirp_period)
+    expected_rd = np.array([[5.17625, -1.095],[5.17625, 0.],
+                            [10.3525, -1.095], [10.3525, 0.],
+                            [14.88171875, -1.095], [14.88171875, 0.]])
+    assert np.allclose(rd, expected_rd)
+    assert rd.shape == expected_rd.shape

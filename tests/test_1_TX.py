@@ -5,18 +5,12 @@ v0.0.11: 8 passed
 import copy
 import logging
 import numpy as np
-from os.path import abspath, join, pardir
-import sys
-from numpy import allclose, arange, array, concatenate, linspace, pi
-import pytest
+from numpy import allclose, arange, array, concatenate, linspace
 
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
-
-# from mmWrt.Raytracing import BB_IF
 from mmWrt.Scene import Antenna  # noqa: E402
-from test_assets import ddm_4chirps_0_half_pi, phase_slope_half_pi
-from test_assets import tdm_1chirp_8adc, radar_vibrate, scatterer_vibrate, tof_10p1m
+from test_assets import ddm_vmax_2mps_32chirps, phase_slope_half_pi, \
+    ddm_4chirps_0_half_pi, tdm_1chirp_8adc, radar_vibrate, \
+    scatterer_vibrate, tof_10p1m
 
 
 
@@ -59,6 +53,7 @@ scatterer1 = Scatterer(xt=lambda t: 5.1+0*t,
 
 # radar1 = Radar(transmitter=tdm1, receiver=receiver1)
 """
+
 
 def test_tx_frequency_ramp_1_tx():
     # check that the transmitter frequencies using default values match expected ones
@@ -304,7 +299,7 @@ def test_tx_freq_frames():
 def test_DDM_LO_TX_Freq():
     # check that TX_Freq generates the same good
     # frequency for both antennas in DDM
-    from test_assets import ddm_4chirps_0_half_pi, chirp_end_time_8adc, tdm_1chirp_8adc
+    from test_assets import ddm_vmax_2mps_32chirps, chirp_end_time_8adc, tdm_1chirp_8adc
     ddm_transmitter = ddm_4chirps_0_half_pi  # ddm_4chirps_0_half_pi
     adc_times = np.array([0, chirp_end_time_8adc,
                            1.1*chirp_end_time_8adc, 1.1*chirp_end_time_8adc+chirp_end_time_8adc])
@@ -328,7 +323,8 @@ def test_DDM_phasers():
     from test_assets import ddm_4chirps_0_half_pi, chirp_end_time_8adc, tdm_1chirp_8adc
     ddm_transmitter = ddm_4chirps_0_half_pi  # ddm_4chirps_0_half_pi
     adc_times = np.array([0, chirp_end_time_8adc,
-                           1.1*chirp_end_time_8adc, 1.1*chirp_end_time_8adc+chirp_end_time_8adc])
+                          1.1*chirp_end_time_8adc, 1.1*chirp_end_time_8adc+chirp_end_time_8adc,
+                          2.2*chirp_end_time_8adc, 2.2*chirp_end_time_8adc+chirp_end_time_8adc])
     timestamp_tensor = adc_times[:, None, None, None]
     timestamp_tensor = np.repeat(timestamp_tensor, 2, axis=1)
     timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
@@ -337,9 +333,11 @@ def test_DDM_phasers():
     tx_phase = ddm_transmitter.TX_phases(timestamp_tensor)
 
     expected_tx_phase = np.array([[[[0]], [[0]]],
-                                 [[[0]],[[0]]],
-                                 [[[0]], [[1.57079633]]],
-                                 [[[0]],[[1.57079633]]]])
+                                  [[[0]], [[0]]],
+                                  [[[0]], [[1.57079633]]],
+                                  [[[0]], [[1.57079633]]],
+                                  [[[0]], [[3.14159265]]],
+                                  [[[0]], [[3.14159265]]]])
 
-    assert tx_phase.shape == expected_tx_phase.shape
     assert np.allclose(tx_phase, expected_tx_phase)
+    assert tx_phase.shape == expected_tx_phase.shape

@@ -55,8 +55,6 @@ def sample_all_rays(adc_times,
     adc_samples
         (T, RX) - note this convention is changed in raytracing level to (RX, T)
     """
-    rx_high_pass_freq = receiver_radar.receiver.rx_high_pass_freq
-    rx_low_pass_freq = receiver_radar.receiver.rx_low_pass_freq
     adc_sample_count = adc_times.shape[0]
     adc_samples = zeros((adc_sample_count,
                          len(receiver_radar.rx_antennas)), dtype=datatype)
@@ -99,6 +97,7 @@ def sample_all_rays(adc_times,
         # as in the mixer, the receiver_radar TX_freq is called with `0` delay since
         # it is the local oscillator
         f_rx = radar.TX_freq(radar_tx_times)
+
         ph_rx = radar.TX_phases(radar_tx_times)
 
         log.debug(f"f_rx:{f_rx[:,0,0,0]}")
@@ -185,7 +184,8 @@ def rt_points(radars, scatterers, receiver_radar,
                 "Tc": Tc,
                 "TFFT": adc_sample_count*adc_sample_time,
                 "T": T,
-                "adc_sample_rate": receiver_radar.adc_sample_rate, "v": receiver_radar.v}
+                "adc_sample_rate": receiver_radar.adc_sample_rate,
+                "v": receiver_radar.v}
     if "compute" not in raytracing_opt:
         raytracing_opt["compute"] = False
     from tqdm import tqdm
@@ -199,13 +199,13 @@ def rt_points(radars, scatterers, receiver_radar,
             start_of_chirp = frame_idx * receiver_radar.frame_period + \
                 chirp_idx * receiver_radar.chirp_period
             adc_times = arange(0, adc_sample_count*adc_sample_time,
-                            adc_sample_time) + start_of_chirp
+                               adc_sample_time) + start_of_chirp
 
             adc_values = sample_all_rays(adc_times,
-                                        radars,
-                                        scatterers,
-                                        receiver_radar,
-                                        datatype=datatype)
+                                         radars,
+                                         scatterers,
+                                         receiver_radar,
+                                         datatype=datatype)
             # switch axis as now timestamps becomes dimension -1
             # RX becomes axis -2
             # we need to add a new empty axis for TX for backward compatibility

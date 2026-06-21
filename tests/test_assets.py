@@ -2,6 +2,7 @@ from numpy import array, arange, exp, pi, sin
 from os.path import abspath, join, pardir
 import sys
 
+# keeping it here for when calling test files with python at dev times
 dp = abspath(join(__file__, pardir, pardir))
 sys.path.insert(0, dp)
 
@@ -39,6 +40,9 @@ dphase_dt_1mps = 4*pi*v_1mps/lambda_60G
 # vmax = lambda_0/2/time_inter_chirp
 # => chirp_period_vmax_2mps = lambda_60G/2/vmax
 chirp_period_vmax_2mps = lambda_60G/4/vmax_2mps
+chirp_end_time_vmax_2mps_1_antenna = 0.99*chirp_period_vmax_2mps
+# chirp_end_time_vmax_2mps_2_antenna ~ 0.00028
+chirp_end_time_vmax_2mps_2_antenna = 0.99*chirp_period_vmax_2mps/2
 # chirp_period_vmax_3mps = \
 # 0.0004166666666666667 ~ 4.16e-4 = 461us
 chirp_period_vmax_3mps = lambda_60G/4/vmax_3mps  # 461us
@@ -162,6 +166,16 @@ ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                        conf={"TX_phaser_slopes":
                                              [0, phase_slope_half_pi]})
 
+
+ddm_vmax_2mps_32chirps = TransmitterDDM(chirp_start_freq=60e9,
+                                        chirp_slope=chirp_slope_tdm0,
+                                        chirp_end_time=chirp_end_time_vmax_2mps_2_antenna,
+                                        chirp_period=chirp_period_vmax_2mps,
+                                        antennas=[Antenna() for _ in range(2)],
+                                        chirp_count=32,
+                                        conf={"TX_phaser_slopes":
+                                              [0, phase_slope_half_pi]})
+
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_sample_count=adc_samples_count_8)
 
@@ -216,6 +230,10 @@ radar_ula_64_RX = Radar(transmitter=tdm_1chirp_1024adc,
                         receiver=receiver_ULA_64)
 radar_ula_64_TX_z = Radar(transmitter=tdm_1loop_64chirp_ulat_64tx_z_1024adc,
                           receiver=receiver_dmax_100m)
+
+radar_ddm_dmax_25m_vmax_2mps_2_tx = \
+    Radar(transmitter=ddm_vmax_2mps_32chirps,
+          receiver=receiver_dmax_100m)
 # radar convention:
 # tdm/ddm (loop,TX,RX,ADC)
 radar_tdm_32loop_16T16R_64adc = Radar(transmitter=tdm_32loop_16Tz_64adc,
@@ -223,6 +241,7 @@ radar_tdm_32loop_16T16R_64adc = Radar(transmitter=tdm_32loop_16Tz_64adc,
 
 scatterer_static_0 = Scatterer(xt=lambda t: d_0m+0*t)
 scatterer_static_5p1m = Scatterer(xt=lambda t: d_5p1m+0*t)
+scatterer_static_x10p1m = Scatterer(xt=lambda t: d_10p1m+0*t)
 scatterer_static_10p1m = Scatterer(yt=lambda t: d_10p1m+0*t)
 scatterer_static_z_15p1m = Scatterer(zt=lambda t: 15.1+0*t)
 scatterer_linear_speed_5p1m_1mps = Scatterer(xt=lambda t: d_5p1m + v_1mps*t)

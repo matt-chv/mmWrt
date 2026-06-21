@@ -29,6 +29,11 @@ def plot_range_doppler(cube, radar, _d0=None,
     -------
     plot_details: tuple
         (fig, ranges, speeds)
+    Example
+    -------
+    import matplotlib.pyplot as plt
+    fig, ranges, speed = plot_range_doppler(adc_cube, radar)
+    plt.show()
     """
     # FIXME: here call rsp.range_fft
     """
