@@ -5,7 +5,7 @@
 # should be commented if importing the mmWrt module from pip
 from os.path import abspath, join, pardir
 import sys
-from numpy import arange, where
+from numpy import arange, where, abs as np_abs
 from tqdm import tqdm
 
 dp = abspath(join(__file__, pardir, pardir))
@@ -16,64 +16,59 @@ from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 c = 3e8
-fp_fft_cfar_2D = abspath(join(__file__, pardir, "FFT_CFAR_2D.png"))
-fp_fft_1D = abspath(join(__file__, pardir, "FFT_1D.png"))
 
-scatterer1 = Scatterer(1.5)
-scatterer2 = Scatterer(2, 0, 0, vx=lambda t: 2*t+3)
+scatterer1 = Scatterer(5.1)
 
-min_error = scatterer1.distance() + scatterer2.distance()  # we start at 2.5
+min_error = scatterer1.distance()
 config = {"bw": "?", "adc_sample_rate": "?", "error": "?"}
-# this will take minutes
-bws = [0.1e9, 0.2e9, 0.3e9, 0.5e9, 1e9, 2e9, 3e9, 4e9]
-slopes = range(1, 100)
-adc_sample_rates = arange(100, 25e6, 100)
-# this takes seconds to verify that min_error is 0 with those settings
-bws = [3e9]
-slopes = [6]
-adc_sample_rate = range(50, 200)
 
-debug_ON = False
+bws = arange(30, 40)*1e8
+slopes = arange(1, 10)*1e12
+adc_sample_rates = arange(1, 100)*1e6
+
+print(len(bws))
 
 with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
     for bw in bws:
-        for slope_m in slopes:
-            slope = slope_m * 1e8
+        for slope in slopes:
+            # slope = slope_m * 1e8
             for adc_sample_rate in adc_sample_rates:
                 pbar.update(1)
                 try:
 
-                    radar = Radar(transmitter=Transmitter(bw=bw, slope=slope),
-                                  receiver=Receiver(adc_sample_rate=adc_sample_rate,
-                                                    adc_sample_count_max=512,
-                                                    debug=debug_ON),
-                                  debug=debug_ON)
+                    chirp_end_time = bw/slope
+                    transmitter = Transmitter(chirp_end_time=chirp_end_time,
+                                              chirp_slope=slope)
+                    receiver0 = Receiver(adc_sample_rate=adc_sample_rate,
+                                         adc_sample_count=32)
 
-                    bb = rt_points(radar, [scatterer1, scatterer2], debug=debug_ON)
-                    # data_matrix = bb['adc_cube'][0][0][0]
-                    Distances, range_profile = rsp.range_fft(bb)
+                    radar = Radar(transmitter=transmitter,
+                                  receiver=receiver0)
+
+                    bb = rt_points([radar], [scatterer1],
+                                   radar)
+                    Distances, range_profile = rsp.range_fft(bb["adc_cube"][0,0,0,:], bb)
+                    Distances = Distances/2
                     ca_cfar = rsp.cfar_ca_1d(range_profile)
+                    mag_r = np_abs(range_profile)
+                    mag_c = np_abs(ca_cfar)
 
-                    range_profile = range_profile
-                    ca_cfar = ca_cfar
-                    mag_r = abs(range_profile)
-                    mag_c = abs(ca_cfar)
                     # little hack to remove small FFT ripples : mag_r> 5
                     scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
                     index_peaks = where(scatterer_filter)[0]
-                    grouped_peaks = rsp.peak_grouping_1d(index_peaks)
+                    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
                     found_scatterers = [Scatterer(Distances[i])
-                                     for i in grouped_peaks]
-                    error = rsp.error([scatterer1, scatterer2], found_scatterers)
+                                        for i in grouped_peaks]
+                    error = rsp.error([scatterer1], found_scatterers)
                     # print("error", error)
                     if error < min_error:
                         min_error = error
                         config = {"bw": bw, "adc_sample_rate": adc_sample_rate,
                                   "slope": slope,
                                   "error": error}
-                except Exception:
+                except Exception as ex:
                     pass
                     # print(str(ex))
                     # raise

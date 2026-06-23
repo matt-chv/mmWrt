@@ -57,9 +57,11 @@ frame_period_50ms = 50e-3
 # for DDM, means +pi/2 at every chirp
 phase_slope_half_pi = 0.5 * pi
 
+# adc_sampling_frequency_0 ~ 1.01e6
 adc_sampling_frequency_0 = 3*fif01
 adc_sampling_frequency_tdm0_dmax_15m = 2.1*fif_tdm0_15m
 
+# chirp_end_time_8adc ~1.18e-5
 chirp_end_time_8adc = adc_samples_count_8*1/adc_sampling_frequency_0*1.5
 chirp_end_time_64adc = adc_samples_count_64*1/adc_sampling_frequency_0*1.5
 chirp_end_time_1024adc = adc_samples_count_1024*1/adc_sampling_frequency_0*1.5

@@ -28,9 +28,10 @@ v0.0.12:
             adding check that chirp_ramp_start_time + chirp_ramp_end_time < chirp_period
             adding adc_sampling_start_time=0
             add ditherring support
-    * define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
     - TODO: add a ADC start delay (and check that it does not end after ramp-end or warning)
     - TODO: add pcl (x,y,z,v,A,noise)
+    * define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
+
 
 v0.0.11:
     * pre.1: WiP (adding interfer radars)
@@ -78,11 +79,40 @@ v0.0.11:
                     - ~~target -> scatterer~
                     - ~~t_inter_chirp -> chirp_period~~
                     - TX_phase_offsets
-            - run pytest --ignore=tests\test_nb.py --ignore=tests\test_docs.py
+            - TODO update all *.ipynb
+                ~~ Angle_of_Arrival.ipynb ~~
+                ~~Chirp_Solver.ipynb~~
+                ~~ FMCW-Radar-100_Radar_Imaging.ipynb ~~
+                ~~ FMCW-Radar-101_Intro.ipynb ~~
+                ~~ FMCW-Radar-102_CFAR.ipynb ~~
+                ~~ FMCW-Radar-103_AoA.ipynb ~~
+                ~~ FMCW-Radar-104_Freq_est.ipynb ~~
+                ~~ FMCW-Radar-105_Vibration.ipynb ~~
+                ~~ FMCW-Radar-106_Phased_Arrays.ipynb ~~
+                ~~ FMCW-Radar-107_Micro-Doppler.ipynb ~~
+                ~~ FMCW-Radar-108_Antennas.ipynb ~~
+                * FMCW-Radar-109_Radar_Cube.ipynb
+                * FMCW-Radar-201_Maths.ipynb
+                * FMCW-Radar-202_CFAR_Pd.ipynb
+                * FMCW-Radar-203_SNR.ipynb
+                * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb
+                * FMCW-Radar-206_Reflections.ipynb
+                * Grouping.ipynb
+                * High-Speed.ipynb
+                * Intro_nb.ipynb
+                * MIMO_DDM.ipynb
+                * MIMO_TDM.ipynb
+                * Precision.ipynb
+                * Resolution.ipynb
+                * Speed.ipynb
+            - run pytest
             - if all ok -> release
         - FIXME:
+            - the last cell of FMCW-Radar-107_Micro-Doppler.ipynb has an error when checking the frequency of the uDop...
             - MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.
-            - FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility)
+            - ~~FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility) - fixed~~
+            - FMCW-Radar-109_Radar_Cube.ipynb many images not re-generated anymore ... 
+
 
 
 *v0.0.10:

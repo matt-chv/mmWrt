@@ -678,9 +678,12 @@ def range_fft(adc_values: NDArray,
     # D_max = c*f_if_max/(2*S)
     # if complex FFT, f_if_max = adc_sample_rate
     # if real FFT, f_if_max = adc_sample_rate/2 (for non-ambiguous)
-    delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
-        / (2 * len(FT) * baseband["chirp_slope"])
-    Distances = [i * delta_R_FFT for i in range(len(FT))]
+    #delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
+    #    / (2 * len(FT) * baseband["chirp_slope"])
+    # Distances = [i * delta_R_FFT for i in range(len(FT))]
+    Distances = range_to_meters(np.array(range(len(FT))), baseband["adc_sample_rate"],
+                                   baseband["adc_sample_count"],
+                                   baseband["chirp_slope"])
 
     if debug:  # pragma: no cover
         print(f"Range Resolution: {delta_R:.2g}, based on chirping")
