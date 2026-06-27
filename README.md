@@ -99,7 +99,7 @@ v0.0.11:
                 ~~ * FMCW-Radar-206_Reflections.ipynb ~~
                 ~~ * Grouping.ipynb~~
                 ~~ * High-Speed.ipynb~~
-                * Intro_nb.ipynb
+                ~~ * Intro_nb.ipynb ~~
                 * MIMO_DDM.ipynb
                 * MIMO_TDM.ipynb
                 * Precision.ipynb
