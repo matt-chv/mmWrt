@@ -97,8 +97,8 @@ v0.0.11:
                 ~~ * FMCW-Radar-203_SNR.ipynb~~
                 ~~ * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb~~
                 ~~ * FMCW-Radar-206_Reflections.ipynb ~~
-                * Grouping.ipynb
-                * High-Speed.ipynb
+                ~~ * Grouping.ipynb~~
+                ~~ * High-Speed.ipynb~~
                 * Intro_nb.ipynb
                 * MIMO_DDM.ipynb
                 * MIMO_TDM.ipynb
