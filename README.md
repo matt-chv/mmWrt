@@ -91,12 +91,12 @@ v0.0.11:
                 ~~ FMCW-Radar-106_Phased_Arrays.ipynb ~~
                 ~~ FMCW-Radar-107_Micro-Doppler.ipynb ~~
                 ~~ FMCW-Radar-108_Antennas.ipynb ~~
-                * FMCW-Radar-109_Radar_Cube.ipynb
+                ~~ * FMCW-Radar-109_Radar_Cube.ipynb~~
                 * FMCW-Radar-201_Maths.ipynb
-                * FMCW-Radar-202_CFAR_Pd.ipynb
-                * FMCW-Radar-203_SNR.ipynb
-                * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb
-                * FMCW-Radar-206_Reflections.ipynb
+                ~~ * FMCW-Radar-202_CFAR_Pd.ipynb ~~
+                ~~ * FMCW-Radar-203_SNR.ipynb~~
+                ~~ * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb~~
+                ~~ * FMCW-Radar-206_Reflections.ipynb ~~
                 * Grouping.ipynb
                 * High-Speed.ipynb
                 * Intro_nb.ipynb
@@ -111,7 +111,8 @@ v0.0.11:
             - the last cell of FMCW-Radar-107_Micro-Doppler.ipynb has an error when checking the frequency of the uDop...
             - MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.
             - ~~FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility) - fixed~~
-            - FMCW-Radar-109_Radar_Cube.ipynb many images not re-generated anymore ... 
+            - ~~ FMCW-Radar-109_Radar_Cube.ipynb many images not re-generated anymore ... ~~
+            - FMCW-Radar-201_Maths : fc_implicit is not defined !!! need to fix this !!!
 
 
 
