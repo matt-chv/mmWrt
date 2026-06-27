@@ -100,7 +100,7 @@ v0.0.11:
                 ~~ * Grouping.ipynb~~
                 ~~ * High-Speed.ipynb~~
                 ~~ * Intro_nb.ipynb ~~
-                * MIMO_DDM.ipynb
+                ~~ * MIMO_DDM.ipynb ~~
                 * MIMO_TDM.ipynb
                 * Precision.ipynb
                 * Resolution.ipynb

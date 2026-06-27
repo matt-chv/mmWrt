@@ -777,12 +777,27 @@ class Radar:
         self.v = medium.v
         self.medium = medium
         self.bw = transmitter.bw
+        if self.chirp_start_freq > 0:
+            self.wavelength = 3e8/self.chirp_start_freq
+        else:
+            self.wavelength = None
         if self.chirp_slope > 0 and self.t_fft > 0:
-            self.range_max = 3e8/2/(self.chirp_slope*self.t_fft)*self.adc_sample_count
+            self.range_max = 3e8/2/(self.chirp_slope*self.t_fft) \
+                * self.adc_sample_count
             self.range_resolution = 3e8/2/(self.chirp_slope*self.t_fft)
+            if self.wavelength:
+                self.velocity_max = self.wavelength / 2 \
+                    / self.chirp_period/self.chirp_period
+                self.velocity_resolution = self.wavelength/2/self.chirp_period \
+                    - self.wavelength/4/self.chirp_period
+            else:
+                self.velocity_max = None
+                self.velocity_resolution = None
         else:
             self.range_max = None
             self.range_resolution = None
+            self.velocity_max = None
+            self.velocity_resolution = None
 
         if all(self.rx_antennas[0].angle_gains_db10 == 0):
             for idx, _ in enumerate(self.rx_antennas):
