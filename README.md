@@ -22,15 +22,19 @@ for install for developpers:
 
 v0.0.12:
     * move to the new artefacts (away from setup.py)
-    - TODO: planning for S-FMCW add a chirp ramp start delay (when the TX ramp starts vs chirp start)
-            renaming chirp_end_time to chirp_ramp_end_time
-            adding chirp_ramp_start_time=0
-            adding check that chirp_ramp_start_time + chirp_ramp_end_time < chirp_period
-            adding adc_sampling_start_time=0
-            add ditherring support
-    - TODO: add a ADC start delay (and check that it does not end after ramp-end or warning)
-    - TODO: add pcl (x,y,z,v,A,noise)
-    * define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
+    - TODO:
+        - define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
+        - add a ADC start delay (and check that it does not end after ramp-end or warning)
+        - planning for S-FMCW add a chirp ramp start delay (when the TX ramp starts vs chirp start)
+        - renaming chirp_end_time to chirp_ramp_end_time
+        - adding chirp_ramp_start_time=0
+        - adding check that chirp_ramp_start_time + chirp_ramp_end_time < chirp_period
+        - adding adc_sampling_start_time=0
+        - add ditherring support
+        - add pcl (x,y,z,v,A,noise)
+    - FIXME:
+        - Precision.ipynb (carry over from v0.0.11)
+        - remove all default values in the radar transceiver and resceiver definitions
 
 
 v0.0.11:
@@ -92,7 +96,7 @@ v0.0.11:
                 ~~ FMCW-Radar-107_Micro-Doppler.ipynb ~~
                 ~~ FMCW-Radar-108_Antennas.ipynb ~~
                 ~~ * FMCW-Radar-109_Radar_Cube.ipynb~~
-                * FMCW-Radar-201_Maths.ipynb
+                ~~ * FMCW-Radar-201_Maths.ipynb ~~
                 ~~ * FMCW-Radar-202_CFAR_Pd.ipynb ~~
                 ~~ * FMCW-Radar-203_SNR.ipynb~~
                 ~~ * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb~~
@@ -101,18 +105,23 @@ v0.0.11:
                 ~~ * High-Speed.ipynb~~
                 ~~ * Intro_nb.ipynb ~~
                 ~~ * MIMO_DDM.ipynb ~~
-                * MIMO_TDM.ipynb
+                ~~ * MIMO_TDM.ipynb ~~
                 * Precision.ipynb
-                * Resolution.ipynb
-                * Speed.ipynb
+                ~~ * Resolution.ipynb ~~
+                ~~ * Speed.ipynb~~
             - run pytest
             - if all ok -> release
         - FIXME:
-            - the last cell of FMCW-Radar-107_Micro-Doppler.ipynb has an error when checking the frequency of the uDop...
-            - MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.
+            - ~~the last cell of FMCW-Radar-107_Micro-Doppler.ipynb has an error when checking the frequency of the uDop...~~
+            ~~- MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.~~
             - ~~FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility) - fixed~~
             - ~~ FMCW-Radar-109_Radar_Cube.ipynb many images not re-generated anymore ... ~~
-            - FMCW-Radar-201_Maths : fc_implicit is not defined !!! need to fix this !!!
+            - ~~FMCW-Radar-201_Maths : fc_implicit is not defined !!! need to fix this !!! was renamed to f_c, fixed~~
+            ~~ - MIMO_TDM.ipynb scaling issues on the AoA FFT~~
+            - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
+                1. need to add pytests for frequency_estimator for fft, quinn2
+                - > requires more work than v0.0.11 -> moving this to v0.012
+
 
 
 
