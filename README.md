@@ -20,8 +20,10 @@ for install for developpers:
 
 ### Released
 
-v0.0.12:
+v0.0.12 (next):
+
     * move to the new artefacts (away from setup.py)
+    
     - TODO:
         - define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
         - add a ADC start delay (and check that it does not end after ramp-end or warning)
@@ -38,6 +40,7 @@ v0.0.12:
 
 
 v0.0.11:
+
     * pre.1: WiP (adding interfer radars)
         - ~~TODO: run all unit test pass : 100% (except performances)~~
         - ~~renaming all variables to be explicit in .py~~
@@ -122,6 +125,14 @@ v0.0.11:
                 1. need to add pytests for frequency_estimator for fft, quinn2
                 - > requires more work than v0.0.11 -> moving this to v0.012
 
+    * pre.3 -> main
+        -notes:
+            - pyroma: 10/10
+            - flake8: 458 errors
+            - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
+            - coverage: 73%
+            - tox: skipped
+            - sphinx: WARNING: html_static_path entry '_static' does not exist
 
 
 

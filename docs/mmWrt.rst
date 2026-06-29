@@ -52,6 +52,14 @@ mmWrt.fmcw module
    :undoc-members:
    :show-inheritance:
 
+mmWrt.mylogs module
+-------------------
+
+.. automodule:: mmWrt.mylogs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

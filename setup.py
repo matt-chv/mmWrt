@@ -19,7 +19,7 @@ with open("mmWrt/__init__.py", "r") as fi:
     ).group(1)
 
 setup(
-    name='mmWrt',
+    name='mmwrt',
     version=package_version,
     author='matt-chv',
     author_email="contact@matthieuchevrier.com",
