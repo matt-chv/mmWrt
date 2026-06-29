@@ -20,7 +20,7 @@ for install for developpers:
 
 ### Released
 
-v0.0.12 (next):
+v0.0.13 (next):
 
     * move to the new artefacts (away from setup.py)
     
@@ -37,6 +37,11 @@ v0.0.12 (next):
     - FIXME:
         - Precision.ipynb (carry over from v0.0.11)
         - remove all default values in the radar transceiver and resceiver definitions
+
+v0.0.12:
+
+    - FIXME:
+        - fix the colab links
 
 
 v0.0.11:
