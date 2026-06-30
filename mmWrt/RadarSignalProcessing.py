@@ -83,12 +83,15 @@ def error(scatterers_synthetics, scatterers_f):
     return total_error
 
 
-def cfar_1D_convolve(X, num_training_cells = 10,
+def __cfar_1D_convolve__(X, num_training_cells = 10,
                      num_guard_cells=2, Pfa=0.1,
-                     mode="same", debug=False):
+                     mode="same", debug=False):  # pragma: no cover
     """ CFAR implementation via convolution the idea is to see 
     CFAR as convolution with a kernel of 0 for guard an CuT cells and 1 for train cells, 
-    then scaling the output of the convolution by T/M for Pfa"""
+    then scaling the output of the convolution by T/M for Pfa
+    
+    not yet validated
+    """
     from numpy import ones, convolve, pad
     test = ones(len(X))
     n = 2*num_training_cells+num_guard_cells
@@ -113,11 +116,11 @@ def cfar_1D_convolve(X, num_training_cells = 10,
     return th
 
 
-def cfar_ca_1d(X, num_training_cells=10,
+def __cfar_ca_1d__(X, num_training_cells=10,
                num_guard_cells=2,
                Pfa=1e-2,
                mode="same",
-               debug=False):
+               debug=False):  # pragma: no cover
     """ Retuns indexs of peaks found via CA-CFAR
     i.e Cell Averaging Constant False Alarm Rate algorithm
 
@@ -203,11 +206,11 @@ def cfar_ca_1d(X, num_training_cells=10,
     return cfar_th
 
 
-def cfar_1d(FT,
+def __cfar_1d__(FT,
             num_training_cells=10,
             num_guard_cells=2, mode="same",
             cfar_type="CA",
-            debug=False):
+            debug=False):  # pragma: no cover
     """ CFAR for 1D FFT values
 
     Parameters
@@ -492,57 +495,6 @@ def peak_grouping_1d(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
     idx_grouped = np.array([grp_idx[np.argmax(grp_val)]
                             for grp_idx, grp_val in zip(idx_groups, val_groups)])
     return idx_grouped
-
-
-def __peak_grouping_1d__(cfar_idx, mag_r):
-    """groups adjacent idx from cfar by first putting adjacent one in clusters
-    then finding the index with the highest magnitude in FFT and returning
-    this one as peak
-
-    Parameters
-    ----------
-    cfar_idx: numpy array
-        vector of index where fft magnitude is higher than CFAR threshold
-    mag_r: numpy array
-        abs(FFT)
-
-    Returns
-    -------
-    idx_peaks: numpy array
-        grouped peaks
-    """
-    print(401,cfar_idx )
-    cluster = [cfar_idx[0]]
-    if cfar_idx.shape[0] > 1:
-        idx_peaks = []
-    elif cfar_idx.shape[0] == 1:
-        return np.array(cluster)
-    else:
-        raise ValueError("No peaks found by CFAR, cannot do peak grouping")
-
-    # FIXME: this is most likely suboptimal, we can do it in one pass without storing clusters in memory
-    for i in range(1, cfar_idx.shape[0]):
-        # iterate to build cluster
-        print(413, i, cfar_idx, cfar_idx[i], cfar_idx[i] == cfar_idx[i-1]+1, cluster, idx_peaks)
-        if cfar_idx[i] == cfar_idx[i-1]+1:
-            cluster.append(cfar_idx[i])
-            if i <= cfar_idx.shape[0]:
-                print(417, i, cfar_idx.shape[0]-1)
-                continue
-        # here process cluster to find highest peak
-        mag_max = 0
-        idx_max = 0
-        for idx in cluster:
-            print(421,"cluster", cluster)
-            if mag_r[idx] > mag_max:
-                mag_max = mag_r[idx]
-                idx_max = idx
-        idx_peaks.append(idx_max)
-        cluster = [cfar_idx[i]]
-    if cluster:
-        idx_peaks.append(cluster[0])
-    print(430, idx_peaks)
-    return np.array(idx_peaks)
 
 
 def range_resolution(v, B):

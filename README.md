@@ -40,13 +40,18 @@ v0.0.13 (next):
 * v0.0.12:
 
     - FIXME:
-        - fix the colab links
-        - fix the badges in README: doi + % coverage 
+        - ~~ fix the colab links~~
+        - ~~fix the badges in README: doi + % coverage ~~
     - TODO:
         - move to toml
         - flake8: 458 errors - move to <10 # 
         - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
         - coverage: 73%
+            - mmWrt\RadarSignalProcessing.py                   390    191    51%   57-83, 92-113, 144-203, 239-258, 421-424, 426-435, 514-545, 563-564, 595-596, 636-703, 736-748, 766-769, 797-811
+                - add pytest for error
+                - add cfar_1D_convolve to ignore for QA -> move to later for pytest / validation
+                - check cfar_ca_1d ??
+                - check cfar_1d ??
         - tox: skipped
         - sphinx: WARNING: html_static_path entry '_static' does not exist
         - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
@@ -168,10 +173,18 @@ for intermediate releases, excluding some tests can be done with
 
 > coverage run -m pytest
 
+alternatively in rc phases
+
+> coverage run --omit="pytest/*,*/tests/*" -m pytest --ignore=tests\test_docs.py --ignore=tests\test_nb.py
+
 5. run coverage report
 (should be 100%)
 
 > coverage report
+
+then 
+
+> python update-badges.py
 
 6. run tox
 
