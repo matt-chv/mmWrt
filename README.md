@@ -1,6 +1,6 @@
 # mmWrt
 
-[![DOI](https://zenodo.org/badge/583878586.svg)](https://doi.org/10.5281/zenodo.17449388)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21045134.svg)](https://doi.org/10.5281/zenodo.21045134)
 
 
 minimal raytracing for MIMO FMCW radar systems.
