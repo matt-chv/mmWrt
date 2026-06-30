@@ -1,7 +1,8 @@
 # mmWrt
 
-[![DOI](https://zenodo.org/badge/583878586.svg)](https://doi.org/10.5281/zenodo.17449388)
+[![DOI](./docs/zenodo.svg)](https://doi.org/10.5281/zenodo.21045134)
 
+![coverage](docs/coverage.svg)
 
 minimal raytracing for MIMO FMCW radar systems.
 
@@ -21,8 +22,6 @@ for install for developpers:
 ### Released
 
 v0.0.13 (next):
-
-    * move to the new artefacts (away from setup.py)
     
     - TODO:
         - define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
@@ -38,150 +37,68 @@ v0.0.13 (next):
         - Precision.ipynb (carry over from v0.0.11)
         - remove all default values in the radar transceiver and resceiver definitions
 
-v0.0.12:
+* v0.0.12:
 
     - FIXME:
         - fix the colab links
+        - fix the badges in README: doi + % coverage 
+    - TODO:
+        - move to toml
+        - flake8: 458 errors - move to <10 # 
+        - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
+        - coverage: 73%
+        - tox: skipped
+        - sphinx: WARNING: html_static_path entry '_static' does not exist
+        - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
+            1. need to add pytests for frequency_estimator for fft, quinn2
+            - > requires more work than v0.0.11 -> moving this to v0.012
 
+* v0.0.11:
 
-v0.0.11:
+    * added support for interfer radars
+    * added in rsp suport for 3d point cloud output
+    * broad renaming for clarity on variables
 
-    * pre.1: WiP (adding interfer radars)
-        - ~~TODO: run all unit test pass : 100% (except performances)~~
-        - ~~renaming all variables to be explicit in .py~~
-            ~~adc_samples_per_chirp -> adc_sample_count~~
-            ~~max_adc_sample_rate -> adc_sample_rate_max~~
-            ~~max_adc_buffer_size -> adc_sample_count_max~~
-            ~~ n_adc -> adc_sample_count ~~
-            ~~ number_adc_samples -> adc_sample_count ~~
-            ~~chirps_count -> chirp_count~~
-            ~~t_inter_chirp -> chirp_period~~
-            ~~t_inter_frame -> frame_period~~
-            ~~total_number_frames -> frame_count~~
-            ~~frames_count -> frame_count~~
-            ~~target -> scatterer~~
-        - ~~FIXME: complex signal chain seems broken~~
-        - ~~range TDM~~
-        - ~~2D with URA~~
-        - ~~3D compute~~
-        - ~~FIXME: need to split the TX_Freq per transmitter radar~~
-        - ~~refactor rt_points, but kept the interface untouched (still returns a dict, adc values still a tensor with )~~
-        - ~~removed warnings in pytest~~
-        - ~~add pcl from (x,y,z)~~ 
-        - ~~TODO: add test_interference~~
-        - ~~TODO: add test_rsp_interference_mitigation: zero, ramp, IFFT~~
-        - ~~TODO: add range DDM and disambiguation~~
-        - ~~run pytest --ignore=tests\test_nb.py --ignore=tests\test_docs.py~~
-        - done 60 test 100% pass
-        - uploaded on https://test.pypi.org/project/mmwrt/0.0.11rc1/
-
-    * pre.2
-        - TODO
-            - renaming:
-                - ~~tx_frequencies -> lo_frequency~~
-                - align pre.1 renaming convention with .ipynb
-                    - ~~Target -> Scatterer~~
-                    - fs -> adc_sample_rate
-                        - ~~Receiver(fs= -> Receiver(adc_sample_rate=~~
-                    - max_adc_buffer_size= -> adc_sample_count_max=
-                    - bw -> chirp_end_time = bw/chirp_slope0
-                    - ~~ n_adc= -> adc_sample_count= ~~
-                    - ~~slope= -> chirp_slope=~~
-                    - ~~chirps_count -> chirp_count~~
-                    - ~~target -> scatterer~
-                    - ~~t_inter_chirp -> chirp_period~~
-                    - TX_phase_offsets
-            - TODO update all *.ipynb
-                ~~ Angle_of_Arrival.ipynb ~~
-                ~~Chirp_Solver.ipynb~~
-                ~~ FMCW-Radar-100_Radar_Imaging.ipynb ~~
-                ~~ FMCW-Radar-101_Intro.ipynb ~~
-                ~~ FMCW-Radar-102_CFAR.ipynb ~~
-                ~~ FMCW-Radar-103_AoA.ipynb ~~
-                ~~ FMCW-Radar-104_Freq_est.ipynb ~~
-                ~~ FMCW-Radar-105_Vibration.ipynb ~~
-                ~~ FMCW-Radar-106_Phased_Arrays.ipynb ~~
-                ~~ FMCW-Radar-107_Micro-Doppler.ipynb ~~
-                ~~ FMCW-Radar-108_Antennas.ipynb ~~
-                ~~ * FMCW-Radar-109_Radar_Cube.ipynb~~
-                ~~ * FMCW-Radar-201_Maths.ipynb ~~
-                ~~ * FMCW-Radar-202_CFAR_Pd.ipynb ~~
-                ~~ * FMCW-Radar-203_SNR.ipynb~~
-                ~~ * FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb~~
-                ~~ * FMCW-Radar-206_Reflections.ipynb ~~
-                ~~ * Grouping.ipynb~~
-                ~~ * High-Speed.ipynb~~
-                ~~ * Intro_nb.ipynb ~~
-                ~~ * MIMO_DDM.ipynb ~~
-                ~~ * MIMO_TDM.ipynb ~~
-                * Precision.ipynb
-                ~~ * Resolution.ipynb ~~
-                ~~ * Speed.ipynb~~
-            - run pytest
-            - if all ok -> release
-        - FIXME:
-            - ~~the last cell of FMCW-Radar-107_Micro-Doppler.ipynb has an error when checking the frequency of the uDop...~~
-            ~~- MIMO_DDM: need to fix the 2D FFT on cell 1 to allow AoA on cell 2.~~
-            - ~~FMCW Radar 103 - AoA / DOA_Bartlett broken (pyargus update? / incompatibility) - fixed~~
-            - ~~ FMCW-Radar-109_Radar_Cube.ipynb many images not re-generated anymore ... ~~
-            - ~~FMCW-Radar-201_Maths : fc_implicit is not defined !!! need to fix this !!! was renamed to f_c, fixed~~
-            ~~ - MIMO_TDM.ipynb scaling issues on the AoA FFT~~
-            - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
-                1. need to add pytests for frequency_estimator for fft, quinn2
-                - > requires more work than v0.0.11 -> moving this to v0.012
-
-    * pre.3 -> main
-        -notes:
-            - pyroma: 10/10
-            - flake8: 458 errors
-            - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
-            - coverage: 73%
-            - tox: skipped
-            - sphinx: WARNING: html_static_path entry '_static' does not exist
-
-
-
-*v0.0.10:
+* v0.0.10:
 
     * adding distance as a function of time in IF compute - allowing for simulation of target changing bin ranges through single chirp
-    * 0.0.10-pre.6: fixes #3 (numpy deprecating complex_ replacing with complex128)
-    * -pre.7: 
+    * fixes #3 (numpy deprecating complex_ replacing with complex128)
 
-v0.0.9:
+* v0.0.9:
 
     * adding ULA, URA for TDM MIMO
     * adding 3D points for TDM MIMO (x,y,z)
 
-v0.0.8:
+* v0.0.8:
 
     * adding TDM MIMO
     * adding DDM MIMO (including Doppler desambiguation)
 
-v0.0.7
+* v0.0.7
 
     * adding AoA
     * adding sparse array initial example (feature dedicated to Amine L.)
 
-v0.0.6:
+* v0.0.6:
 
     * added micro-doppler
     * added non-regression on .ipynb in docs/ folder
 
-v0.0.5:
+* v0.0.5:
 
     * moved dependancies from requirements to setup.py
     * added extras [dev] for developpers (and documentation and read the docs)
     * moved version checking from setup.py to test_basic.py
     * added readthedocs.yaml
 
-v0.0.4:
+* v0.0.4:
 
     * adding frequency estimator
     * added speed processing
     * added support for radar equation (RCS, distance, ...)
     * antenna gains in azimumth, elevation and freq
 
-v0.0.3: first release 
+* v0.0.3: first release 
 
     * point targets only
     * 1D compute of baseband if signal for scene
