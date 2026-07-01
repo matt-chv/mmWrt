@@ -148,6 +148,8 @@ Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedo
 
 > pyroma .
 
+> validate-pyproject pyproject.toml
+
 2. run flake8 
 runs with darglint settings for docstrings to numpy standard set in the .flake8 file
 should yield 0 warnings or errors
@@ -187,10 +189,13 @@ for intermediate releases, excluding some tests can be done with
 
 > sphinx-build -b html docs build/html
 
-9. release the Release-Candidate to pypi-test
-check that __init__.py is "0.0.X-pre.Y" for RC numbering
+9. release the Release-Candidate to pypi-test with setuptools
+~~check that __init__.py is "0.0.X-pre.Y" for RC numbering~~
+check that the latest tag is correct 0.x.y-pre.n
 
-> python setup.py bdist_wheel
+~~> python setup.py bdist_wheel~~
+
+> python -m build
 
 > twine upload -r testpypi dist\*
 
