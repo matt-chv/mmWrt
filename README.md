@@ -46,12 +46,10 @@ v0.0.13 (next):
         - move to toml
         - flake8: 458 errors - move to <10 # 
         - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
-        - coverage: 73%
-            - mmWrt\RadarSignalProcessing.py                   390    191    51%   57-83, 92-113, 144-203, 239-258, 421-424, 426-435, 514-545, 563-564, 595-596, 636-703, 736-748, 766-769, 797-811
+        - coverage: 80%
+            - mmWrt\RadarSignalProcessing.py     279     84    70%   57-83, 424-427, 429-438, 515-516, 547-548, 588-655, 688-700, 718-721, 749-763
                 - add pytest for error
-                - add cfar_1D_convolve to ignore for QA -> move to later for pytest / validation
-                - check cfar_ca_1d ??
-                - check cfar_1d ??
+                - add unit test for range_fft (588-655)
         - tox: skipped
         - sphinx: WARNING: html_static_path entry '_static' does not exist
         - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
