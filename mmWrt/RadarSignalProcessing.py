@@ -231,10 +231,10 @@ def __cfar_ca_1d__(X, num_training_cells=10,
 
 
 def __cfar_1d__(FT,
-            num_training_cells=10,
-            num_guard_cells=2, mode="same",
-            cfar_type="CA",
-            debug=False):  # pragma: no cover
+                num_training_cells=10,
+                num_guard_cells=2, mode="same",
+                cfar_type="CA",
+                debug=False):  # pragma: no cover
     """ CFAR for 1D FFT values
 
     Parameters
@@ -270,9 +270,9 @@ def __cfar_1d__(FT,
             zero_train[(num_training_cells+num_guard_cells)//2:
                        -(num_training_cells+num_guard_cells)//2] = FT
             FT = zero_train
-        cfar_th = cfar_ca_1d(FT, num_training_cells=num_training_cells,
-                             num_guard_cells=num_guard_cells,
-                             debug=debug)
+        cfar_th = __cfar_ca_1d__(FT, num_training_cells=num_training_cells,
+                                 num_guard_cells=num_guard_cells,
+                                 debug=debug)
         if mode == "full":
             cfar_th = cfar_th[(num_training_cells+num_guard_cells)//2:
                               -(num_training_cells+num_guard_cells)//2]
