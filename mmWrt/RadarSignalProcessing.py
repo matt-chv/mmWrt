@@ -1,10 +1,10 @@
 import logging
-from numpy import append, array, concatenate, log2, log, pi, sqrt, where, zeros
+from numpy import array, concatenate, log2, log, pi, sqrt, where, zeros
 from numpy import abs as np_abs
 import numpy as np
 from numpy import sum as np_sum
 from numpy.typing import NDArray
-from scipy.fft import fft, fft2
+from scipy.fft import fft
 from scipy.signal import find_peaks
 from numpy import angle
 
@@ -13,30 +13,31 @@ from .mylogs import auto_log, default_formatter
 
 ERR_CFAR_CELL_COUNT = "Too few cells in to have train cells and guard cells"
 
-
 module_logger = logging.getLogger(__name__)
 module_logger.setLevel(logging.ERROR)  # Default module level
 ch = logging.StreamHandler()
-formatter = default_formatter  # 
+formatter = default_formatter
 ch.setFormatter(formatter)
 module_logger.addHandler(ch)
+
 
 def range_to_meters(idx: NDArray, adc_sample_rate,
                     adc_sample_count,
                     chirp_slope) -> NDArray:
     c = 3e8
     return (idx*adc_sample_rate * c /
-        (2*chirp_slope*adc_sample_count))
+            (2*chirp_slope*adc_sample_count))
 
 
 def doppler_to_mps(idx: NDArray, chirp_count,
                    wavelength, chirp_period):
-    result = float(idx*wavelength/2/chirp_period/chirp_count - wavelength/4/chirp_period)
+    result = float(idx*wavelength/2/chirp_period/chirp_count
+                   - wavelength / 4 / chirp_period)
     return result
 
 
 def bin_to_deg(idx: NDArray, ula_element_count):
-    return np.rad2deg(np.arcsin(2 * idx / ula_element_count))  #-np.pi/2)
+    return np.rad2deg(np.arcsin(2 * idx / ula_element_count))
 
 
 def error(scatterers_synthetics, scatterers_f):
@@ -83,14 +84,34 @@ def error(scatterers_synthetics, scatterers_f):
     return total_error
 
 
-def __cfar_1D_convolve__(X, num_training_cells = 10,
-                     num_guard_cells=2, Pfa=0.1,
-                     mode="same", debug=False):  # pragma: no cover
-    """ CFAR implementation via convolution the idea is to see 
-    CFAR as convolution with a kernel of 0 for guard an CuT cells and 1 for train cells, 
+def cfar_1D_convolve(X: NDArray, num_training_cells: int = 10,
+                     num_guard_cells: int = 2,
+                     Pfa: float = 0.1,
+                     mode: str = "same", debug: bool = False):
+    """ CFAR implementation via convolution the idea is to see
+    CFAR as convolution with a kernel of 0 for guard an CuT
+    cells and 1 for train cells,
     then scaling the output of the convolution by T/M for Pfa
-    
-    not yet validated
+
+    Parameters
+    ----------
+    X
+        signal whose peaks have to be detected and reported
+    num_training_cells
+        number of cells used to train CFAR
+    num_guard_cells
+        number of cells guarding CUT against noise power calculation
+    Pfa
+        Probability of false alert, used to compute the variable threshold
+    mode
+        same meaning as np.convolve
+    debug
+        if True will output debug info
+
+    Returns
+    --------
+    cfar_th
+        CFAR threshold values
     """
     from numpy import ones, convolve, pad
     test = ones(len(X))
@@ -98,29 +119,27 @@ def __cfar_1D_convolve__(X, num_training_cells = 10,
     M = n
     T = M*(Pfa**(-1/M) - 1)
     P = [x**2 for x in X]
-    if n>len(P):
-        n=len(P)
+    if n > len(P):
+        n = len(P)
     exclude = ones(n)
-    extra_left = (len(P) - n )//2
+    extra_left = (len(P) - n)//2
     extra_right = extra_left
-    
-    if extra_right+extra_left+n<len(P):
-        extra_right +=1
-    exclude2 = pad(exclude, ((extra_left),(extra_right)), mode='constant', constant_values=0)
+
+    if extra_right+extra_left + n < len(P):
+        extra_right += 1
+    exclude2 = pad(exclude, ((extra_left), (extra_right)),
+                   mode='constant', constant_values=0)
     test = test - exclude2
     th = convolve(P, test, mode)
     th = sqrt(th) * T/M
-    if debug:
-        import matplotlib.pyplot as plt
-        pass
     return th
 
 
 def __cfar_ca_1d__(X, num_training_cells=10,
-               num_guard_cells=2,
-               Pfa=1e-2,
-               mode="same",
-               debug=False):  # pragma: no cover
+                   num_guard_cells=2,
+                   Pfa=1e-2,
+                   mode="same",
+                   debug=False):  # pragma: no cover
     """ Retuns indexs of peaks found via CA-CFAR
     i.e Cell Averaging Constant False Alarm Rate algorithm
 
@@ -154,8 +173,10 @@ def __cfar_ca_1d__(X, num_training_cells=10,
 
     if mode == "same":
         # for same mode, we need to pad the signal at the beginning and end
-        # to be able to compute the CFAR threshold for the first and last samples
-        P_extended = concatenate((P[-half_window_size:], P, P[:half_window_size]))
+        # to be able to compute the CFAR threshold
+        # for the first and last samples
+        P_extended = concatenate((P[-half_window_size:],
+                                  P, P[:half_window_size]))
 
     # T scaling factor for threshold
     # from Eq 6, Eq 7 from [1]
@@ -166,11 +187,13 @@ def __cfar_ca_1d__(X, num_training_cells=10,
     # thresholds = [0]*(half_window_size)
     thresholds = zeros(signal_length)
 
-
     for idx in range(0, signal_length):
-        p_noise = np_sum(P_extended[half_window_size+idx - half_M: half_window_size+idx + half_M + 1])
-        p_noise -= np_sum(P_extended[half_window_size+idx - count_leading_guard_cells:
-                    half_window_size+idx + count_leading_guard_cells + 1])
+        p_noise = np_sum(P_extended[half_window_size+idx - half_M:
+                                    half_window_size+idx + half_M + 1])
+        p_noise -= np_sum(P_extended[half_window_size+idx -
+                                     count_leading_guard_cells:
+                                     half_window_size+idx +
+                                     count_leading_guard_cells + 1])
         if debug:
             print("MCV 105 M", M)
             print("MCV 106", p_noise)
@@ -198,7 +221,8 @@ def __cfar_ca_1d__(X, num_training_cells=10,
         print("max(thresholds)", max(thresholds))
         print("T", T)
         print("E", sum(P)/M)
-        print("th=sqrt(T*sum(P)/M)",sqrt(T*sum(P)/M))
+        print("th=sqrt(T*sum(P)/M)",
+              sqrt(T*sum(P)/M))
         print("peaks", peak_locations)
         print("CFAR CA TH shape", thresholds.shape)
         print("---CFAR CA EOM")
@@ -261,27 +285,23 @@ def __cfar_1d__(FT,
     return cfar_th
 
 
-def cfar_alpha(train_cell_count: int, pfa: float) -> float:
+def cfar_alpha(train_cell_count: int,
+               pfa: float) -> float:
     """
     Compute the CA-CFAR threshold multiplier for a given PFA.
     Assumes exponentially distributed power (complex Gaussian clutter).
 
     Parameters
     ----------
-    train_cell_count:
+    train_cell_count
         Number of training cells (must be >= 1).
-    pfa:
+    pfa
         Probability of False Alarm (0 < pfa < 1).
+
     Returns
     -------
-    alpha:
+    alpha
         Threshold multiplier for CA-CFAR.
-    Raises
-    ------
-    ValueError
-        If ``pfa`` is not in the open interval (0, 1).
-    ValueError
-        If ``train_cell_count`` is less than 1.
 
     Notes
     -----
@@ -318,17 +338,20 @@ def cfar_alpha(train_cell_count: int, pfa: float) -> float:
     alpha = train_cell_count * (pfa ** (-1.0 / train_cell_count) - 1.0)
     return alpha
 
+
 @auto_log
 def _cfar_ca(magnitude: NDArray[float],
-            guard_cell_count: int,
-            train_cell_count: int,
-            threshold_factor: float,
-            debug: bool = False,
-            log=None) -> np.ndarray:
+             guard_cell_count: int,
+             train_cell_count: int,
+             threshold_factor: float,
+             debug: bool = False,
+             log=None) -> np.ndarray:
     """
     Constant False Alarm Rate (CFAR) detector.
-    Computes CFAR threshold for each range bin by averaging surrounding training
-    cells (excluding guard cells) to estimate background noise level. The threshold
+    Computes CFAR threshold for each range bin by averaging
+    surrounding training
+    cells (excluding guard cells) to estimate background noise level.
+    The threshold
     is set based on the desired probability of false alarm (PFA).
 
     Parameters
@@ -340,9 +363,15 @@ def _cfar_ca(magnitude: NDArray[float],
     train_cell_count
         Number of training cells on each side (excluding guard cells).
     threshold_factor:
-        Factor to multiply with the estimated noise level to get the CFAR threshold.
-        derived from the desired Pfa using a `configuration helper` function like `cfar_alpha`.
+        Factor to multiply with the estimated noise level to
+        get the CFAR threshold.
+        derived from the desired Pfa using a `configuration helper`
+        function like `cfar_alpha`.
         Also closer to embedded code implementation.
+    debug
+        If True, outputs debug information and plots the signal and threshold.
+    log
+        Logger instance for debug output.
 
     Returns
     -------
@@ -352,13 +381,14 @@ def _cfar_ca(magnitude: NDArray[float],
     Raises
     ------
     ValueError
-        when the count of guard cells + train cells is less than total number of cells
+        when the count of guard cells + train cells is less than total
+        number of cells
 
     Notes
     -----
     The CFAR algorithm:
-    1. For each cell under test, identify guard cells (immediately adjacent) and
-       training cells (surrounding the guard cells).
+    1. For each cell under test, identify guard cells (immediately adjacent)
+       and training cells (surrounding the guard cells).
     2. Compute mean power from training cells to estimate background noise.
     3. Set threshold = noise_mean * threshold_factor, where threshold_factor is
        derived from the desired PFA using chi-square statistics.
@@ -368,7 +398,8 @@ def _cfar_ca(magnitude: NDArray[float],
     >>> import numpy as np
     >>> # Example 1: Peak at first range bin
     >>> fft = np.array([100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
-    >>> threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    >>> threshold = cfar_ca(fft, guard_cell_count=1,
+    >>>                     train_cell_count=2, pfa=0.01)
     >>> magnitude = np.abs(fft)
     >>> peak_idx = np.argmax(magnitude)
     >>> peak_idx
@@ -377,7 +408,8 @@ def _cfar_ca(magnitude: NDArray[float],
     0
     >>> # Example 2: Peak in the middle
     >>> fft = np.array([1.0+0j, 1.0+0j, 100.0+0j, 1.0+0j, 1.0+0j, 1.0+0j])
-    >>> threshold = cfar_ca(fft, guard_cell_count=1, train_cell_count=2, pfa=0.01)
+    >>> threshold = cfar_ca(fft, guard_cell_count=1,
+    >>>                     train_cell_count=2, pfa=0.01)
     >>> magnitude = np.abs(fft)
     >>> peak_idx = np.argmax(magnitude)
     >>> peak_idx
@@ -391,18 +423,26 @@ def _cfar_ca(magnitude: NDArray[float],
     # Compute threshold factor from PFA
     # Using chi-square approximation: for single cell test in noise,
     # threshold_factor ≈ -ln(pfa)
-    log.debug(f"fft_values.shape: {magnitude.shape} vs train_cell(x2)={train_cell_count*2}")
-    num_train_cells = 2 * train_cell_count
+    log.debug(f"fft_values.shape: {magnitude.shape} vs" +
+              f"train_cell(x2)={train_cell_count*2}")
+    # num_train_cells = 2 * train_cell_count
     if train_cell_count > n_bins//2:
         train_cell_count = n_bins//2
-        log.warning("Number of training cells exceeds total bins, reducing to maximum possible.")
-    # assert num_train_cells < n_bins, "Number of training cells must be less than total bins"
+        log.warning("Number of training cells exceeds total bins," +
+                    " reducing to maximum possible.")
+    # assert num_train_cells < n_bins,
+    # "Number of training cells must be less than total bins"
     try:
-        assert 2 * train_cell_count + 2 * guard_cell_count +1 < n_bins  #, "Training + guard cells + 1 (CuT) must be more than total cells count" 
-    except:
-        print(f"bin count: {n_bins} vs train+guard: {2 * train_cell_count + 2 * guard_cell_count +1}")
+        # Training + guard cells + 1 (CuT)
+        # must be more than total cells count"
+        assert 2 * train_cell_count + 2 * guard_cell_count + 1 < n_bins
+    except AssertionError as ex:
+        log.error(f"Assertion failed: {str(ex)}")
+        print(f"bin count: {n_bins} vs train+guard: " +
+              f"{2 * train_cell_count + 2 * guard_cell_count +1}")
         raise ValueError(ERR_CFAR_CELL_COUNT)
-    # assert train_cell_count > guard_cell_count, "Training cells must be more than guard cells" 
+    # assert train_cell_count > guard_cell_count,
+    # "Training cells must be more than guard cells"
     # threshold_factor = -np.log(pfa) / num_train_cells
     # threshold_factor = cfar_alpha(train_cell_count, pfa)
 
@@ -414,9 +454,11 @@ def _cfar_ca(magnitude: NDArray[float],
         # to avoid handling cases where training cells are out of range
         # just roll the magnitude array
         rolled_magnitude = np.roll(magnitude, n_bins//2-idx)
-        # rolled_magnitude[n_bins//2-guard_cell_count:n_bins//2+guard_cell_count+1]=0
-        training_magnitude = np.concatenate((rolled_magnitude[n_bins//2-train_cell_count-1:n_bins//2-guard_cell_count],
-                                            rolled_magnitude[n_bins//2+guard_cell_count+1:n_bins//2+train_cell_count+1]))
+        training_magnitude = np.concatenate((
+            rolled_magnitude[n_bins//2-train_cell_count-1:
+                             n_bins//2-guard_cell_count],
+            rolled_magnitude[n_bins//2+guard_cell_count+1:
+                             n_bins//2+train_cell_count+1]))
         mean_noise = np.mean(training_magnitude)
 
         cfar_threshold[idx] = mean_noise * threshold_factor
@@ -458,10 +500,10 @@ def peak_grouping_1d(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
 
     Parameters
     ----------
-    cfar_idx:
-        array of index (usually those where fft magnitude is 
+    cfar_idx
+        array of index (usually those where fft magnitude is
         higher than CFAR threshold)
-    mag_r:
+    mag_r
         array of magnitude (usually np.abs(fft) on which CFAR was computed)
 
     Returns
@@ -483,28 +525,93 @@ def peak_grouping_1d(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
     >>> peak_grouping_1d(cfar_idx, mag_r)
     array([0])
     """
-    # np.diff computes element-wise differences between consecutive elements: out[i] = a[i+1] - a[i]
-    # np.flatnonzero returns a 1D array of indices where the condition is non-zero (True)
-    gaps = np.flatnonzero(np.diff(cfar_idx) > 1) + 1  # +1 shifts split points to the start of each new group
+    # np.diff computes element-wise differences between
+    # consecutive elements: out[i] = a[i+1] - a[i]
+    # np.flatnonzero returns a 1D array of indices where
+    # the condition is non-zero (True)
+    # +1 shifts split points to the start of each new group
+    gaps = np.flatnonzero(np.diff(cfar_idx) > 1) + 1
 
-    # np.split divides an array into sub-arrays at the given split points (indices into the array)
+    # np.split divides an array into sub-arrays at
+    # the given split points (indices into the array)
     idx_groups = np.split(cfar_idx, gaps)
-    # mag_r has more values than cfar_idx, we need to split it at the same points as cfar_idx to get the corresponding magnitudes for each group
+    # mag_r has more values than cfar_idx, we need to split
+    # it at the same points as cfar_idx to get
+    # the corresponding magnitudes for each group
     val_groups = np.split(mag_r[cfar_idx], gaps)
 
-    idx_grouped = np.array([grp_idx[np.argmax(grp_val)]
-                            for grp_idx, grp_val in zip(idx_groups, val_groups)])
+    idx_grouped = \
+        np.array([grp_idx[np.argmax(grp_val)]
+                  for grp_idx, grp_val in zip(idx_groups, val_groups)])
     return idx_grouped
 
 
-def range_resolution(v, B):
+def __peak_grouping_1d__(cfar_idx: NDArray, mag_r: NDArray) -> NDArray:
+    """groups adjacent idx from cfar by first putting adjacent one in clusters
+    then finding the index with the highest magnitude in FFT and returning
+    this one as peak
+
+    Parameters
+    ----------
+    cfar_idx
+        vector of index where fft magnitude is higher than CFAR threshold
+    mag_r
+        abs(FFT)
+
+    Raises
+    ------
+    ValueError
+        when no peaks are found by CFAR
+
+    Returns
+    -------
+    idx_peaks
+        grouped peaks
+    """
+    print(401, cfar_idx)
+    cluster = [cfar_idx[0]]
+    if cfar_idx.shape[0] > 1:
+        idx_peaks = []
+    elif cfar_idx.shape[0] == 1:
+        return np.array(cluster)
+    else:
+        raise ValueError("No peaks found by CFAR, cannot do peak grouping")
+
+    # FIXME: this is most likely suboptimal,
+    # we can do it in one pass without storing clusters in memory
+    for i in range(1, cfar_idx.shape[0]):
+        # iterate to build cluster
+        print(413, i, cfar_idx, cfar_idx[i], cfar_idx[i] == cfar_idx[i-1]+1,
+              cluster, idx_peaks)
+        if cfar_idx[i] == cfar_idx[i-1]+1:
+            cluster.append(cfar_idx[i])
+            if i <= cfar_idx.shape[0]:
+                print(417, i, cfar_idx.shape[0]-1)
+                continue
+        # here process cluster to find highest peak
+        mag_max = 0
+        idx_max = 0
+        for idx in cluster:
+            print(421, "cluster", cluster)
+            if mag_r[idx] > mag_max:
+                mag_max = mag_r[idx]
+                idx_max = idx
+        idx_peaks.append(idx_max)
+        cluster = [cfar_idx[i]]
+    if cluster:
+        idx_peaks.append(cluster[0])
+    print(430, idx_peaks)
+    return np.array(idx_peaks)
+
+
+def range_resolution(v: float, B: float):
     """ Range resolution is c/2B
 
     Parameters
     ----------
-    v: float
+    v
         celerity of light in medium
-    B: float
+    B
         Bandwidth of signal sampled (often simplified as chirped)
 
     Returns
@@ -550,28 +657,30 @@ def if2d(radar):
 
 def range_fft(adc_values: NDArray,
               baseband: dict,
-              chirp_index=0,
-              fft_window=None, fft_padding=0,
-              full_FFT=False,
-              debug=False):
+              chirp_index: int = 0,
+              fft_window: str | None = None,
+              fft_padding: int = 0,
+              full_FFT: bool = False,
+              debug: bool = False):
     """ scipy FFT wrapper with windowing and padding options
 
     Parameters
     ----------
-    adc_values: NDArray
+    adc_values
         (N,) the IF ADC signals of shape (N,) - i.e. 1D array
-    baseband: dict
+    baseband
+        the dict returned by raytracing
     chirp_index: int
         (obsolete) index of the chirp in the data matrix
-    fft_window: str
+    fft_window
         FFT windowing names supported by scipy get_window
-    fft_padding: int
+    fft_padding
         if 0 - no padding
         if -1: padding to next level of power of 2
         other values: padding to those values
-    full_FFT: bool
+    full_FFT
         if True returns the full FFT, else only 0..d_max_unambiguous
-    debug: bool
+    debug
         if True logs debug information on console
 
     Returns
@@ -630,16 +739,17 @@ def range_fft(adc_values: NDArray,
     # D_max = c*f_if_max/(2*S)
     # if complex FFT, f_if_max = adc_sample_rate
     # if real FFT, f_if_max = adc_sample_rate/2 (for non-ambiguous)
-    #delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
+    # delta_R_FFT = baseband["adc_sample_rate"] * baseband["medium_velocity"] \
     #    / (2 * len(FT) * baseband["chirp_slope"])
     # Distances = [i * delta_R_FFT for i in range(len(FT))]
-    Distances = range_to_meters(np.array(range(len(FT))), baseband["adc_sample_rate"],
-                                   baseband["adc_sample_count"],
-                                   baseband["chirp_slope"])
+    Distances = range_to_meters(np.array(range(len(FT))),
+                                baseband["adc_sample_rate"],
+                                baseband["adc_sample_count"],
+                                baseband["chirp_slope"])
 
     if debug:  # pragma: no cover
         print(f"Range Resolution: {delta_R:.2g}, based on chirping")
-        print(f"Range resolution based on sampling:{delta_R_FFT:.2g}")
+        # print(f"Range resolution based on sampling:{delta_R_FFT:.2g}")
 
     if full_FFT:
         if debug:  # pragma: no cover
@@ -763,32 +873,36 @@ def frequency_estimator(FFT, idxs, estimator_name="fft"):
     return i_peaks
 
 
-def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
-          adc_sample_rate:float,fft_threshold:float) -> NDArray:
-    """ returns a NDArray of ranges using a simple fft threshold for scatterer 
+def ranges_from_fft_threshold(adc_values: NDArray,
+                              chirp_slope: float,
+                              adc_sample_rate: float,
+                              fft_threshold: float) -> NDArray:
+    """ returns a NDArray of ranges using a simple fft
+    threshold for scatterer
     detection, used for simple examples.
-    Not recommended in most cases, cfar peak detection recommended 
+    Not recommended in most cases, cfar peak detection recommended
 
     Parameters
     ----------
-    adc_values: NDArray
-        the ADC values for a given chirp. assumed to be a 1D (adc_sample_count,) shape
-    chirp_slope: float
+    adc_values
+        (adc_sample_count,) the ADC values for a given chirp
+    chirp_slope
         the chirp slope in Hz/s
-    adc_sample_rate: float
+    adc_sample_rate
         the ADC sampling rate in Hz
-    fft_threshold: float
+    fft_threshold
         threshold used by find peaks for peak detection
 
     Returns
     -------
-    ranges: numpy array
+    ranges
         the ranges corresponding to each ADC sample
+
     Example
     -------
 
     """
-    c = 3e8  # speed of light in m/s
+    # c = 3e8  # speed of light in m/s
     adc_sample_count = adc_values.shape[0]
     range_fft = fft(adc_values)
 
@@ -805,11 +919,27 @@ def ranges_from_fft_threshold(adc_values:NDArray, chirp_slope:float,
     return ranges
 
 
-def dft_cfr_idx(fft_mag:NDArray,
-                train_cell_count:int,
-                pfa:float,
-                debug:bool = False) -> NDArray:
+def dft_cfr_idx(fft_mag: NDArray,
+                train_cell_count: int,
+                pfa: float,
+                debug: bool = False) -> NDArray:
     """ returns indexes where cfar finds peaks
+
+    Parameters
+    ----------
+    fft_mag
+        the magnitude of the fft values
+    train_cell_count
+        the number of training cells to use for cfar
+    pfa
+        the probability of false alarm to use for cfar
+    debug
+        if True, outputs debug information
+
+    Returns
+    -------
+    peak_idxs
+        array of indices where peaks are detected by CFAR
     """
 
     # fft_values = np.fft.fft(adc_values)
@@ -822,27 +952,43 @@ def dft_cfr_idx(fft_mag:NDArray,
     peak_idxs = where(fft_mag > cfar_thresholds + 1e-10)[0]
     return peak_idxs
 
+
 @auto_log
-def ranges_dft_cfar(adc_values:NDArray,
-                    adc_sample_rate:float,
-                    chirp_slope:float,
-                    pfa:float,
+def ranges_dft_cfar(adc_values: NDArray,
+                    adc_sample_rate: float,
+                    chirp_slope: float,
+                    pfa: float,
                     log=None) -> NDArray:
     """ returns a NDArray of ranges using a simple fft threshold for scatterer
     if adc_values are real, will return half the range bins
+
+    Parameters
+    ----------
+    adc_values
+        (adc_sample_count,) the ADC values for a given chirp.
+    chirp_slope
+        the chirp slope in Hz/s
+    adc_sample_rate
+        the ADC sampling rate in Hz
+    pfa
+        the probability of false alarm to use for cfar
+    log
+        the logger instance to use for debug output
+
+    Returns
+    -------
+    ranges
+        the ranges where scatterers are detected
     """
     adc_sample_count = adc_values.shape[0]
     c = 3e8  # speed of light in m/s
     adc_sample_count = adc_values.shape[0]
     fft_mag = np_abs(fft(adc_values))
 
-
-    #exit()
-
     if np.isrealobj(adc_values):
         fft_mag = fft_mag[:fft_mag.shape[0]//2]
     train_cell_count = min((adc_values.shape[0]-3)//2, 20)
-    train_cell_count = 8 #MCV
+    train_cell_count = 8  # MCV
     log.debug(f"train_cell_count: {train_cell_count}")
 
     peak_idxs = dft_cfr_idx(fft_mag,
@@ -851,15 +997,31 @@ def ranges_dft_cfar(adc_values:NDArray,
     log.debug(f"peak_idxs: {peak_idxs}")
     # d = i * adc_sample_rate*c/2/k/NA
     i2r = lambda idx: idx*adc_sample_rate * c / \
-        (2*chirp_slope*adc_sample_count)
+        (2*chirp_slope*adc_sample_count)  # noqa: E731
     ranges = array([i2r(peak_idx) for peak_idx in peak_idxs])
     return ranges
 
 
 def range_doppler_index_grouped(range_doppler_fft: NDArray,
-                                range_cfar_train_cell=6,
-                                doppler_cfar_train_cell=10):
-    """
+                                range_cfar_train_cell: int = 6,
+                                doppler_cfar_train_cell: int = 10):
+    """ groups the range doppler indexes by first finding the range
+    peaks and then for each range peak finding the doppler peaks
+
+    Parameters
+    ----------
+    range_doppler_fft
+        the range doppler fft values
+    range_cfar_train_cell
+        the number of training cells to use for range cfar
+    doppler_cfar_train_cell
+        the number of training cells to use for doppler cfar
+
+    Returns
+    -------
+    range_dopplers_idxes
+        list of tuples of (range_idx, doppler_idx) for each peak found
+        # FIXME: move this to NDArray
     """
 
     fft_1d = np.sum(range_doppler_fft, axis=0)
@@ -874,27 +1036,45 @@ def range_doppler_index_grouped(range_doppler_fft: NDArray,
         doppler_idxes = dft_cfr_idx(np_abs(range_doppler_fft[:, range_idx]),
                                     train_cell_count=doppler_cfar_train_cell,
                                     pfa=0.001)
-        doppler_idxes_grouped = peak_grouping_1d(doppler_idxes,
-                                                 np_abs(range_doppler_fft[:, range_idx]))
-        range_dopplers_idxes += [(range_idx, doppler_idx) for doppler_idx in doppler_idxes_grouped]
+        doppler_idxes_grouped = \
+            peak_grouping_1d(doppler_idxes,
+                             np_abs(range_doppler_fft[:, range_idx]))
+        range_dopplers_idxes += \
+            [(range_idx, doppler_idx) for
+             doppler_idx in doppler_idxes_grouped]
     return range_dopplers_idxes
 
 
 def range_doppler(adc_values: NDArray,
-                  adc_sample_rate:float,
+                  adc_sample_rate: float,
                   chirp_slope: float,
-                  wavelength:float,
-                  chirp_period: float):
-    """
+                  wavelength: float,
+                  chirp_period: float) -> NDArray:
+    """ Returns a NDArray of (range, doppler) for
+    each scatterer detected in the given adc values
+
     Parameters
     ----------
     adc_values
         (chirp_count, adc_samples count)
+    adc_sample_rate
+        the ADC sampling rate in Hz
+    chirp_slope
+        the chirp slope in Hz/s
+    wavelength
+        the wavelength of the radar in meters
+    chirp_period
+        the chirp period in seconds
+
+    Returns
+    -------
+    NDArray
+        (range, doppler) detections for each scatterer detected in (m, m/s)
     """
     adc_sample_rate = adc_sample_rate
     na = adc_values.shape[1]
     k = chirp_slope
-    l = wavelength
+    lambda0 = wavelength
     tc = chirp_period
     nc = adc_values.shape[0]
     adc_sample_count = adc_values.shape[-1]
@@ -906,24 +1086,26 @@ def range_doppler(adc_values: NDArray,
     range_doppler_idx = range_doppler_index_grouped(range_doppler_fft)
 
     detections = np.array([(range_to_meters(r, adc_sample_rate, na, k),
-                            doppler_to_mps(d, nc, l, tc))
+                            doppler_to_mps(d, nc, lambda0, tc))
                           for r, d in range_doppler_idx])
     return detections
 
 
-def range_aoa(adc_values: NDArray, radar: Radar):
-    """ returns a list of (range, angle) for each scatterer detected in the given adc values
+def range_aoa(adc_values: NDArray, radar: Radar) -> NDArray:
+    """ returns a list of (range, angle) for each scatterer detected
+    in the given adc values
 
     Parameters
     ----------
-    adc_values:
-        (rx_count, adc_samples count) - i.e. 2D array of shape (rx_count, adc_sample_count)
-    radar: Radar
+    adc_values
+        (rx_count, adc_samples count) 2D array
+    radar
         the RX radar
+
     Returns
     -------
-    detection_list: NDArray
-        1D array of (range, angle) for each scatterer detected in the given adc values
+    NDArray
+        (range, angle) array for each scatterer detected in adc_values
     """
 
     range_axis = 1
@@ -941,7 +1123,8 @@ def range_aoa(adc_values: NDArray, radar: Radar):
     aoa_window = np.kaiser(range_fft.shape[aoa_axis], beta=10)
     range_fft_windowed = range_fft * aoa_window[:, np.newaxis]
 
-    range_aoa_dft = np.fft.fftshift(fft(range_fft_windowed, axis=aoa_axis), axes=aoa_axis)
+    range_aoa_dft = np.fft.fftshift(fft(range_fft_windowed,
+                                        axis=aoa_axis), axes=aoa_axis)
 
     range_peak_idxs = dft_cfr_idx(np.abs(range_fft[0, :]),
                                   train_cell_count=8,
@@ -955,16 +1138,18 @@ def range_aoa(adc_values: NDArray, radar: Radar):
     detection_list = []
     for idx, range_idx in enumerate(range_idxes_grouped):
         # NOTE:
-        # no need for CFAR here as we are already in a range bin where we know there is a scatterer,
+        # no need for CFAR here as we are already in a range bin
+        # where we know there is a scatterer,
         # we just need to find the angle of arrival
-        # if we have a large antenna will need to have a CFAR + grouping to allow multiple
+        # if we have a large antenna will need to have a CFAR
+        # + grouping to allow multiple
         # scatterers in teh same range bin
         peak_index = np.argmax(np.abs(range_aoa_dft[:, range_idx]))
         degrees = bin_to_deg(peak_index,
                              range_aoa_dft.shape[0])
         detection_list.append((ranges[idx], degrees))
-    detection_list = np.array(detection_list)
-    return detection_list
+    detections = np.array(detection_list)
+    return detections
 
 
 def detection_xy(adc_values: NDArray, radar: Radar):
@@ -993,9 +1178,11 @@ def pcl_xyz(adc_values: NDArray, radar) -> NDArray:
     """
 
     # 2. get Azimuth
-    detection_list_r_theta = range_aoa(adc_values[0,0,0,:,:], radar)
+    detection_list_r_theta = range_aoa(adc_values[0, 0, 0, :, :],
+                                       radar)
     # 3. get Elevation
-    detection_list_r_phi = range_aoa(adc_values[0,0,:,0,:], radar)
+    detection_list_r_phi = range_aoa(adc_values[0, 0, :, 0, :],
+                                     radar)
     # 4. merge
     detections_xyz = []
     for idx in range(3):
@@ -1024,15 +1211,16 @@ def pcl(adc_values: NDArray, radar) -> NDArray:
 
     Returns
     -------
-    pcl
-        (x, y, z, vr, mag) detections
+    detections
+        (x, y, z, vr, mag) numpy array for all detections
     """
     # 1. get Range-Doppler Detections index
     range_doppler_fft = np.fft.fftshift(np.fft.fft2(adc_values, axes=[0, -1]),
                                         axes=0)
     if np.isrealobj(adc_values):
         range_doppler_fft = range_doppler_fft[..., :adc_values.shape[-1]//2]
-    range_doppler_idx = range_doppler_index_grouped(range_doppler_fft[:, 0, 0, :])
+    range_doppler_idx = \
+        range_doppler_index_grouped(range_doppler_fft[:, 0, 0, :])
 
     # 2. get Azimuth
     detection_list_r_theta = []
@@ -1041,16 +1229,18 @@ def pcl(adc_values: NDArray, radar) -> NDArray:
     for r, d in range_doppler_idx:
         azimut_fft = np.fft.fft(range_doppler_fft[d, 0, :, r])
         azimut_fft = np.fft.fftshift(np.fft.fft(range_doppler_fft[d, 0, :, r]))
-        detection_list_r_theta.append(np.argmax(np.abs(azimut_fft)))  # range_aoa(adc_values[0,0,0,:,:], radar)
+        detection_list_r_theta.append(np.argmax(np.abs(azimut_fft)))
 
     # 3. get Elevation
     for r, d in range_doppler_idx:
-        detection_list_r_phi.append(np.argmax(np.abs(np.fft.fftshift(np.fft.fft(range_doppler_fft[d, :, 0, r])))))  # range_aoa(adc_values[0,0,0,:,:], radar)
-
+        detection_list_r_phi.append(np.argmax(np.abs(
+            np.fft.fftshift(np.fft.fft(range_doppler_fft[d, :, 0, r])))))
     # 4. merge
     for idx, (r, d) in enumerate(range_doppler_idx):
-        r = range_to_meters(r, radar.adc_sample_rate, radar.adc_sample_count, radar.chirp_slope)
-        d = doppler_to_mps(d, adc_values.shape[0], 3e8/radar.chirp_start_freq, radar.chirp_period)
+        r = range_to_meters(r, radar.adc_sample_rate, radar.adc_sample_count,
+                            radar.chirp_slope)
+        d = doppler_to_mps(d, adc_values.shape[0], 3e8/radar.chirp_start_freq,
+                           radar.chirp_period)
         theta = detection_list_r_theta[idx]
         theta_deg = bin_to_deg(theta, adc_values.shape[2])
         phi = detection_list_r_phi[idx]

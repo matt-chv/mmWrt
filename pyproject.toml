@@ -1,0 +1,77 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=61", "setuptools-scm[toml]>=6.2" ]
+
+[project]
+name = "mmwrt"
+description = "minimal raytracing code example for MIMO FMCW radar"
+readme = "README.md"
+keywords = [ "FMCW", "MIMO", "radar", "raytracing" ]
+license = { text = "MIT" }
+authors = [ { name = "matt-chv", email = "contact@matthieuchevrier.com" } ]
+requires-python = ">=3.10"
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Utilities",
+]
+dynamic = [ "version" ]
+dependencies = [ "matplotlib", "numpy", "scipy", "semver" ]
+optional-dependencies.dev = [
+  "antlr4-python3-runtime==4.11",
+  "anybadge",
+  "coverage",
+  "darglint",
+  "flake8",
+  "jupyter",
+  "jupyterlab-myst",
+  "myst-parser",
+  "nbsphinx",
+  "pyproject-fmt",
+  "pyroma",
+  "pytest",
+  "recommonmark",
+  "sphinx",
+  "sphinx-markdown-builder",
+  "sphinx-rtd-theme",
+  "sympy",
+  "tox",
+  "twine",
+  "validate-pyproject",
+  "wheel"
+]
+urls.Documentation = "https://mmwrt.readthedocs.io/"
+urls.Homepage = "https://github.com/matt-chv/mmWrt"
+urls.Issues = "https://github.com/matt-chv/mmWrt/issues"
+urls.Repository = "https://github.com/matt-chv/mmWrt.git"
+
+[tool.setuptools]
+packages = [ "mmWrt" ]
+
+[tool.setuptools_scm]
+write_to = "mmWrt/_version.py"
+
+[tool.darglint]
+docstring_style = "numpy"
+strictness = "short"
+allow_short_unannotated_functions = true
+ignore = ["DAR103"]
+
+[tool.tox]
+env_list = ["py310", "py311", "py312", "py313", "py314"]
+
+[tool.tox.env_run_base]
+description = "Run tests"
+deps = [
+    "pytest>=7.0", # Only list extra test-specific dependencies here
+]

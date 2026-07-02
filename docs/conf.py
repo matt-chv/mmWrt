@@ -12,10 +12,10 @@ sys.path.insert(0, os.path.abspath('..'))
 sys.path.append(os.path.abspath(
     os.path.join(__file__, os.pardir, os.pardir, "mmWrt")))
 
-from mmWrt import __version__ as mmWrt_ver
+from mmWrt import __version__ as mmWrt_ver  # noqa: E402
 
 project = 'mmWrt'
-copyright = '2023, matt-chv'
+copyright = '2023-2026, matt-chv'
 author = 'matt-chv'
 release = mmWrt_ver
 
@@ -27,10 +27,10 @@ extensions = ['myst_parser', 'sphinx.ext.napoleon', 'sphinx_markdown_builder',
               'nbsphinx']
 # https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html
 # for specifics on dollarmath
-# check https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-math
-myst_dmath_allow_space=True
+# check https://myst-parser.readthedocs.io/en/v0.15.1/syntax/optional.html#syntax-math  # noqa: E501
+myst_dmath_allow_space = True
 
-myst_enable_extensions = ['dollarmath',"amsmath",'html_admonition']
+myst_enable_extensions = ["dollarmath", "amsmath", "html_admonition"]
 
 templates_path = ['_templates']
 exclude_patterns = []

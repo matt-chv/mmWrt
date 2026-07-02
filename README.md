@@ -36,25 +36,24 @@ v0.0.13 (next):
     - FIXME:
         - Precision.ipynb (carry over from v0.0.11)
         - remove all default values in the radar transceiver and resceiver definitions
+        - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
+            1. need to add pytests for frequency_estimator for fft, quinn2
+            - > requires more work than v0.0.11 -> moving this to v0.013
 
 * v0.0.12:
 
     - FIXME:
-        - ~~ fix the colab links~~
-        - ~~fix the badges in README: doi + % coverage ~~
+        - ~~fix the colab links~~
+        - ~~fix the badges in README: doi + % coverage~~ 
+        - ~~ sphinx: WARNING: html_static_path entry '_static' does not exist~~
     - TODO:
-        - move to toml
-        - flake8: 458 errors - move to <10 # 
-        - pytest: 60 passed (one error for Angle_of_Arrival.ipynb)
-        - coverage: 80%
-            - mmWrt\RadarSignalProcessing.py     279     84    70%   57-83, 424-427, 429-438, 515-516, 547-548, 588-655, 688-700, 718-721, 749-763
-                - add pytest for error
-                - add unit test for range_fft (588-655)
-        - tox: skipped
-        - sphinx: WARNING: html_static_path entry '_static' does not exist
-        - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
-            1. need to add pytests for frequency_estimator for fft, quinn2
-            - > requires more work than v0.0.11 -> moving this to v0.012
+        - ~~move to toml~~
+        - ~~flake8: 458 errors - move to <10 # ~~
+        - ~~pytest: 60 passed (one error for Angle_of_Arrival.ipynb)~~
+        - ~~coverage: 73%~~
+        - tox: successful on ["py310", "py311", "py312", "py313", "py314"]
+
+
 
 * v0.0.11:
 
@@ -146,8 +145,10 @@ Or Read the Docs on [![Read the docs](https://read-the-docs-guidelines.readthedo
 
 0. Ensure all the new .ipynb are added in docs/Hands-on.md 
 
-1. run pyroma
-(should be 10/10)
+1. run pyroma (should be 10/10), before this check pyproject.toml
+
+> validate-pyproject pyproject.toml
+> pyproject-fmt pyproject.toml
 
 > pyroma .
 
@@ -156,6 +157,10 @@ runs with darglint settings for docstrings to numpy standard set in the .flake8 
 should yield 0 warnings or errors
 
 > flake8
+
+or
+
+> flake8 --ignore=DAR005,DAR103
 
 3. run pytest
 should yield 100% pass
@@ -198,10 +203,13 @@ then
 
 > sphinx-build -b html docs build/html
 
-9. release the Release-Candidate to pypi-test
-check that __init__.py is "0.0.X-pre.Y" for RC numbering
+9. release the Release-Candidate to pypi-test with setuptools
+~~check that __init__.py is "0.0.X-pre.Y" for RC numbering~~
+check that the latest tag is correct 0.x.y-pre.n
 
-> python setup.py bdist_wheel
+~~> python setup.py bdist_wheel~~
+
+> python -m build
 
 > twine upload -r testpypi dist\*
 

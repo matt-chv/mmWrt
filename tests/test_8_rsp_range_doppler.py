@@ -4,7 +4,6 @@ Covers:
 (not written: SFMCW)
 v0.0.11: 3
 """
-import logging  # noqa 401
 from os.path import abspath, join, pardir
 import numpy as np
 from numpy import complex128 as complex
@@ -12,11 +11,6 @@ from numpy import complex128 as complex
 from numpy import zeros
 from numpy.fft import fft
 from scipy.signal import find_peaks
-
-# keeping it here for when calling test files with python at dev times
-import sys
-dp = abspath(join(__file__, pardir, pardir))
-sys.path.insert(0, dp)
 
 from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.RadarSignalProcessing import range_doppler
@@ -48,6 +42,10 @@ def test_rsp_range_doppler():
 
 def test_FMCW_vibration():
     """ validates the uDoppler logic
+    Raises
+    ------
+    ValueError
+        if the peak is not found in the FFT of the uDoppler signal
     """
     from test_assets import NF_vibrate, NC_vibrate, F1_vibrate
     NC = NC_vibrate

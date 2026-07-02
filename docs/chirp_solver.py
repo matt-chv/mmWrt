@@ -16,6 +16,7 @@ from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
 c = 3e8
+debug_code = False
 
 scatterer1 = Scatterer(5.1)
 
@@ -47,7 +48,8 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
 
                     bb = rt_points([radar], [scatterer1],
                                    radar)
-                    Distances, range_profile = rsp.range_fft(bb["adc_cube"][0,0,0,:], bb)
+                    Distances, range_profile = rsp.range_fft(bb["adc_cube"]
+                                                             [0, 0, 0, :], bb)
                     Distances = Distances/2
                     ca_cfar = rsp.cfar_ca_1d(range_profile)
                     mag_r = np_abs(range_profile)
@@ -69,9 +71,9 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
                                   "slope": slope,
                                   "error": error}
                 except Exception as ex:
-                    pass
-                    # print(str(ex))
-                    # raise
+                    if debug_code:
+                        print(str(ex))
+                        raise
 
 # yields 0 error for bw=3e9, adc_sample_rate=100, slope=6e8
 print(f"optimal config: {config}, yields error: {min_error}")

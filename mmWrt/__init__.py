@@ -1,1 +1,4 @@
-__version__ = "0.0.12-pre.1"
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "0.0.12.dev"
