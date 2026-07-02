@@ -12,11 +12,12 @@ maxdepth: 4
 Intro_nb
 Grouping
 Chirp_Solver
+Resolution
 Speed
 Precision
-micro_doppler
 Angle_of_Arrival
-TDM_MIMO
-DDM_MIMO
+MIMO_TDM
+MIMO_DDM
+High-Speed
 Minimum Reproducible Examples (MRE)
 ```

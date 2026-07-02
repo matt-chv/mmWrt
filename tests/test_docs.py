@@ -21,6 +21,10 @@ def test_ipynb(dp=None):
     ----------
     dp: String
         folder path with jupyter notebook to be tested
+    Raises
+    ------
+    Exception
+        if the notebook execution failsW
     """
     if dp is None:
         dp = abspath(join(__file__, pardir, pardir, "docs"))
@@ -43,6 +47,6 @@ def test_ipynb(dp=None):
                         _ = client.execute()
                     except Exception as ex:
                         print(f"!!!!!!!!!!{fn}")
-                        raise
+                        raise Exception(ex)
                 else:
                     print("skipping", fp)

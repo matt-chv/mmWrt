@@ -29,6 +29,7 @@ dynamic = [ "version" ]
 dependencies = [ "matplotlib", "numpy", "scipy", "semver" ]
 optional-dependencies.dev = [
   "antlr4-python3-runtime==4.11",
+  "anybadge",
   "coverage",
   "darglint",
   "flake8",
@@ -59,3 +60,18 @@ packages = [ "mmWrt" ]
 
 [tool.setuptools_scm]
 write_to = "mmWrt/_version.py"
+
+[tool.darglint]
+docstring_style = "numpy"
+strictness = "short"
+allow_short_unannotated_functions = true
+ignore = ["DAR103"]
+
+[tool.tox]
+env_list = ["py310", "py311", "py312", "py313", "py314"]
+
+[tool.tox.env_run_base]
+description = "Run tests"
+deps = [
+    "pytest>=7.0", # Only list extra test-specific dependencies here
+]

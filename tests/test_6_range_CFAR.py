@@ -216,7 +216,8 @@ def tbd_test_FMCW_radar_equation():
 
 def tbd_test_FMCW_radar_equation_corner_reflector():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
+                  receiver=Receiver(adc_sample_rate=4e3,
+                                    adc_sample_count_max=2048),
                   debug=True)
 
     # adding RCS to ensure scatterers are detected ...
@@ -377,7 +378,8 @@ def tbd_test_FMCW_ADC_buffer_size():
 
 def tbd_test_FMCW_range_chirp_N():
     radar = Radar(transmitter=Transmitter(bw=3.5e9, slope=70e8),
-                  receiver=Receiver(adc_sample_rate=4e3, adc_sample_count_max=2048),
+                  receiver=Receiver(adc_sample_rate=4e3,
+                                    adc_sample_count_max=2048),
                   debug=False)
 
     scatterer1 = Scatterer(5.1)

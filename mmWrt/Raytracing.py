@@ -12,9 +12,9 @@ from numpy.typing import NDArray
 from numpy import float64, float32
 from numpy import complex64
 import numpy as np
-from typing import TypeVar
+from typing import TypeVar, List
 from .mylogs import auto_log, default_formatter, default_logger
-from .Scene import two_way_range
+from .Scene import two_way_range, Radar, Scatterer
 
 
 module_logger = logging.getLogger(__name__)
@@ -131,35 +131,38 @@ def sample_all_rays(adc_times,
 
     return adc_samples
 
+
 @auto_log
-def rt_points(radars, scatterers, receiver_radar,
-              radar_equation=False,
-              datatype=float32, debug=False,
+def rt_points(radars: List[Radar],
+              scatterers: List[Scatterer],
+              receiver_radar: Radar,
+              radar_equation: bool = False,
+              datatype: type = float32, debug: bool = False,
               disable_tqdm: bool = True,
               log: Logger = default_logger,
-              **raytracing_opt):
+              **raytracing_opt) -> dict:
     """ raytracing with points
 
     Parameters
     ----------
-    radars: List[Radar]
+    radars
         all the radars in the Raytracing scene (interferers, ...)
-    scatterers: List[Scatterer]
+    scatterers
         list of scatterers in the Scene
-    receiver_radar: Radar
+    receiver_radar
         instance of Radar for which the BB cube is computed.
         One of the radars in the scene.
         (renamed in 0.0.10 from radar)
-    radar_equation: bool
+    radar_equation
         if True includes the radar equation when computing the IF signal
         else ignores radar equation
-    datatype: Type
+    datatype
         type of data to be generate by rt: float16, float32, ... or complex
-    debug: bool
+    debug
         if True prints log messages
-    disable_tqdm: bool
+    disable_tqdm
         if True disables the tqdm output (for .ipynb cells)
-    raytracing_opt: dict
+    raytracing_opt
         compute: bool
             if True computes raytracing (use False for radar statistics tuning)
         T_start: float
@@ -169,13 +172,10 @@ def rt_points(radars, scatterers, receiver_radar,
             including own radar TX
     Returns
     -------
-    baseband: dict
+    dict
         dictonnary with adc values and other parameters used later in analysis
-        adc_cube[frame_idx, chirp_idx, None, rx_idx, adc_idx]
-    Raises
-    ------
-    ValueError
-        if Nyquist rule is not upheld
+        {"adc_cube": NDArray, "frame_count": int, "chirp_slope": float,}
+        adc_cube[frame_idx, chirp_idx, None, rx_idx, adc_idx]...
     """
     n_frames = receiver_radar.frame_count
     # n_chirps is the # chirps each TX antenna sends per frame
@@ -188,7 +188,7 @@ def rt_points(radars, scatterers, receiver_radar,
     bw = receiver_radar.bw
     adc_cube = zeros((n_frames, n_chirps, n_rx, adc_sample_count))\
         .astype(datatype)
-    f0_min, slope, Tc, T = 0, 0, 0, 0
+    f0_min, Tc, T = 0, 0, 0
 
     if radars is None:
         log.warning("future versions will not allow radars to be None")

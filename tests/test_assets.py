@@ -169,14 +169,15 @@ ddm_4chirps_0_half_pi = TransmitterDDM(chirp_start_freq=60e9,
                                              [0, phase_slope_half_pi]})
 
 
-ddm_vmax_2mps_32chirps = TransmitterDDM(chirp_start_freq=60e9,
-                                        chirp_slope=chirp_slope_tdm0,
-                                        chirp_end_time=chirp_end_time_vmax_2mps_2_antenna,
-                                        chirp_period=chirp_period_vmax_2mps,
-                                        antennas=[Antenna() for _ in range(2)],
-                                        chirp_count=32,
-                                        conf={"TX_phaser_slopes":
-                                              [0, phase_slope_half_pi]})
+ddm_vmax_2mps_32chirps = \
+    TransmitterDDM(chirp_start_freq=60e9,
+                   chirp_slope=chirp_slope_tdm0,
+                   chirp_end_time=chirp_end_time_vmax_2mps_2_antenna,
+                   chirp_period=chirp_period_vmax_2mps,
+                   antennas=[Antenna() for _ in range(2)],
+                   chirp_count=32,
+                   conf={"TX_phaser_slopes":
+                         [0, phase_slope_half_pi]})
 
 receiver0 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_sample_count=adc_samples_count_8)
@@ -185,8 +186,9 @@ receiver1 = Receiver(adc_sample_rate=adc_sampling_frequency_0,
                      adc_sample_count_max=1025,
                      adc_sample_count=adc_samples_count_1024)
 
-receiver_adc_sample_rate0_64adc = Receiver(adc_sample_rate=adc_sampling_frequency_0,
-                              adc_sample_count=adc_samples_count_64)
+receiver_adc_sample_rate0_64adc = \
+    Receiver(adc_sample_rate=adc_sampling_frequency_0,
+             adc_sample_count=adc_samples_count_64)
 
 receiver_dmax_25m = Receiver(adc_sample_rate=adc_sampling_frequency_0/3,
                              adc_sample_count=adc_samples_count_64)
@@ -288,6 +290,7 @@ scatterer_5p1m_radar1_bin_1 = 1
 scatterer_10p1m_radar1_bin_3 = 3
 
 scatterers = [scatterer_static_5p1m, scatterer_static_10p1m,
-           scatterer_linear_speed_5p1m_1mps, scatterer_linear_speed_10p1m_1mps,
-           scatterer_static_0]
+              scatterer_linear_speed_5p1m_1mps,
+              scatterer_linear_speed_10p1m_1mps,
+              scatterer_static_0]
 distances = [d_5p1m, d_10p1m, d_5p05m, d_0m, d_0m]

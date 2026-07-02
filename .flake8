@@ -1,3 +1,5 @@
 [flake8]
 exclude = .git,__pycache__,docs/source/conf.py,old,build,dist,.pytest_cache,.tox, docs/temp.py
 docstring_style=numpy
+per-file-ignores =
+    mmWrt/_version.py: E501

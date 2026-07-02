@@ -5,25 +5,30 @@ from numpy.fft import fft2, fftshift
 from scipy.fft import fft
 import matplotlib.pyplot as plt
 
+from mmWrt.Scene import Radar
 
-def plot_range_doppler(cube, radar, _d0=None, 
-                       _v0=None, 
-                       no_speed_shift=True,
-                       debug=False):
+
+def plot_range_doppler(cube: NDArray, radar: Radar,
+                       _d0: float | None = None,
+                       _v0: float | None = None,
+                       no_speed_shift: bool = True,
+                       debug: bool = False):
     """ Plots Range Doppler with axis labeled in SI
 
     Parameters
     -----------
-    cube: numpy array
+    cube:
         contains a 2D array with slow time and fast time samples
-    radar: Radar instance
+    radar:
         contains configuration values for displaying the range doppler
-    _d0: optional
+    _d0:
         if is not None, will be used in title for scatterer pos
-    _v0: optional
+    _v0:
         if is not None, will be used in title as scatterer speed
-    no_speed_shift: bool
+    no_speed_shift:
         if True does not do fftshift on the speeds
+    debug
+        if True shows the plot, otherwise returns the figure and data
 
     Returns
     -------
@@ -60,15 +65,18 @@ def plot_range_doppler(cube, radar, _d0=None,
         title = f"Range-Doppler  (d0, v0)={_d0}, {_v0:.2g}"
 
     if no_speed_shift:
-        ranges = arange(0, _adc_sample_rate*c/2/_k, _adc_sample_rate*c/2/_k/_NA)
+        ranges = arange(0, _adc_sample_rate*c/2/_k,
+                        _adc_sample_rate*c/2/_k/_NA)
         speeds = arange(0, _L0M/2/_TIC,
                         _L0M/2/_TIC/_NC)
         rdop = abs(fft2(cube))
     else:
         # if ranges could be negative
-        # ranges = arange(-_adc_sample_rate*c/8/_k, _adc_sample_rate*c/8/_k, _adc_sample_rate*c/4/_k/_NA)
+        # ranges = arange(-_adc_sample_rate*c/8/_k, _adc_sample_rate*c/8/_k,
+        #  _adc_sample_rate*c/4/_k/_NA)
         # but physics must prevail ...
-        ranges = arange(0, _adc_sample_rate*c/2/_k, _adc_sample_rate*c/2/_k/_NA)
+        ranges = arange(0, _adc_sample_rate*c/2/_k,
+                        _adc_sample_rate*c/2/_k/_NA)
         speeds = arange(-_L0M/4/_TIC, _L0M/4/_TIC,
                         _L0M/2/_TIC/_NC)
         # frequency shift the doppler axes as distances cannot be negative
@@ -101,15 +109,17 @@ def plot_range_doppler(cube, radar, _d0=None,
     return plot_details
 
 
-def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
-    """
+def plot_range_azimuth(cube: NDArray[np.complex128],
+                       radar: Radar) -> None:
+    """ plotting the range azimuth 2D FFT with axis labeled
+    standard units
+
     Parameters
     ----------
     cube
         (antenna count, adc sample count) a 2D array
-    Returns
-    -------
-    None
+    radar
+        Radar instance to allow labelling axes correctly
 
     Side Effects
     ------------
@@ -120,10 +130,10 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     _k = radar.slope
     _NA = cube.shape[1]
     NR = cube.shape[0]
-    _NC = radar.chirp_count
-    _TIC = radar.chirp_period
-    _f0_min = radar.f0_min
-    _L0M = c/_f0_min
+    # _NC = radar.chirp_count
+    # _TIC = radar.chirp_period
+    # _f0_min = radar.f0_min
+    # _L0M = c/_f0_min
 
     fast_time_axis = 1
     RX_antennas_axis = 0
@@ -141,10 +151,12 @@ def plot_range_azimuth(cube: NDArray[np.complex128], radar) -> None:
     no_labels_y = 5  # how many labels to see on axis x
     step_y = int(NR / (no_labels_y - 1))  # step between consecutive labels
     y_positions = arange(0, NR, step_y)  # pixel count at label position
-    y_labels = angles[::step_y]  # labels you want to see, FIXME: needs different formulas
+    # labels you want to see
+    # FIXME: needs different formula
+    y_labels = angles[::step_y]
     y_labels = [f"{v:.2g}" for v in y_labels]  # rounding up for easier dispaly
 
-    fig = plt.figure(figsize=(10, 6))
+    _ = plt.figure(figsize=(10, 6))
     no_labels = min(_NA, 10)  # how many labels to see on axis x
     step_x = int(_NA / (no_labels - 1))  # step between consecutive labels
 

@@ -8,11 +8,10 @@ import numpy as np
 from numpy import allclose, arange, array, concatenate, linspace
 
 from mmWrt.Scene import Antenna  # noqa: E402
-from test_assets import ddm_vmax_2mps_32chirps, phase_slope_half_pi, \
-    ddm_4chirps_0_half_pi, tdm_1chirp_8adc, radar_vibrate, \
+from mmWrt.mylogs import formatter_str
+from test_assets import ddm_4chirps_0_half_pi, tdm_1chirp_8adc, \
+    radar_vibrate, \
     scatterer_vibrate, tof_10p1m
-
-
 
 """adc_sample_count = 8
 NA = adc_sample_count
@@ -56,17 +55,17 @@ scatterer1 = Scatterer(xt=lambda t: 5.1+0*t,
 
 
 def test_tx_frequency_ramp_1_tx():
-    # check that the transmitter frequencies using default values match expected ones
+    # check that the transmitter frequencies using
+    # default values match expected ones
     radar = copy.deepcopy(tdm_1chirp_8adc)
     ramp_end_time = radar.ramp_end_time
-    # times is (timestamps, TX antenna count, Scatterer count, RX antenna count)
     times = linspace(0, ramp_end_time, 4)
     # test is for 1TX, 1 Scatterer, 1 RX
     # reshaping times
     times = times[:, None, None, None]
 
     logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+                        format=formatter_str)
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     txfs = radar.LO_freq(times)
 
@@ -80,7 +79,7 @@ def test_tx_frequency_ramp_1_tx():
     except Exception as ex:
         print("expected", expected)
         print("got", txfs)
-        raise
+        raise Exception(ex)
 
 
 def tbd_tx_frequency_ramp_2_tx_tdm0():
@@ -99,11 +98,13 @@ def tbd_tx_frequency_ramp_2_tx_tdm0():
     # since test is for 2TX, 1 Scatterer, 1 RX
     # reshaping times by appending on axis=1
     # axis=1 is the axis of TX antennas
-    times = concatenate([arange(0, ramp_end_time*4, ramp_end_time)[:, None, None, None],
-                         arange(0, ramp_end_time*4, ramp_end_time)[:, None, None, None]], axis=1)
+    times = concatenate([arange(0, ramp_end_time*4, ramp_end_time)
+                         [:, None, None, None],
+                         arange(0, ramp_end_time*4, ramp_end_time)
+                         [:, None, None, None]], axis=1)
 
     logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+                        format=formatter_str)
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     txfs = radar.LO_freq(times)
 
@@ -116,9 +117,12 @@ def tbd_tx_frequency_ramp_2_tx_tdm0():
     tx0_expected = array([6.00000000e+10, 6.00198020e+10,
                           6.00396040e+10, 6.00594059e+10])
     tx1_expected = np.zeros((4))
-    assert txfs.shape == (4, 2, 1, 1), f"Shape mismatch: got {txfs.shape}, expected {(4, 2, 1, 1)}"
-    assert allclose(tx0, tx0_expected, atol=1e-8), "antenna 0 TX frequencies does not match expected"
-    assert allclose(tx1, tx1_expected, atol=1e-8), "antenna 1 TX frequencies does not match expected"
+    assert txfs.shape == (4, 2, 1, 1), \
+        f"Shape mismatch: got {txfs.shape}, expected {(4, 2, 1, 1)}"
+    assert allclose(tx0, tx0_expected, atol=1e-8), \
+        "antenna 0 TX frequencies does not match expected"
+    assert allclose(tx1, tx1_expected, atol=1e-8), \
+        "antenna 1 TX frequencies does not match expected"
 
 
 def test_tx_frequency_ramp_2_tx_tdm1():
@@ -131,20 +135,23 @@ def test_tx_frequency_ramp_2_tx_tdm1():
     ramp_end_time = radar.ramp_end_time
     radar.antennas = array([Antenna(), Antenna()])
     radar.chirp_count = 1
-    radar.chirp_period = ramp_end_time * 2 # ~1.18e-5*2
+    radar.chirp_period = ramp_end_time * 2  # ~1.18e-5*2
     print("ramp_end_time", ramp_end_time)
-    print("linspace(0, ramp_end_time*2, 4)", arange(0, ramp_end_time*4, ramp_end_time))
+    print("linspace(0, ramp_end_time*2, 4)",
+          arange(0, ramp_end_time*4, ramp_end_time))
     # times is:
     # times = linspace(0, ramp_end_time, 4)
     # since test is for 2TX, 1 Scatterer, 1 RX
     # reshaping times by appending on axis=1
     # axis=1 is the axis of TX antennas
-    times = concatenate([arange(0, ramp_end_time*4, ramp_end_time)[:, None, None, None],
-                         arange(0, ramp_end_time*4, ramp_end_time)[:, None, None, None]],
-                         axis=1)
+    times = concatenate([arange(0, ramp_end_time*4, ramp_end_time)
+                         [:, None, None, None],
+                         arange(0, ramp_end_time*4, ramp_end_time)
+                         [:, None, None, None]],
+                        axis=1)
 
     logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+                        format=formatter_str)
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     txfs = radar.LO_freq(times)
 
@@ -157,24 +164,29 @@ def test_tx_frequency_ramp_2_tx_tdm1():
     # and the 2nd chirp is transmitted by TX1, with same values
     # just delayed in time
     tx1_expected = array([0, 0, 6.00000000e+10, 6.00594059e+10])
-    assert txfs.shape == (4, 2, 1, 1), f"Shape mismatch: got {txfs.shape}, expected {(4, 2, 1, 1)}"
-    assert allclose(tx0, tx0_expected, atol=1e-8), "antenna 0 TX frequencies does not match expected"
-    assert allclose(tx1, tx1_expected, atol=1e-8), "antenna 1 TX frequencies does not match expected"
-
+    assert txfs.shape == (4, 2, 1, 1), \
+        f"Shape mismatch: got {txfs.shape}, expected {(4, 2, 1, 1)}"
+    assert allclose(tx0, tx0_expected, atol=1e-8), \
+        "antenna 0 TX frequencies does not match expected"
+    assert allclose(tx1, tx1_expected, atol=1e-8), \
+        "antenna 1 TX frequencies does not match expected"
 
 
 def test_tx_frequency_ramp_2_tx_ddm():
-    # check that the transmitter frequencies using default values match expected ones
+    # check that the transmitter frequencies using
+    # default values match expected ones
     # when changing multiplexing from TDM to DDM
     #
     radar = copy.deepcopy(tdm_1chirp_8adc)
     ramp_end_time = radar.ramp_end_time
     radar.antennas = array([Antenna(), Antenna()])
-    times = concatenate([linspace(0, ramp_end_time, 4)[:, None, None, None],
-                         linspace(0, ramp_end_time, 4)[:, None, None, None]], axis=1)
+    times = concatenate([linspace(0, ramp_end_time, 4)
+                         [:, None, None, None],
+                         linspace(0, ramp_end_time, 4)
+                         [:, None, None, None]], axis=1)
 
     logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+                        format=formatter_str)
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     radar.multiplexing = "DDM"
     txfs = radar.LO_freq(times)
@@ -186,27 +198,33 @@ def test_tx_frequency_ramp_2_tx_ddm():
     tx1_expected = array([6.00000000e+10, 6.00198020e+10,
                           6.00396040e+10, 6.00594059e+10])
 
-    assert tx0.shape == tx0_expected.shape, f"Shape mismatch: got {tx0.shape}, expected {tx0_expected.shape}"
-    assert tx1.shape == tx1_expected.shape, f"Shape mismatch: got {tx1.shape}, expected {tx1_expected.shape}"
-    assert allclose(tx0, tx0_expected, atol=1e-8), "antenna TX0 frequencies does not match expected"
-    assert allclose(tx1, tx1_expected, atol=1e-8), "antenna TX1 frequencies does not match expected"
+    assert tx0.shape == tx0_expected.shape, \
+        f"Shape mismatch: got {tx0.shape}, expected {tx0_expected.shape}"
+    assert tx1.shape == tx1_expected.shape, \
+        f"Shape mismatch: got {tx1.shape}, expected {tx1_expected.shape}"
+    assert allclose(tx0, tx0_expected, atol=1e-8), \
+        "antenna TX0 frequencies does not match expected"
+    assert allclose(tx1, tx1_expected, atol=1e-8), \
+        "antenna TX1 frequencies does not match expected"
 
 
 def test_tx_frequency_out_of_ramp():
-    # set a simple TDM transmitter and check at 1 points inside the chirp that the freq is correct
+    # set a simple TDM transmitter and check at
+    # 1 points inside the chirp that the freq is correct
     # add a 2 points and one after and check the freq is 0 outside the chirp
     # from test_assets import tdm_1chirp_8adc
     radar = copy.deepcopy(tdm_1chirp_8adc)
     ramp_end_time = radar.ramp_end_time
-    times = linspace(-ramp_end_time, 2*ramp_end_time, 4)[:,None, None, None]
+    times = linspace(-ramp_end_time, 2*ramp_end_time, 4)[:, None, None, None]
 
     logging.basicConfig(level=logging.DEBUG,
-                        format="%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s")
+                        format=formatter_str)
     logging.getLogger("Transmitter").setLevel(logging.DEBUG)
     txfs = radar.LO_freq(times)
     tx0 = txfs[:, 0, 0, 0]
     tx0_expected = array([0, 0, 6.00594059e+10, 0])
-    assert allclose(tx0, tx0_expected, atol=1e-8), "antenna TX0 frequencies does not match expected"
+    assert allclose(tx0, tx0_expected, atol=1e-8), \
+        "antenna TX0 frequencies does not match expected"
 
 
 def test_transmitterTDM_phase():
@@ -219,7 +237,8 @@ def test_transmitterTDM_phase():
     expected = array([0, 0, 0, 0])
 
     assert tx_phis.shape == (4, 1, 1, 1)
-    assert allclose(tx_phis, expected, atol=1e-8), "TX0 phases not as expected"
+    assert allclose(tx_phis, expected, atol=1e-8), \
+        "TX0 phases not as expected"
 
 
 """@pytest.mark.parametrize("start_time, offset, tx_idx, phase", [
@@ -236,7 +255,7 @@ def test_transmitterDDM_phaser0_chirp0(start_time, offset, tx_idx, phase):
     tx_phis = ddm_4chirps_0_half_pi.TX_phases(times, tx_idx=tx_idx)
     expected = array([phase, phase, phase, phase]) #* pi
     assert tx_phis.shape == (4, 1, 1, 1)
-    assert allclose(tx_phis, expected, atol=1e-8)"""
+    assert allclose(tx_phis, expected, atol=1e-8)"""  # noqa: E501
 
 
 def tbd_LO_freq_64TX_64loops():
@@ -245,8 +264,8 @@ def tbd_LO_freq_64TX_64loops():
     # which crashes simulation
     from test_assets import radar_ura_64_TX_z
     radar = radar_ura_64_TX_z
-    ts = np.array([0])
-    times = np.zeros((1,64,1,64))  # (64, 64, 3, 64)
+    # ts = np.array([0])
+    times = np.zeros((1, 64, 1, 64))  # (64, 64, 3, 64)
     times = np.zeros((64, 64, 3, 64))
     # (1, 64, 1, 64)
     txfs = radar.LO_freq(times)
@@ -269,7 +288,7 @@ def test_tx_freq_frames():
     1.76e-06 1.77e-06 1.78e-06 1.79e-06 1.80e-06 1.81e-06 1.82e-06 1.83e-06]
     """
     f_mix_list = []
-    for frame_idx in [0,1]:
+    for frame_idx in [0, 1]:
         chirp_idx = 1
         adc_sample_count = radar.adc_sample_count
         # adc_sample_count = radar.adc_sample_count
@@ -283,7 +302,7 @@ def test_tx_freq_frames():
         timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=1)
         timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
         timestamp_tensor = np.repeat(timestamp_tensor,
-                                    1, axis=3)
+                                     1, axis=3)
 
         tx_freq = radar.LO_freq(timestamp_tensor)
         print("fTX", tx_freq.T)
@@ -299,37 +318,40 @@ def test_tx_freq_frames():
 def test_DDM_LO_TX_Freq():
     # check that TX_Freq generates the same good
     # frequency for both antennas in DDM
-    from test_assets import ddm_vmax_2mps_32chirps, chirp_end_time_8adc, tdm_1chirp_8adc
+    from test_assets import chirp_end_time_8adc
     ddm_transmitter = ddm_4chirps_0_half_pi  # ddm_4chirps_0_half_pi
     adc_times = np.array([0, chirp_end_time_8adc,
-                           1.1*chirp_end_time_8adc, 1.1*chirp_end_time_8adc+chirp_end_time_8adc])
+                          1.1*chirp_end_time_8adc,
+                          1.1*chirp_end_time_8adc+chirp_end_time_8adc])
     timestamp_tensor = adc_times[:, None, None, None]
     timestamp_tensor = np.repeat(timestamp_tensor, 2, axis=1)
     timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
     timestamp_tensor = np.repeat(timestamp_tensor,
-                                1, axis=3)
+                                 1, axis=3)
     tx_freq = ddm_transmitter.LO_freq(timestamp_tensor)
 
     expected_tx_freq = np.array([[[[6.00000000e+10]], [[6.00000000e+10]]],
-                                 [[[6.00594059e+10]],[[6.00594059e+10]]],
+                                 [[[6.00594059e+10]], [[6.00594059e+10]]],
                                  [[[6.00000000e+10]], [[6.00000000e+10]]],
-                                 [[[6.00594059e+10]],[[6.00594059e+10]]]])
+                                 [[[6.00594059e+10]], [[6.00594059e+10]]]])
     assert tx_freq.shape == expected_tx_freq.shape
     assert np.allclose(tx_freq, expected_tx_freq)
 
 
 def test_DDM_phasers():
     # check that each phaser has a different phase
-    from test_assets import ddm_4chirps_0_half_pi, chirp_end_time_8adc, tdm_1chirp_8adc
-    ddm_transmitter = ddm_4chirps_0_half_pi  # ddm_4chirps_0_half_pi
+    from test_assets import ddm_4chirps_0_half_pi, chirp_end_time_8adc
+    ddm_transmitter = ddm_4chirps_0_half_pi
     adc_times = np.array([0, chirp_end_time_8adc,
-                          1.1*chirp_end_time_8adc, 1.1*chirp_end_time_8adc+chirp_end_time_8adc,
-                          2.2*chirp_end_time_8adc, 2.2*chirp_end_time_8adc+chirp_end_time_8adc])
+                          1.1*chirp_end_time_8adc,
+                          1.1*chirp_end_time_8adc+chirp_end_time_8adc,
+                          2.2*chirp_end_time_8adc,
+                          2.2*chirp_end_time_8adc+chirp_end_time_8adc])
     timestamp_tensor = adc_times[:, None, None, None]
     timestamp_tensor = np.repeat(timestamp_tensor, 2, axis=1)
     timestamp_tensor = np.repeat(timestamp_tensor, 1, axis=2)
     timestamp_tensor = np.repeat(timestamp_tensor,
-                                1, axis=3)
+                                 1, axis=3)
     tx_phase = ddm_transmitter.TX_phases(timestamp_tensor)
 
     expected_tx_phase = np.array([[[[0]], [[0]]],

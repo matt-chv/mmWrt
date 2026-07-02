@@ -29,6 +29,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import to_rgba
 
+OUTPUT_FILE = "fmcw_tdm_mimo_adc_buffer.png"
+
 # ---------------------------------------------------------------------------
 # Module-level defaults — edit here to change the look globally
 # ---------------------------------------------------------------------------
@@ -56,16 +58,10 @@ DEFAULT_RX_HATCHES: dict[int, str] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _draw_cell(
-    ax: plt.Axes,
-    x: int,
-    y: int,
-    color: str,
-    hatch: str,
-    cell_alpha: float,
-    cell_linewidth: float,
-    hatch_color: str,
-) -> None:
+def _draw_cell(ax: plt.Axes, x: int,
+               y: int, color: str,
+               hatch: str, cell_alpha: float,
+               cell_linewidth: float, hatch_color: str) -> None:
     """Draw one FIFO cell (fill patch + hatch overlay) onto *ax*.
 
     Two ``FancyBboxPatch`` objects are stacked so that the hatch line
@@ -75,28 +71,23 @@ def _draw_cell(
 
     Parameters
     ----------
-    ax :
+    ax
         Axes to draw on.
-    x :
+    x
         Left edge of the cell in data coordinates.
-    y :
+    y
         Bottom edge of the cell in data coordinates.
-    color :
+    color
         CSS hex colour for the cell fill.
-    hatch :
+    hatch
         Matplotlib hatch string (``''`` for solid, ``'////'`` etc.).
-    cell_alpha :
-        Opacity of the fill patch (0–1).
-    cell_linewidth :
+    cell_alpha
+        Opacity of the fill patch [0. .. 1.].
+    cell_linewidth
         Width of the white cell border in points.
-    hatch_color :
+    hatch_color
         Colour of the hatch lines.
 
-    Raises
-    ------
-    ValueError
-        Propagated from ``matplotlib`` if *color* or *hatch_color* is
-        not a valid colour specification.
     """
     rgba = to_rgba(color, alpha=cell_alpha)
     box_style = "square,pad=0"
@@ -122,32 +113,27 @@ def _draw_cell(
     ax.add_patch(hatch_patch)
 
 
-def _add_legends(
-    ax: plt.Axes,
-    num_tx: int,
-    num_rx: int,
-    tx_colors: dict[int, str],
-    rx_hatches: dict[int, str],
-    cell_alpha: float,
-    hatch_color: str,
-) -> None:
+def _add_legends(ax: plt.Axes, num_tx: int,
+                 num_rx: int, tx_colors: dict[int, str],
+                 rx_hatches: dict[int, str], cell_alpha: float,
+                 hatch_color: str) -> None:
     """Attach TX-colour and RX-pattern legends outside the plot area.
 
     Parameters
     ----------
-    ax :
+    ax
         Axes that owns the legends.
-    num_tx :
+    num_tx
         Number of TX antennas.
-    num_rx :
+    num_rx
         Number of RX antennas.
-    tx_colors :
+    tx_colors
         Mapping ``{tx_index: hex_color}``.
-    rx_hatches :
+    rx_hatches
         Mapping ``{rx_index: hatch_string}``.
-    cell_alpha :
+    cell_alpha
         Alpha used for fill patches in the legend.
-    hatch_color :
+    hatch_color
         Colour of hatch lines in the legend.
     """
     tx_handles = [
@@ -192,19 +178,15 @@ def _add_legends(
     )
 
 
-def _draw_grid(
-    ax: plt.Axes,
-    num_adc_samples: int,
-    num_chirps: int,
-    tx_block_size: int,
-) -> None:
+def _draw_grid(ax: plt.Axes, adc_sample_count: int,
+               num_chirps: int, tx_block_size: int) -> None:
     """Draw cell borders and TX-block separator lines.
 
     Parameters
     ----------
     ax :
         Scatterer axes.
-    num_adc_samples :
+    adc_sample_count :
         Number of ADC samples (x-axis extent).
     num_chirps :
         Total number of chirp rows (y-axis extent).
@@ -212,7 +194,7 @@ def _draw_grid(
         Number of consecutive rows belonging to the same TX; a thicker
         line is drawn at every multiple of this value.
     """
-    for x in range(num_adc_samples + 1):
+    for x in range(adc_sample_count + 1):
         ax.axvline(x, color="white", linewidth=0.3, zorder=3)
     for y in range(num_chirps + 1):
         lw = 1.2 if y % tx_block_size == 0 else 0.3
@@ -223,19 +205,16 @@ def _draw_grid(
 # Public API
 # ---------------------------------------------------------------------------
 
-def tdm_mimo_adc_buffer(
-    num_tx: int = 4,
-    num_rx: int = 4,
-    num_adc_samples: int = 16,
-    tx_colors: dict[int, str] | None = None,
-    rx_hatches: dict[int, str] | None = None,
-    cell_alpha: float = 0.85,
-    hatch_color: str = "black",
-    hatch_linewidth: float = 0.6,
-    cell_linewidth: float = 0.4,
-    dpi: int = 180,
-    output_file: str = "fmcw_tdm_mimo_adc_buffer.png",
-) -> plt.Figure:
+def tdm_mimo_adc_buffer(num_tx: int = 4, num_rx: int = 4,
+                        adc_sample_count: int = 16,
+                        tx_colors: dict[int, str] | None = None,
+                        rx_hatches: dict[int, str] | None = None,
+                        cell_alpha: float = 0.85,
+                        hatch_color: str = "black",
+                        hatch_linewidth: float = 0.6,
+                        cell_linewidth: float = 0.4,
+                        dpi: int = 180,
+                        output_file: str = OUTPUT_FILE) -> plt.Figure:
     """Generate a FIFO-style ADC buffer diagram for TDM MIMO radar.
 
     In Time-Division Multiplexing MIMO, exactly one TX antenna is active
@@ -250,48 +229,44 @@ def tdm_mimo_adc_buffer(
 
     Parameters
     ----------
-    num_tx :
+    num_tx
         Number of TX antennas.
-    num_rx :
+    num_rx
         Number of RX antennas.
-    num_adc_samples :
+    adc_sample_count
         Number of ADC samples per chirp (x-axis width).
-    tx_colors :
+    tx_colors
         Mapping ``{tx_index: css_color}`` overriding
         ``DEFAULT_TX_COLORS``.  Must contain an entry for every TX index
         in ``range(num_tx)``.
-    rx_hatches :
+    rx_hatches
         Mapping ``{rx_index: hatch_string}`` overriding
         ``DEFAULT_RX_HATCHES``.  Must contain an entry for every RX
         index in ``range(num_rx)``.
-    cell_alpha :
+    cell_alpha
         Opacity of the fill colour (0 = transparent, 1 = opaque).
-    hatch_color :
+    hatch_color
         CSS colour for hatch lines.
-    hatch_linewidth :
+    hatch_linewidth
         Stroke width of hatch lines in points.
-    cell_linewidth :
+    cell_linewidth
         Stroke width of cell borders in points.
-    dpi :
+    dpi
         Resolution of the saved PNG.
-    output_file :
+    output_file
         Destination path for the PNG (relative or absolute).
+
+    Raises
+    ------
+    ValueError
+        If any of ``num_tx``, ``num_rx``, or ``adc_sample_count`` is
+        less than 1.
 
     Returns
     -------
     matplotlib.figure.Figure
         The completed figure (caller may call ``plt.show()`` or further
         customise before displaying).
-
-    Raises
-    ------
-    KeyError
-        If *tx_colors* is missing an entry for any TX index in
-        ``range(num_tx)``, or *rx_hatches* is missing an entry for any
-        RX index in ``range(num_rx)``.
-    ValueError
-        If *num_tx* or *num_rx* is less than 1, or *num_adc_samples*
-        is less than 1.
 
     Side Effects
     ------------
@@ -301,7 +276,7 @@ def tdm_mimo_adc_buffer(
 
     Examples
     --------
-    >>> fig = tdm_mimo_adc_buffer(num_tx=2, num_rx=2, num_adc_samples=4,
+    >>> fig = tdm_mimo_adc_buffer(num_tx=2, num_rx=2, adc_sample_count=4,
     ...                           dpi=72,
     ...                           output_file="/tmp/test_tdm.png")
     ... # doctest: +ELLIPSIS
@@ -309,9 +284,9 @@ def tdm_mimo_adc_buffer(
     >>> import os; os.path.exists("/tmp/test_tdm.png")
     True
     """
-    if num_tx < 1 or num_rx < 1 or num_adc_samples < 1:
+    if num_tx < 1 or num_rx < 1 or adc_sample_count < 1:
         raise ValueError(
-            "num_tx, num_rx, and num_adc_samples must each be >= 1."
+            "num_tx, num_rx, and adc_sample_count must each be >= 1."
         )
 
     colors = tx_colors if tx_colors is not None else DEFAULT_TX_COLORS
@@ -322,7 +297,7 @@ def tdm_mimo_adc_buffer(
 
     fig, ax = plt.subplots(figsize=(14, 9))
     ax.set_aspect("equal")
-    ax.set_xlim(0, num_adc_samples)
+    ax.set_xlim(0, adc_sample_count)
     ax.set_ylim(0, num_chirps)
     ax.invert_yaxis()   # row 0 at top → FIFO "oldest" at top
 
@@ -332,7 +307,7 @@ def tdm_mimo_adc_buffer(
         color = colors[tx_idx]
         hatch = hatches[rx_idx]
 
-        for sample_idx in range(num_adc_samples):
+        for sample_idx in range(adc_sample_count):
             _draw_cell(
                 ax, sample_idx, chirp_idx,
                 color, hatch,
@@ -340,10 +315,10 @@ def tdm_mimo_adc_buffer(
             )
 
     # x-axis
-    bit_w = (num_adc_samples - 1).bit_length()
-    ax.set_xticks(np.arange(0.5, num_adc_samples, 1))
+    bit_w = (adc_sample_count - 1).bit_length()
+    ax.set_xticks(np.arange(0.5, adc_sample_count, 1))
     ax.set_xticklabels(
-        [f"0b{i:0{bit_w}b}" for i in range(num_adc_samples)],
+        [f"0b{i:0{bit_w}b}" for i in range(adc_sample_count)],
         fontsize=7.5,
     )
     ax.set_xlabel(
@@ -371,7 +346,7 @@ def tdm_mimo_adc_buffer(
     _add_legends(
         ax, num_tx, num_rx, colors, hatches, cell_alpha, hatch_color,
     )
-    _draw_grid(ax, num_adc_samples, num_chirps, tx_block_size=num_rx)
+    _draw_grid(ax, adc_sample_count, num_chirps, tx_block_size=num_rx)
 
     plt.tight_layout()
     fig.savefig(output_file, dpi=dpi, bbox_inches="tight")

@@ -7,7 +7,7 @@ from numpy import all, array, exp, log2, ndarray, pi, real, stack, \
 from numpy import any as np_any, max as np_max
 from numpy.typing import NDArray
 from numpy import float32, float64, complex64, float16, int16, int32, int64
-from typing import TypeVar
+from typing import Type, TypeVar, List
 
 ERR_TARGET_T0 = "xyz<>xyzt(0)"
 ERR_TFFT_lte_TC = "TFFT should be shorter than TC"
@@ -194,26 +194,29 @@ class Scatterer():
 
 
 class Antenna:
-    def __init__(self, x=0.0, y=0.0, z=0.0, angle_gains_db10=zeros((360, 360)),
-                 f_min_GHz=60, f_max_GHz=64, freq_gains_db10=zeros(4)):
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0,
+                 angle_gains_db10: NDArray = zeros((360, 360)),
+                 f_min_GHz: float = 60,
+                 f_max_GHz: float = 64,
+                 freq_gains_db10: NDArray = zeros(4)):
         """ initialize antenna position and gains.
         Defaults to isotropic radiation pattern
 
         Parameters
         ----------
-        x: float
+        x
             x coordinate
-        y: float
+        y
             y coordinate
-        z: float
+        z
             z coordinate
-        angle_gains_db10: numpy array
+        angle_gains_db10
             2D array of (azimuth, elevation) gains in dB
-        f_min_GHz: float
+        f_min_GHz
             min frequency in GHz for which antennas is characterised
-        f_max_GHz: float
+        f_max_GHz
             min frequency in GHz for which antennas is characterised
-        freq_gains_db10: numpy array
+        freq_gains_db10
             linearly spaced antenna gains between f_min and f_max
         """
         self._log = logging.getLogger(self.__class__.__qualname__)
@@ -230,18 +233,18 @@ class Antenna:
         self.freq_gains_db10 = freq_gains_db10
         self.look_up = (f_max_GHz-f_min_GHz)/freq_gains_db10.shape[0]
 
-    def freq_gain_db10(self, freq):
+    def freq_gain_db10(self, freq: float) -> float:
         """ antenna gain at given frequency
 
         Parameters
         ----------
-        freq: float
+        freq
             frequency in Hertz
 
         Returns
         -------
-        gain_dB: float
-            gain in dB
+        float
+            gain_dB: gain in dB
 
         Raises
         ------
@@ -260,21 +263,22 @@ class Antenna:
         gain_db10 = self.freq_gains_db10[idx]
         return gain_db10
 
-    def gain(self, azimuth: float, elevation: float, freq: float) -> float:
+    def gain(self, azimuth: float,
+             elevation: float, freq: float) -> float:
         """ computes total antenna gain over elevation, aziumth and frequency
 
         Parameters
         ----------
-        azimuth: float
+        azimuth
             between -pi and pi value
-        elevation: float
+        elevation
             between -pi and pi value
-        freq: float
+        freq
             frequency at which antenna gain needs to be calculated
 
         Returns
         -------
-        overall_gain: float
+        float
             antenna gain at freq and given direction
         """
         azimuth_deg = int((azimuth+pi)*180/pi) % 360
@@ -289,12 +293,12 @@ class Antenna:
         Parameters
         ----------
         timestamp
-            the timestamps
+            the timestamps at which positions need to be returned
 
         Returns
         -------
-        position_t
-            (timestamps, 3)
+        NDArray
+            (timestamps, 3) positions in time
 
         Usage
         -----
@@ -375,36 +379,36 @@ class Transmitter():
                  chirp_start_freq: float = 60e9,
                  chirp_slope: float = 1e12,
                  chirp_end_time: float = 1e-6,
-                 antennas=[Antenna()],
-                 chirp_period=1e-6,
-                 chirp_count=1,
-                 frame_period=50e-3,
-                 frame_count=1,
+                 antennas: List[Antenna] = [Antenna()],
+                 chirp_period: float = 1e-6,
+                 chirp_count: int = 1,
+                 frame_period: float = 50e-3,
+                 frame_count: int = 1,
                  **kwargs):
         """Transmitter class models a radar transmitter
 
         Parameters
         ----------
-        chirp_start_freq: float
+        chirp_start_freq
             start frequency of the chirp
-        slope: float
+        chirp_slope
             the slope of the linearly growing chirp frequency in Hz/s
-        chirp_end_time: float
+        chirp_end_time
             time when the ramp ends (i.e. when f=f0_min + bw) in s
-        antennas: List[Antenna]
+        antennas
             transmitter Antennas instances
-        chirp_period: float
+        chirp_period
             time increment between two TX antennas sending a chirp
-        chirp_count: int
+        chirp_count
             The # chirps each TX antenna sends per frame
-        frame_period: float
+        frame_period
             time increment between end of last chirp in frame N-1 and
             first chirp in frame N (offset on top of
             chirp_period). If t_interframe==0, then there will be a
             single chirp_period offset.
-        frame_count: int
+        frame_count
             The number of iterations where each TX antennas send chirp_count
-        conf: dict
+        kwargs: dict
             additional optional parameters (reserved for future usage)
             includes mimo_mode = [TDM, DDM]
         """
@@ -460,7 +464,8 @@ class Transmitter():
                 return"""
 
     def LO_freq(self, timestamps: NDArray) -> NDArray:
-        """FIXME: this functions' description only describes the ToF use case,
+        """FIXME: this functions' description only
+        describes the ToF use case,
         not LO use case
 
         Returns for each TX->Scatterer->RX path the TX frequency
@@ -472,11 +477,17 @@ class Transmitter():
             (timestamps, TX antenna count, Scatterer count, RX antenna count)
             the timestamp at which ADC are sampling, the TX freq is then
             computed as timestamp-time_of_flight
+
+        Raises
+        ------
+        ValueError
+            if chirp_period is 0 and there are multiple chirps or antennas
+
         Returns
         --------
-        tx_frequencies
+        NDArray
             (timestamps, TX antenna count, Scatterer count, RX antenna count)
-            values at each timestamp of the TX freq for antenna
+            tx_frequencies values at each timestamp of the TX freq for antenna
             which can then be used to compute the tones on each RX antenna
             before mixing with LO to generate all the IF tones
         """
@@ -571,10 +582,16 @@ class Transmitter():
             if True, returns the phase at the phaser level
             (include LO phase noise + phaser)
             if False, only return the LO phase
+
+        Raises
+        ------
+        ValueError
+            if chirp_period is 0 and there are multiple chirps or antennas
+
         Returns
         --------
-        tx_phases
-            (T, TX, Scatterer, RX)
+        NDArray
+            (T, TX, Scatterer, RX) tx_phases
         """
         chirp_end_time = self.chirp_end_time
         chirp_period = self.chirp_period
@@ -722,7 +739,6 @@ class Radar:
         self.frame_count = transmitter.frame_count
         self.frame_period = transmitter.frame_period
 
-
         self.adc_sample_count = receiver.adc_sample_count
         self.adc_sample_rate = self.receiver.adc_sample_rate
 
@@ -788,7 +804,8 @@ class Radar:
             if self.wavelength:
                 self.velocity_max = self.wavelength / 2 \
                     / self.chirp_period/self.chirp_period
-                self.velocity_resolution = self.wavelength/2/self.chirp_period \
+                self.velocity_resolution = \
+                    self.wavelength/2/self.chirp_period \
                     - self.wavelength/4/self.chirp_period
             else:
                 self.velocity_max = None
@@ -849,10 +866,11 @@ class Radar:
             (T)
         f_rx
             (T, TX, S, RX)
-        Return
+
+        Returns
         ------
-        f_if
-            (T, TX, S, RX)
+        NDArray
+            (T, TX, S, RX) f_if
         """
         scatterer_shape = (timestamps.shape[0], f_rx.shape[1],
                            f_rx.shape[2], f_rx.shape[3])
@@ -864,12 +882,12 @@ class Radar:
 
         return f_if
 
-    def adc_sampling(self, f_if,
-                     adc_times,
-                     ph_rx,
+    def adc_sampling(self, f_if: NDArray,
+                     adc_times: NDArray,
+                     ph_rx: NDArray,
                      time_of_flight: NDArray[float64],
-                     radar_equation=False,
-                     datatype=complex64,
+                     radar_equation: bool = False,
+                     datatype: Type = complex64,
                      debug=False) -> NDArray[ADCType]:
         """ sampling the f_if signals at adc_times time stamp
         Parameters
@@ -880,10 +898,11 @@ class Radar:
             (timestamp, tx, scatters, rx)
         time_of_flight
             (timestamps,tx, scatterers, rx)
+
         Returns
         -------
-        YIF
-            (timestamps, rx_antenna_count)
+        NDArray[ADCType]
+            (timestamps, rx_antenna_count) YIF
         Raises
         ------
         ValueError
@@ -966,10 +985,15 @@ class Radar:
         return YIF
 
     def position_tx_antennas(self, timestamps) -> NDArray:
-        """
+        """ return the position of the antennas in time
+
+        Parameters
+        ----------
+        timestamps
+            the timestamps at which positions need to be returned
         Returns
         -------
-        positions_t:
+        NDArray
             (timestamps, antenna_count, 3)
         """
         # (T, N_ant, 3)
@@ -978,12 +1002,18 @@ class Radar:
         return positions_t
 
     def position_rx_antennas(self, timestamps) -> NDArray:
-        """
+        """ return the position of the antennas in time
+
+        Parameters
+        ----------
+        timestamps
+            the timestamps at which positions need to be returned
         Returns
         -------
-        positions_t:
+        NDArray
             (timestamps, antenna_count, 3)
         """
+
         positions_t = stack([ant.position_in_time(timestamps)
                              for ant in self.rx_antennas], axis=1)
         return positions_t
