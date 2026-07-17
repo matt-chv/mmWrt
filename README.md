@@ -21,7 +21,7 @@ for install for developpers:
 
 ### Released
 
-v0.0.14 (next):
+v0.0.15 (next):
     
     - TODO:
         - define a chirp properties (chirp_slope, chirp_start_frequency, chirp_end_time) on chirp_idx
@@ -33,12 +33,16 @@ v0.0.14 (next):
         - adding adc_sampling_start_time=0
         - add ditherring support
         - add pcl (x,y,z,v,A,noise)
-    - FIXME:
         - Precision.ipynb (carry over from v0.0.11)
         - remove all default values in the radar transceiver and resceiver definitions
         - Precision.ipynb is totally broken: calls rsp.frequency_estimator which is an empty wrapper
             1. need to add pytests for frequency_estimator for fft, quinn2
             - > requires more work than v0.0.11 -> moving this to v0.014
+
+* v0.0.14
+    - FIXME:
+        - !!!!! cfar_ca_1d, cfar_1d obsoleted in v0.0.12 ,breaks things !!!!!!
+
 
 * v0.0.13: should have been v0.0.12 but error in versionning when uploaded to pypi
 

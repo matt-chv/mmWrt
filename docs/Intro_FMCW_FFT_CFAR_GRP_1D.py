@@ -33,10 +33,9 @@ scatterer2 = Scatterer(2, 0, 0, vx=lambda t: 2*t+3)
 bb = rt_points(radar, [scatterer1, scatterer2], debug=debug_ON)
 # data_matrix = bb['adc_cube'][0][0][0]
 Distances, range_profile = rsp.range_fft(bb)
-ca_cfar = rsp.cfar_ca_1d(range_profile)
-
-range_profile = range_profile
-ca_cfar = ca_cfar
+mag_r = abs(range_profile)
+ca_cfar = rsp.cfar_ca(mag_r, train_cell_count=10,
+                      guard_cell_count=1, pfa=1e-1)
 
 mag_r = abs(range_profile)
 mag_c = abs(ca_cfar)

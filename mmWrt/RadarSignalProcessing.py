@@ -486,6 +486,25 @@ def cfar_ca(fft_values: np.ndarray,
             train_cell_count: int,
             pfa: float,
             debug: bool = False) -> np.ndarray:
+    """ CFAR CA function
+    Parameters
+    ----------
+    fft_values
+        Array of FFT values
+    guard_cell_count
+        Number of guard cells
+    train_cell_count
+        Number of training cells
+    pfa
+        Probability of false alarm
+    debug
+        Whether to enable debug mode
+
+    Returns
+    -------
+    np.ndarray
+        Array of CFAR thresholds
+    """
 
     threshold_factor = cfar_alpha(train_cell_count, pfa)
 

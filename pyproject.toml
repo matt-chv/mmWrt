@@ -46,14 +46,15 @@ optional-dependencies.dev = [
   "sphinx-rtd-theme",
   "sympy",
   "tox",
+  "tqdm",
   "twine",
   "validate-pyproject",
   "wheel"
 ]
 urls.Documentation = "https://mmwrt.readthedocs.io/"
-urls.Homepage = "https://github.com/matt-chv/mmWrt"
-urls.Issues = "https://github.com/matt-chv/mmWrt/issues"
-urls.Repository = "https://github.com/matt-chv/mmWrt.git"
+urls.Homepage = "https://codeberg.org/matt-chv/mmWrt"
+urls.Issues = "https://codeberg.org/matt-chv/mmWrt/issues"
+urls.Repository = "https://codeberg.org/matt-chv/mmWrt.git"
 
 [tool.setuptools]
 packages = [ "mmWrt" ]

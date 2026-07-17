@@ -15,8 +15,11 @@ from mmWrt.Raytracing import rt_points  # noqa: E402
 from mmWrt.Scene import Radar, Transmitter, Receiver, Scatterer  # noqa: E402
 from mmWrt import RadarSignalProcessing as rsp  # noqa: E402
 
+import logging
+logging.getLogger().setLevel(logging.CRITICAL)
+
 c = 3e8
-debug_code = False
+debug_code = True
 
 scatterer1 = Scatterer(5.1)
 
@@ -25,9 +28,7 @@ config = {"bw": "?", "adc_sample_rate": "?", "error": "?"}
 
 bws = arange(30, 40)*1e8
 slopes = arange(1, 10)*1e12
-adc_sample_rates = arange(1, 100)*1e6
-
-print(len(bws))
+adc_sample_rates = arange(1, 100)*1e5  # intentionally small lower bound
 
 with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
     for bw in bws:
@@ -41,6 +42,7 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
                     transmitter = Transmitter(chirp_end_time=chirp_end_time,
                                               chirp_slope=slope)
                     receiver0 = Receiver(adc_sample_rate=adc_sample_rate,
+                                         adc_sample_rate_max=adc_sample_rate+1,
                                          adc_sample_count=32)
 
                     radar = Radar(transmitter=transmitter,
@@ -51,25 +53,30 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
                     Distances, range_profile = rsp.range_fft(bb["adc_cube"]
                                                              [0, 0, 0, :], bb)
                     Distances = Distances/2
-                    ca_cfar = rsp.cfar_ca_1d(range_profile)
+
+                    cfar_ca = rsp.cfar_ca(range_profile, train_cell_count=5,
+                                          guard_cell_count=1, pfa=1e-6)
+
                     mag_r = np_abs(range_profile)
-                    mag_c = np_abs(ca_cfar)
+                    mag_c = np_abs(cfar_ca)
 
                     # little hack to remove small FFT ripples : mag_r> 5
                     scatterer_filter = ((mag_r > mag_c) & (mag_r > 5))
 
                     index_peaks = where(scatterer_filter)[0]
-                    grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+                    if index_peaks.size > 0:
+                        grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
 
-                    found_scatterers = [Scatterer(Distances[i])
-                                        for i in grouped_peaks]
-                    error = rsp.error([scatterer1], found_scatterers)
-                    # print("error", error)
-                    if error < min_error:
-                        min_error = error
-                        config = {"bw": bw, "adc_sample_rate": adc_sample_rate,
-                                  "slope": slope,
-                                  "error": error}
+                        found_scatterers = [Scatterer(Distances[i])
+                                            for i in grouped_peaks]
+                        error = rsp.error([scatterer1], found_scatterers)
+                        # print("error", error)
+                        if error < min_error:
+                            min_error = error
+                            config = {"bw": float(bw),
+                                      "adc_sample_rate": float(adc_sample_rate),
+                                      "slope": float(slope),
+                                      "error": float(error)}
                 except Exception as ex:
                     if debug_code:
                         print(str(ex))
