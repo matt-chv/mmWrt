@@ -16,30 +16,33 @@ sys.path.insert(0, dp)
 dpi = abspath(join(__file__, pardir, pardir, "docs"))
 
 from mmWrt import __version__  # noqa: E402
-print(19, __version__)
+
 
 @pytest.fixture(params=sorted(Path(dpi).glob("*.ipynb")), ids=lambda p: p.name)
 def notebook_path(request):
     return request.param
 
-@pytest.mark.skipif(__version__.find(".dev") >= 0, reason="only 4 full release")
+
+@pytest.mark.skipif(__version__.find(".dev") >= 0,
+                    reason="only 4 full release")
 def test_ipynb(notebook_path):
     print("???????", notebook_path)
     with open(notebook_path) as f:
         print("#####", notebook_path.name)
         to_ignore = ["Chirp_Solver.ipynb",
-                              "Resolution.ipynb", 
-                              # this one is broken - needs fixing
-                              "Precision.ipynb",
-                              "FMCW-Radar-107_Micro-Doppler.ipynb",
-                              # this one is just for illustration, not for testing
-                              "FMCW-Radar-109_Radar_Cube.ipynb",
-                              "FMCW-Radar-201_Maths.ipynb",
-                              # dont run this one, it breaks pip installs
-                              "FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb"]
+                     "Resolution.ipynb",
+                     # this one is broken - needs fixing
+                     "Precision.ipynb",
+                     "FMCW-Radar-107_Micro-Doppler.ipynb",
+                     # this one is just for illustration, not for testing
+                     "FMCW-Radar-109_Radar_Cube.ipynb",
+                     "FMCW-Radar-201_Maths.ipynb",
+                     # dont run this one, it breaks pip installs
+                     "FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb"]
         to_ignore = [Path(r) for r in to_ignore]
         # runs = ["Angle_of_Arrival.ipynb"]
-        """runs = ["Angle_of_Arrival.ipynb","FMCW-Radar-100_Radar_Imaging.ipynb",
+        """runs = ["Angle_of_Arrival.ipynb",
+                   "FMCW-Radar-100_Radar_Imaging.ipynb",
                 "FMCW-Radar-101_Intro.ipynb", "FMCW-Radar-102_CFAR.ipynb",
                 "FMCW-Radar-102_CFAR.ipynb", "FMCW-Radar-103_AoA.ipynb",
                 "FMCW-Radar-104_Freq_est.ipynb",
@@ -59,9 +62,8 @@ def test_ipynb(notebook_path):
         runs = [Path(r) for r in runs]"""
 
         if notebook_path.name in [r.name for r in to_ignore]:
-            pytest.skip(f"Skipping1 {notebook_path.name} as it is in the ignored list")
-        # if notebook_path.name not in [r.name for r in runs]:
-        #    pytest.skip(f"Skipping2 {notebook_path.name} as it is not in the runs list")
+            pytest.skip(f"Skipping1 {notebook_path.name}",
+                        "as it is in the ignored list")
         nb = nbformat.read(f, as_version=4)
         client = NotebookClient(nb, kernel_name='python3')
         try:
@@ -96,7 +98,7 @@ def tbd_ipynb(dp=None):
                 #                "Speed.ipynb", "Precision.ipynb",
                 #                "micro_doppler.ipynb"]
                 to_ignored = ["Chirp_Solver.ipynb",
-                              "Resolution.ipynb", 
+                              "Resolution.ipynb",
                               "FMCW-Radar-107_Micro-Doppler.ipynb",
                               # dont run this one, it breaks pip installs
                               "FMCW-Radar-205_mmWave_Atmospheric_Absorption.ipynb"]
@@ -112,6 +114,3 @@ def tbd_ipynb(dp=None):
                         raise Exception(ex)
                 else:
                     print("skipping", fp)
-
-if __name__ == "__main__":
-    test_ipynb(notebook_path)

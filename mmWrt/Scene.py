@@ -923,7 +923,7 @@ class Radar:
         adc_sampling_frequency = self.adc_sample_rate
         if (fif_max * 2 > adc_sampling_frequency) and (fif_max < 1e9):
             self._log.info("some scatterers seem to be above Nyquist,"
-                               "they'll be filtered out. Inteferers?")
+                           "they'll be filtered out. Inteferers?")
 
         self._log.debug(f"f_if: {f_if[:8]}")
         if debug:

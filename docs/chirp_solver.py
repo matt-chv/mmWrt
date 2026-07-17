@@ -65,7 +65,8 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
 
                     index_peaks = where(scatterer_filter)[0]
                     if index_peaks.size > 0:
-                        grouped_peaks = rsp.peak_grouping_1d(index_peaks, mag_r)
+                        grouped_peaks = rsp.peak_grouping_1d(index_peaks,
+                                                             mag_r)
 
                         found_scatterers = [Scatterer(Distances[i])
                                             for i in grouped_peaks]
@@ -74,7 +75,8 @@ with tqdm(total=len(bws) * len(slopes) * len(adc_sample_rates)) as pbar:
                         if error < min_error:
                             min_error = error
                             config = {"bw": float(bw),
-                                      "adc_sample_rate": float(adc_sample_rate),
+                                      "adc_sample_rate":
+                                          float(adc_sample_rate),
                                       "slope": float(slope),
                                       "error": float(error)}
                 except Exception as ex:

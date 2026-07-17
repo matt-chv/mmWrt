@@ -41,8 +41,7 @@ def coverage_flake8():
         error_count = 0
 
     # 2. Define badge thresholds and colors
-    # 0 errors = green, 1-5 = orange, >5 = red
-    thresholds = {1: 'green', 5: 'yellow', 6: 'orange', 10: 'red'}
+    thresholds = {10: 'green', 20: 'yellow', 30: 'orange', 50: 'red'}
 
     badge = Badge(
         label='flake8',

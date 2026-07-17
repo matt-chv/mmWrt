@@ -1,13 +1,25 @@
-Name                             Stmts   Miss  Cover   Missing
---------------------------------------------------------------
-mmWrt\RadarSignalProcessing.py     128     33    74%   269, 274-280, 289-291, 349-361, 379-382, 410-424
-mmWrt\Raytracing.py                 90      0   100%
-mmWrt\Scene.py                     159      0   100%
-mmWrt\__init__.py                    1      0   100%
-tests\test_AoA.py                   35      0   100%
-tests\test_docs.py                  25      0   100%
-tests\test_nb.py                     0      0   100%
-tests\test_range_CFAR.py           220      0   100%
-tests\test_range_doppler.py         36      0   100%
---------------------------------------------------------------
-TOTAL                              694     33    95%
+Name                                           Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------------
+mmWrt\RadarSignalProcessing.py                   297    102    66%   58-84, 116-135, 316-319, 321-330, 435-436, 467-468, 510-578, 611-623, 641-644, 672-686
+mmWrt\Raytracing.py                               74      1    99%   194
+mmWrt\Scene.py                                   391     63    84%   105-108, 121-124, 133-136, 148-151, 165, 190, 193, 254-264, 284-289, 320, 353-357, 440-444, 501, 510, 552, 602, 639, 673, 784-786, 811-812, 839-841, 845-851, 930, 933-934, 952, 979, 981-984
+mmWrt\__init__.py                                  4      2    50%   3-4
+mmWrt\_version.py                                 11      0   100%
+mmWrt\mylogs.py                                   13      0   100%
+tests\conftest.py                                  4      0   100%
+tests\test_1_TX.py                               154     28    82%   79-82, 91-124, 265-272
+tests\test_2_distance.py                          47      0   100%
+tests\test_3_RX_RF.py                             11      0   100%
+tests\test_4_MIX.py                               48      0   100%
+tests\test_5_IF_ADC.py                            38     12    68%   420-436
+tests\test_6_range_CFAR.py                       307    172    44%   31, 157-185, 189-216, 220-250, 258-284, 288-313, 317-320, 324-332, 336-345, 349-367, 371-380, 384-402, 406-432, 436-455, 459-464, 470-486
+tests\test_7_rsp_range.py                         28      8    71%   59-78
+tests\test_8_rsp_range_doppler.py                 65     13    80%   62-64, 74-76, 80-88
+tests\test_9_rsp_AoA.py                           32      0   100%
+tests\test_10_rsp_pcl.py                          52     10    81%   25-34, 96-100
+tests\test_11_rsp_interference_mitigation.py      36      0   100%
+tests\test_assets.py                             126      0   100%
+tests\test_docs.py                                50     34    32%   23, 29-73, 89-116
+tests\test_nb.py                                   0      0   100%
+----------------------------------------------------------------------------
+TOTAL                                           1788    445    75%

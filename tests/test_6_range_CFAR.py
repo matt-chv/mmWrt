@@ -168,8 +168,9 @@ def tbd_test_FMCW_1j():
                    debug=False)
     adc_cube = bb['adc_cube']
     Distances, range_profile = rsp.range_fft(adc_cube, bb)
-    ca_cfar = rsp.cfar_ca(abs(range_profile), train_cell_count=10,
-                             guard_cell_count=1, pfa=1e-1)
+    ca_cfar = rsp.cfar_ca(abs(range_profile),
+                          train_cell_count=10,
+                          guard_cell_count=1, pfa=1e-1)
 
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
@@ -201,7 +202,7 @@ def tbd_test_FMCW_radar_equation():
     adc_cube = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(adc_cube, bb)
     ca_cfar = rsp.cfar_ca(abs(range_profile), train_cell_count=10,
-                             guard_cell_count=1, pfa=1e-1)
+                          guard_cell_count=1, pfa=1e-1)
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
@@ -233,7 +234,7 @@ def tbd_test_FMCW_radar_equation_corner_reflector():
     adc_cube = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(adc_cube, bb)
     ca_cfar = rsp.cfar_ca(abs(range_profile), train_cell_count=10,
-                             guard_cell_count=1, pfa=1e-1)
+                          guard_cell_count=1, pfa=1e-1)
 
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
@@ -268,7 +269,7 @@ def tbd_test_FMCW_real_adc_po2():
     data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(data_matrix, bb)
     ca_cfar = rsp.cfar_ca(abs(range_profile), train_cell_count=10,
-                             guard_cell_count=1, pfa=1e-1)
+                          guard_cell_count=1, pfa=1e-1)
 
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
@@ -298,7 +299,7 @@ def tbd_test_FMCW_real_error():
     data_matrix = bb['adc_cube'][0][0][0]
     Distances, range_profile = rsp.range_fft(data_matrix, bb)
     ca_cfar = rsp.cfar_ca(abs(range_profile), train_cell_count=10,
-                             guard_cell_count=1, pfa=1e-1)
+                          guard_cell_count=1, pfa=1e-1)
     mag_r = abs(range_profile)
     mag_c = abs(ca_cfar)
     # little hack to remove small FFT ripples : mag_r> 5
