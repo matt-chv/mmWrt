@@ -41,6 +41,7 @@ optional-dependencies.dev = [
   "pyroma",
   "pytest",
   "recommonmark",
+  "setuptools-scm[toml]>=6.2",
   "sphinx",
   "sphinx-markdown-builder",
   "sphinx-rtd-theme",

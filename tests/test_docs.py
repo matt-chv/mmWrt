@@ -16,12 +16,12 @@ sys.path.insert(0, dp)
 dpi = abspath(join(__file__, pardir, pardir, "docs"))
 
 from mmWrt import __version__  # noqa: E402
+print(19, __version__)
 
 @pytest.fixture(params=sorted(Path(dpi).glob("*.ipynb")), ids=lambda p: p.name)
 def notebook_path(request):
     return request.param
 
-@pytest.mark.skipif(__version__.find("-rc") >= 0, reason="only 4 full release")
 @pytest.mark.skipif(__version__.find(".dev") >= 0, reason="only 4 full release")
 def test_ipynb(notebook_path):
     print("???????", notebook_path)
